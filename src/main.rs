@@ -44,7 +44,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 println!(
                     r#""{j}","{gap}","{subnet_cidr}","{broadcast}({az_hosts}vm)","{subnet_name}","{subscription_name}","{vnet_cidr}","{vnet_name}","{location}","{nsg}","{dns}","{subscription_id}""#,
                     j = i + 1,
-                    gap = s.gap.as_ref().unwrap_or(&"None".to_string()),
+                    gap = "None", // Subnet missing cidr
                     subnet_name = s.subnet_name,
                     subnet_cidr = "none",
                     broadcast = "none",
@@ -99,13 +99,18 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 broadcast = next_ip_broadcast.addr,
                 az_hosts = azure_graph::ipv4::num_az_hosts(next_ip.mask)?,
                 subnet_name = "None",
-                vnet_name = "None",
-                vnet_cidr = "None",
+                vnet_name = s.vnet_name,
+                vnet_cidr = s
+                    .vnet_cidr
+                    .iter()
+                    .map(|ip| ip.to_string())
+                    .collect::<Vec<String>>()
+                    .join(","),
                 location = "None",
                 nsg = "None",
                 dns = "None",
-                subscription_name = "None",
-                subscription_id = "None",
+                subscription_name = s.subscription_name,
+                subscription_id = s.subscription_id,
             );
             //
             // Trap gaps that are rolling into next subnet or out of vnet.
@@ -140,7 +145,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         println!(
             r#""{j}","{gap}","{subnet_cidr}","{broadcast}({az_hosts}vm)","{subnet_name}","{subscription_name}","{vnet_cidr}","{vnet_name}","{location}","{nsg}","{dns}","{subscription_id}""#,
             j = i + 1,
-            gap = s.gap.as_ref().unwrap_or(&"None".to_string()),
+            gap = s.gap.as_ref().unwrap_or(&format!("Sub{}", s.src_index)),
             subnet_name = s.subnet_name,
             subnet_cidr = subnet_cidr,
             broadcast = azure_graph::ipv4::broadcast_addr_ipv4(subnet_cidr)?.addr,

@@ -44,6 +44,9 @@ pub struct Subnet {
     pub subscription_name: String,
     // Fill value to gap if we create new subnet
     pub gap: Option<String>,
+    // Serde field to ignore and set default value
+    #[serde(skip)]
+    pub src_index: i32,
 }
 
 pub fn run_az_cli_graph() -> Result<Data, Box<dyn std::error::Error>> {
@@ -51,6 +54,7 @@ pub fn run_az_cli_graph() -> Result<Data, Box<dyn std::error::Error>> {
     let mut data: Data = Default::default();
     let mut skip_token_param: String = "".to_string();
     let mut count_blocks_returned = 0;
+    let mut src_index = 0; // save index count of record returned from 0..
     while skip_token_param != "--skip-token null".to_string() {
         count_blocks_returned += 1;
         let output = cmd::run(&format!(
@@ -79,7 +83,7 @@ pub fn run_az_cli_graph() -> Result<Data, Box<dyn std::error::Error>> {
         let mut json_block_deserializer = serde_json::Deserializer::from_str(&output);
         let json_block_results: Result<Data, serde_path_to_error::Error<serde_json::Error>> =
             serde_path_to_error::deserialize(&mut json_block_deserializer);
-        let object = match json_block_results {
+        let block = match json_block_results {
             Ok(d) => d,
             Err(e) => {
                 let json_path = e.path().to_string();
@@ -90,15 +94,15 @@ pub fn run_az_cli_graph() -> Result<Data, Box<dyn std::error::Error>> {
                 );
             }
         };
-        // let object: Data = serde_json::from_str(&output).expect(&format!(
+        // let block: Data = serde_json::from_str(&output).expect(&format!(
         //     "Error parsing json block {}: \nOUTPUT: \n...\n{}\n",
         //     count_blocks_returned,
         //     &output[output.len() - 400..]
         // ));
-        // retrieve skip_token from object
-        let skip_token_new = object.skip_token.unwrap_or("null".to_string());
+        // retrieve skip_token from block
+        let skip_token_new = block.skip_token.unwrap_or("null".to_string());
         skip_token_param = format!("--skip-token {skip_token_new}",);
-        let count = object.count;
+        let count = block.count;
         log::info!(
             "got block {block:3} record_count = {dc:3} + {obj_count:3} skip_token_param='{skip_token_snippit}'",
             block = count_blocks_returned,
@@ -106,15 +110,19 @@ pub fn run_az_cli_graph() -> Result<Data, Box<dyn std::error::Error>> {
             obj_count = count,
             skip_token_snippit = format!("{}...{}", &skip_token_param[0..16], &skip_token_param[skip_token_param.len() - 3..]),
         );
-        data.data.extend(object.data);
+        data.data.extend(block.data.into_iter().map(|mut s| {
+            s.src_index = src_index as i32;
+            src_index += 1;
+            s
+        }));
         data.count = data.count + count;
-        if let Some(total_records) = object.total_records {
+        if let Some(total_records) = block.total_records {
             data.total_records = Some(total_records);
         }
     }
     // let mut json_vec = cmd::string_to_json_vec_map(&output)?;
     log::info!(
-        "Got data #{} == {} records from az graph query",
+        "Got data #{} == {} records from az graph query, index={src_index}",
         data.count,
         data.data.len()
     );

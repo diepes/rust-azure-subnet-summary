@@ -1,7 +1,7 @@
 // cargo watch -x 'fmt' -x 'run'  // 'run -- --some-arg'
 
-mod graph_read_subnet_data;
 mod cmd;
+mod graph_read_subnet_data;
 pub mod ipv4;
 //mod read_csv;
 mod write_banner;
