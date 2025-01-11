@@ -1,0 +1,403 @@
+[
+  {
+    "additionalCapabilities": null,
+    "applicationProfile": null,
+    "availabilitySet": null,
+    "billingProfile": null,
+    "capacityReservation": null,
+    "diagnosticsProfile": {
+      "bootDiagnostics": {
+        "enabled": true,
+        "storageUri": "https://tmdiagtestsyd01.blob.core.windows.net/"
+      }
+    },
+    "evictionPolicy": null,
+    "extendedLocation": null,
+    "extensionsTimeBudget": null,
+    "fqdns": "vm-dev-data01.australiaeast.cloudapp.azure.com",
+    "hardwareProfile": {
+      "vmSize": "Standard_B2ms",
+      "vmSizeProperties": null
+    },
+    "host": null,
+    "hostGroup": null,
+    "id": "/subscriptions/56789012-0123-4567-8901-012345678901/resourceGroups/TEST-ENV-AUS-RG/providers/Microsoft.Compute/virtualMachines/fake-vm-01",
+    "identity": null,
+    "licenseType": "Windows_Client",
+    "location": "australiaeast",
+    "macAddresses": "00-0D-3A-6A-83-B9",
+    "name": "fake-vm-01",
+    "networkProfile": {
+      "networkApiVersion": null,
+      "networkInterfaceConfigurations": null,
+      "networkInterfaces": [
+        {
+          "deleteOption": null,
+          "id": "/subscriptions/56789012-0123-4567-8901-012345678901/resourceGroups/test-env-AUS-rg/providers/Microsoft.Network/networkInterfaces/fake-vm-01251",
+          "primary": null,
+          "resourceGroup": "test-env-AUS-rg"
+        }
+      ]
+    },
+    "osProfile": {
+      "adminPassword": null,
+      "adminUsername": "vm-dev-data-admin",
+      "allowExtensionOperations": true,
+      "computerName": "vm-dev-data01-s",
+      "customData": null,
+      "linuxConfiguration": null,
+      "requireGuestProvisionSignal": true,
+      "secrets": [],
+      "windowsConfiguration": {
+        "additionalUnattendContent": null,
+        "enableAutomaticUpdates": true,
+        "enableVmAgentPlatformUpdates": null,
+        "patchSettings": {
+          "assessmentMode": "ImageDefault",
+          "automaticByPlatformSettings": null,
+          "enableHotpatching": null,
+          "patchMode": "AutomaticByOS"
+        },
+        "provisionVmAgent": true,
+        "timeZone": null,
+        "winRm": null
+      }
+    },
+    "plan": null,
+    "platformFaultDomain": null,
+    "powerState": "VM running",
+    "priority": null,
+    "privateIps": "172.16.254.196",
+    "provisioningState": "Succeeded",
+    "proximityPlacementGroup": null,
+    "publicIps": "20.188.203.7",
+    "resourceGroup": "TEST-ENV-AUS-RG",
+    "resources": [
+      {
+        "autoUpgradeMinorVersion": true,
+        "enableAutomaticUpgrade": null,
+        "forceUpdateTag": null,
+        "id": "/subscriptions/56789012-0123-4567-8901-012345678901/resourceGroups/TEST-ENV-AUS-RG/providers/Microsoft.Compute/virtualMachines/fake-vm-01/extensions/AzureNetworkWatcherExtension",
+        "instanceView": null,
+        "location": "australiaeast",
+        "name": "AzureNetworkWatcherExtension",
+        "protectedSettings": null,
+        "protectedSettingsFromKeyVault": null,
+        "provisioningState": "Succeeded",
+        "publisher": "Microsoft.Azure.NetworkWatcher",
+        "resourceGroup": "TEST-ENV-AUS-RG",
+        "settings": {},
+        "suppressFailures": null,
+        "tags": null,
+        "type": "Microsoft.Compute/virtualMachines/extensions",
+        "typeHandlerVersion": "1.4",
+        "typePropertiesType": "NetworkWatcherAgentWindows"
+      },
+      {
+        "autoUpgradeMinorVersion": true,
+        "enableAutomaticUpgrade": null,
+        "forceUpdateTag": null,
+        "id": "/subscriptions/56789012-0123-4567-8901-012345678901/resourceGroups/TEST-ENV-AUS-RG/providers/Microsoft.Compute/virtualMachines/fake-vm-01/extensions/MDE.Windows",
+        "instanceView": null,
+        "location": "australiaeast",
+        "name": "MDE.Windows",
+        "protectedSettings": null,
+        "protectedSettingsFromKeyVault": null,
+        "provisioningState": "Succeeded",
+        "publisher": "Microsoft.Azure.AzureDefenderForServers",
+        "resourceGroup": "TEST-ENV-AUS-RG",
+        "settings": {
+          "azureResourceId": "/subscriptions/56789012-0123-4567-8901-012345678901/resourceGroups/TEST-ENV-AUS-RG/providers/Microsoft.Compute/virtualMachines/fake-vm-01",
+          "defenderForServersWorkspaceId": "9eee2e97-4f69-4094-87a4-0df1f002fcd0"
+        },
+        "suppressFailures": null,
+        "tags": null,
+        "type": "Microsoft.Compute/virtualMachines/extensions",
+        "typeHandlerVersion": "1.0",
+        "typePropertiesType": "MDE.Windows"
+      },
+      {
+        "autoUpgradeMinorVersion": true,
+        "enableAutomaticUpgrade": null,
+        "forceUpdateTag": null,
+        "id": "/subscriptions/56789012-0123-4567-8901-012345678901/resourceGroups/TEST-ENV-AUS-RG/providers/Microsoft.Compute/virtualMachines/fake-vm-01/extensions/MicrosoftMonitoringAgent",
+        "instanceView": null,
+        "location": "australiaeast",
+        "name": "MicrosoftMonitoringAgent",
+        "protectedSettings": null,
+        "protectedSettingsFromKeyVault": null,
+        "provisioningState": "Succeeded",
+        "publisher": "Microsoft.EnterpriseCloud.Monitoring",
+        "resourceGroup": "TEST-ENV-AUS-RG",
+        "settings": {
+          "workspaceId": "d52f377f-1015-4fed-aec1-1c53ab723a13"
+        },
+        "suppressFailures": null,
+        "tags": null,
+        "type": "Microsoft.Compute/virtualMachines/extensions",
+        "typeHandlerVersion": "1.0",
+        "typePropertiesType": "MicrosoftMonitoringAgent"
+      }
+    ],
+    "scheduledEventsProfile": null,
+    "securityProfile": null,
+    "storageProfile": {
+      "dataDisks": [
+        {
+          "caching": "ReadOnly",
+          "createOption": "Attach",
+          "deleteOption": null,
+          "detachOption": null,
+          "diskIopsReadWrite": null,
+          "diskMBpsReadWrite": null,
+          "diskSizeGb": 1024,
+          "image": null,
+          "lun": 0,
+          "managedDisk": {
+            "diskEncryptionSet": null,
+            "id": "/subscriptions/56789012-0123-4567-8901-012345678901/resourceGroups/test-env-AUS-rg/providers/Microsoft.Compute/disks/fake-vm-01_DataDisk_0",
+            "resourceGroup": "test-env-AUS-rg",
+            "securityProfile": null,
+            "storageAccountType": "Standard_LRS"
+          },
+          "name": "fake-vm-01_DataDisk_0",
+          "toBeDetached": false,
+          "vhd": null,
+          "writeAcceleratorEnabled": false
+        }
+      ],
+      "diskControllerType": null,
+      "imageReference": {
+        "communityGalleryImageId": null,
+        "exactVersion": "17763.1397.2008070242",
+        "id": null,
+        "offer": "Windows-10",
+        "publisher": "MicrosoftWindowsDesktop",
+        "sharedGalleryImageId": null,
+        "sku": "rs5-pro",
+        "version": "latest"
+      },
+      "osDisk": {
+        "caching": "ReadWrite",
+        "createOption": "FromImage",
+        "deleteOption": null,
+        "diffDiskSettings": null,
+        "diskSizeGb": 127,
+        "encryptionSettings": null,
+        "image": null,
+        "managedDisk": {
+          "diskEncryptionSet": null,
+          "id": "/subscriptions/56789012-0123-4567-8901-012345678901/resourceGroups/TEST-ENV-AUS-RG/providers/Microsoft.Compute/disks/fake-vm-01_OsDisk_1_751b881d505646d5b16f74e5d31fe29d",
+          "resourceGroup": "TEST-ENV-AUS-RG",
+          "securityProfile": null,
+          "storageAccountType": "StandardSSD_LRS"
+        },
+        "name": "fake-vm-01_OsDisk_1_751b881d505646d5b16f74e5d31fe29d",
+        "osType": "Windows",
+        "vhd": null,
+        "writeAcceleratorEnabled": null
+      }
+    },
+    "tags": null,
+    "timeCreated": "2020-08-17T06:25:50.347648+00:00",
+    "type": "Microsoft.Compute/virtualMachines",
+    "userData": null,
+    "virtualMachineScaleSet": null,
+    "vmId": "72bd2a23-21b5-4005-934b-64f415931652",
+    "zones": null
+  },
+  {
+    "additionalCapabilities": null,
+    "applicationProfile": null,
+    "availabilitySet": null,
+    "billingProfile": null,
+    "capacityReservation": null,
+    "diagnosticsProfile": {
+      "bootDiagnostics": {
+        "enabled": true,
+        "storageUri": null
+      }
+    },
+    "evictionPolicy": null,
+    "extendedLocation": null,
+    "extensionsTimeBudget": null,
+    "fqdns": "",
+    "hardwareProfile": {
+      "vmSize": "Standard_E4s_v3",
+      "vmSizeProperties": null
+    },
+    "host": null,
+    "hostGroup": null,
+    "id": "/subscriptions/56789012-0123-4567-8901-012345678901/resourceGroups/TEST-ENV-AUS-RG/providers/Microsoft.Compute/virtualMachines/fake-vm-02",
+    "identity": {
+      "principalId": "ba18d4f5-d2ec-46fa-b9ed-ede48ade9a21",
+      "tenantId": "3961fcf3-4d69-4f7a-a274-20a438449133",
+      "type": "SystemAssigned",
+      "userAssignedIdentities": null
+    },
+    "licenseType": null,
+    "location": "australiaeast",
+    "macAddresses": "00-22-48-10-87-1D",
+    "name": "fake-vm-02",
+    "networkProfile": {
+      "networkApiVersion": null,
+      "networkInterfaceConfigurations": null,
+      "networkInterfaces": [
+        {
+          "deleteOption": "Delete",
+          "id": "/subscriptions/56789012-0123-4567-8901-012345678901/resourceGroups/test-env-AUS-rg/providers/Microsoft.Network/networkInterfaces/vm-staging-ws01-s170",
+          "primary": null,
+          "resourceGroup": "test-env-AUS-rg"
+        }
+      ]
+    },
+    "osProfile": {
+      "adminPassword": null,
+      "adminUsername": "vm-admin",
+      "allowExtensionOperations": true,
+      "computerName": "fake-vm-02",
+      "customData": null,
+      "linuxConfiguration": {
+        "disablePasswordAuthentication": true,
+        "enableVmAgentPlatformUpdates": false,
+        "patchSettings": {
+          "assessmentMode": "ImageDefault",
+          "automaticByPlatformSettings": null,
+          "patchMode": "ImageDefault"
+        },
+        "provisionVmAgent": true,
+        "ssh": {
+          "publicKeys": [
+            {
+              "keyData": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQC8VhW6EWhrvsS9stDVeHTNOWv/\r\nWPueFZmmuq2bRNBooHxuTE7zwH/uR8RbC9ueM9CDMy1QXFdrHEU7qP4RJ7b1uST0\r\nQb8yg/lyqYS2pefeWLJIX+I6rd3J/z/n7IRlnpL/oVSYt2580cPJ7s6eXp32Lwh9\r\nl/0BWon8YVGY8/B4Qfm/EKXvVONmMS1ps+p6T3a8LS+OpYztyjeILIXPoem8iFt0\r\nXf5HvwDxDh70ocaggEr2CaWKCdWrEnfzLj3exgBLLLKehgT3mozY4yDMLfC6SMP+\r\n+MWyce0Jwz2ryvOMJnA4Fu4+1d6ggl31aO26W+M1I31H2NxlLG0TUsEuqHDQvSFF\r\nS/vSa4c4CeJWgvzmH2uM/9W04hmE4AzEiIF/YqM26IOpV6d/wRyS5k8lUwrjnSOB\r\nPm9yAGnCLTGMN5Bt9V8QKmDk91VEe/r1ZQUlbVHgPU7Tw0mqcivLq9h4fHRVrsTE\r\nTPKf/rkoibCL6mZw+g3i6mm11IevzDNLHXkIP2U= generated-by-azure\r\n",
+              "path": "/home/vm-admin/.ssh/authorized_keys"
+            }
+          ]
+        }
+      },
+      "requireGuestProvisionSignal": true,
+      "secrets": [],
+      "windowsConfiguration": null
+    },
+    "plan": null,
+    "platformFaultDomain": null,
+    "powerState": "VM running",
+    "priority": null,
+    "privateIps": "10.0.1.52",
+    "provisioningState": "Succeeded",
+    "proximityPlacementGroup": null,
+    "publicIps": "",
+    "resourceGroup": "TEST-ENV-AUS-RG",
+    "resources": [
+      {
+        "autoUpgradeMinorVersion": true,
+        "enableAutomaticUpgrade": true,
+        "forceUpdateTag": null,
+        "id": "/subscriptions/56789012-0123-4567-8901-012345678901/resourceGroups/TEST-ENV-AUS-RG/providers/Microsoft.Compute/virtualMachines/fake-vm-02/extensions/AzureMonitorLinuxAgent",
+        "instanceView": null,
+        "location": "australiaeast",
+        "name": "AzureMonitorLinuxAgent",
+        "protectedSettings": null,
+        "protectedSettingsFromKeyVault": null,
+        "provisioningState": "Succeeded",
+        "publisher": "Microsoft.Azure.Monitor",
+        "resourceGroup": "TEST-ENV-AUS-RG",
+        "settings": null,
+        "suppressFailures": null,
+        "tags": null,
+        "type": "Microsoft.Compute/virtualMachines/extensions",
+        "typeHandlerVersion": "1.6",
+        "typePropertiesType": "AzureMonitorLinuxAgent"
+      },
+      {
+        "autoUpgradeMinorVersion": true,
+        "enableAutomaticUpgrade": null,
+        "forceUpdateTag": null,
+        "id": "/subscriptions/56789012-0123-4567-8901-012345678901/resourceGroups/TEST-ENV-AUS-RG/providers/Microsoft.Compute/virtualMachines/fake-vm-02/extensions/OmsAgentForLinux",
+        "instanceView": null,
+        "location": "australiaeast",
+        "name": "OmsAgentForLinux",
+        "protectedSettings": null,
+        "protectedSettingsFromKeyVault": null,
+        "provisioningState": "Failed",
+        "publisher": "Microsoft.EnterpriseCloud.Monitoring",
+        "resourceGroup": "TEST-ENV-AUS-RG",
+        "settings": {
+          "workspaceId": "e4e81622-8214-40b7-9d73-89d0ed31a479"
+        },
+        "suppressFailures": null,
+        "tags": null,
+        "type": "Microsoft.Compute/virtualMachines/extensions",
+        "typeHandlerVersion": "1.0",
+        "typePropertiesType": "OmsAgentForLinux"
+      }
+    ],
+    "scheduledEventsProfile": null,
+    "securityProfile": null,
+    "storageProfile": {
+      "dataDisks": [
+        {
+          "caching": "None",
+          "createOption": "Attach",
+          "deleteOption": "Detach",
+          "detachOption": null,
+          "diskIopsReadWrite": null,
+          "diskMBpsReadWrite": null,
+          "diskSizeGb": 1024,
+          "image": null,
+          "lun": 0,
+          "managedDisk": {
+            "diskEncryptionSet": null,
+            "id": "/subscriptions/56789012-0123-4567-8901-012345678901/resourceGroups/test-env-AUS-rg/providers/Microsoft.Compute/disks/fake-vm-02_DataDisk_0",
+            "resourceGroup": "test-env-AUS-rg",
+            "securityProfile": null,
+            "storageAccountType": "Premium_LRS"
+          },
+          "name": "fake-vm-02_DataDisk_0",
+          "toBeDetached": false,
+          "vhd": null,
+          "writeAcceleratorEnabled": false
+        }
+      ],
+      "diskControllerType": "SCSI",
+      "imageReference": {
+        "communityGalleryImageId": null,
+        "exactVersion": "20.04.202205270",
+        "id": null,
+        "offer": "0001-com-ubuntu-server-focal",
+        "publisher": "canonical",
+        "sharedGalleryImageId": null,
+        "sku": "20_04-lts-gen2",
+        "version": "latest"
+      },
+      "osDisk": {
+        "caching": "ReadWrite",
+        "createOption": "FromImage",
+        "deleteOption": "Delete",
+        "diffDiskSettings": null,
+        "diskSizeGb": 30,
+        "encryptionSettings": null,
+        "image": null,
+        "managedDisk": {
+          "diskEncryptionSet": null,
+          "id": "/subscriptions/56789012-0123-4567-8901-012345678901/resourceGroups/test-env-AUS-rg/providers/Microsoft.Compute/disks/fake-vm-02_OsDisk_1_524a67ac55d14cc39a289d2daaae6193",
+          "resourceGroup": "test-env-AUS-rg",
+          "securityProfile": null,
+          "storageAccountType": "Premium_LRS"
+        },
+        "name": "fake-vm-02_OsDisk_1_524a67ac55d14cc39a289d2daaae6193",
+        "osType": "Linux",
+        "vhd": null,
+        "writeAcceleratorEnabled": null
+      }
+    },
+    "tags": null,
+    "timeCreated": "2022-06-01T04:09:22.499231+00:00",
+    "type": "Microsoft.Compute/virtualMachines",
+    "userData": null,
+    "virtualMachineScaleSet": null,
+    "vmId": "67e51e9f-39c5-432b-9851-969809622b27",
+    "zones": null
+  }
+
+]

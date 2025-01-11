@@ -1,0 +1,44 @@
+# set a refresh rate
+refresh_rate: 30 seconds
+
+# appenders
+appenders:
+# this appender will append to the console
+  stdout:
+    kind: console
+  # add create term
+  colored_console:
+    kind: console
+    encoder:
+      # d - dateformat, l - loglevel,  f - source file,  L - line, m - msg, n - newline
+      # pattern: "{h({d(%Y-%m-%d %H:%M:%S)})} {m}{n}"
+      # pattern: "{h({d(%Y-%m-%d %H:%M:%S)})} [{l}] {m}{n}"
+      pattern: "{d(%Y-%m-%d %H:%M:%S)} | {h({l}):5.5} | {f}:{L} — {m}{n}"
+
+# this appender will append to a log file
+  requests:
+    kind: file
+    path: "log/requests.log"
+# this is a simple string encoder - this will be explained below
+    encoder:
+      pattern: "{d} - {m}{n}"
+
+# the appender that prints to stdout will only print if the log level of the message is warn or above
+root:
+  # level: warn
+  level: info 
+  # level: debug
+  appenders:
+    #- stdout
+    - colored_console
+
+# set minimum logging level - log messages below the mnimum won't be recorded
+loggers:
+  app::backend::db:
+    level: info
+
+  app::requests:
+    level: info
+    appenders:
+      - requests
+    additive: false
