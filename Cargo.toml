@@ -1,6 +1,6 @@
 # workspace = { members = ["tmp_rust/tmprust"] }
 [package]
-name = "azure-graph"
+name = "azure-subnet-summary"
 version = "0.1.0"
 edition = "2021"
 

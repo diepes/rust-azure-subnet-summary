@@ -108,7 +108,7 @@ pub fn num_az_hosts(len: u8) -> Result<u64, Box<dyn Error>> {
         Ok(num_az_hosts)
     }
 }
-#[derive(Eq, Ord, Debug, Copy, Clone)]
+#[derive(Eq, Ord, Debug, Copy, Clone, Hash)]
 pub struct Ipv4 {
     pub addr: Ipv4Addr,
     pub mask: u8,

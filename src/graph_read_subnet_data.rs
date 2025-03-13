@@ -1,4 +1,6 @@
-use crate::{cmd, ipv4::Ipv4};
+use crate::cmd;
+use crate::config;
+use crate::struct_subnet::Subnet;
 /// Runs az cli graph to read subnets
 use serde::{Deserialize, Serialize};
 
@@ -31,32 +33,14 @@ pub struct Data {
     pub total_records: Option<u32>,
     pub count: i32,
 }
-#[derive(Serialize, Deserialize, Debug)]
-pub struct Subnet {
-    pub vnet_name: String,
-    pub vnet_cidr: Vec<Ipv4>,
-    pub subnet_name: String,
-    pub subnet_cidr: Option<Ipv4>,
-    pub nsg: Option<String>,
-    pub location: String,
-    pub dns_servers: Option<Vec<String>>,
-    pub subscription_id: String,
-    pub subscription_name: String,
-    // Fill value to gap if we create new subnet
-    pub gap: Option<String>,
-    // Serde field to ignore and set default value
-    #[serde(skip)]
-    pub src_index: i32,
-}
 
 pub fn run_az_cli_graph() -> Result<Data, Box<dyn std::error::Error>> {
     // let output = cmd::run_az_cli_graph().expect("Error running az cli graph");
     let mut data: Data = Default::default();
     let mut skip_token_param: String = "".to_string();
     let mut count_blocks_returned = 0;
-    let mut src_index = 0; // save index count of record returned from 0..
+    let mut src_index: usize = 0; // save index count of record returned from 0..
     while skip_token_param != "--skip-token null".to_string() {
-        count_blocks_returned += 1;
         let output = cmd::run(&format!(
             "az graph query --first 50 {skip_token_param} -q 'resources 
         | where type == \"microsoft.network/virtualnetworks\"
@@ -83,8 +67,9 @@ pub fn run_az_cli_graph() -> Result<Data, Box<dyn std::error::Error>> {
         let mut json_block_deserializer = serde_json::Deserializer::from_str(&output);
         let json_block_results: Result<Data, serde_path_to_error::Error<serde_json::Error>> =
             serde_path_to_error::deserialize(&mut json_block_deserializer);
-        let block = match json_block_results {
-            Ok(d) => d,
+        // Unwrap the block of data from the json
+        let json_parsed = match json_block_results {
+            Ok(s) => s,
             Err(e) => {
                 let json_path = e.path().to_string();
                 log::error!("OUTPUT START:\n\n{}\n\nOUTPUT END\n", output); //&output[output.len() - 400..]);
@@ -94,37 +79,49 @@ pub fn run_az_cli_graph() -> Result<Data, Box<dyn std::error::Error>> {
                 );
             }
         };
-        // let block: Data = serde_json::from_str(&output).expect(&format!(
-        //     "Error parsing json block {}: \nOUTPUT: \n...\n{}\n",
-        //     count_blocks_returned,
-        //     &output[output.len() - 400..]
-        // ));
-        // retrieve skip_token from block
-        let skip_token_new = block.skip_token.unwrap_or("null".to_string());
-        skip_token_param = format!("--skip-token {skip_token_new}",);
-        let count = block.count;
+
+        let skip_token_new = json_parsed.skip_token.unwrap_or("null".to_string());
+        let skip_token_new = format!("--skip-token {skip_token_new}",);
+        // assert that skip_token's are unique
+        assert_ne!(
+            skip_token_new, skip_token_param,
+            "skip_token_new == skip_token_param not unique ???"
+        );
+        skip_token_param = skip_token_new;
+
+        data.data
+            .extend(json_parsed.data.into_iter().enumerate().map(|(i, mut s)| {
+                s.src_index = i; //src_index;
+                s.block_id = count_blocks_returned;
+                src_index += 1;
+                s
+            }));
+        let count = json_parsed.count;
+        data.count = data.count + json_parsed.count;
+        if let Some(block_records) = json_parsed.total_records {
+            data.total_records = Some(block_records);
+        }
         log::info!(
-            "got block {block:3} record_count = {dc:3} + {obj_count:3} skip_token_param='{skip_token_snippit}'",
-            block = count_blocks_returned,
+            "got block#{count_blocks_returned:2} record_count=+{obj_count:3} => {dc:3} skip_token_param='{skip_token_snippit}'",
             dc = data.count,
             obj_count = count,
-            skip_token_snippit = format!("{}...{}", &skip_token_param[0..16], &skip_token_param[skip_token_param.len() - 3..]),
+            // skip_token_snippit = format!("{}...{}", &skip_token_param[0..16], &skip_token_param[skip_token_param.len() - 3..]),
+            skip_token_snippit = format!("{}", &skip_token_param),
         );
-        data.data.extend(block.data.into_iter().map(|mut s| {
-            s.src_index = src_index as i32;
-            src_index += 1;
-            s
-        }));
-        data.count = data.count + count;
-        if let Some(total_records) = block.total_records {
-            data.total_records = Some(total_records);
-        }
-    }
-    // let mut json_vec = cmd::string_to_json_vec_map(&output)?;
+        // pause to see output
+        std::thread::sleep(std::time::Duration::from_millis(config::SLEEP_MSEC * 5));
+        // Next block
+        count_blocks_returned += 1;
+    } // end of while loop
+      // let mut json_vec = cmd::string_to_json_vec_map(&output)?;
     log::info!(
-        "Got data #{} == {} records from az graph query, index={src_index}",
+        "Got data #{} == {} records from az graph query, src_index={src_index}",
         data.count,
         data.data.len()
     );
+    assert_eq!(src_index, data.data.len(), "src_index != data.data.len()");
+    // pause to see output
+    log::info!("sleep 15s ...");
+    std::thread::sleep(std::time::Duration::from_millis(config::SLEEP_MSEC * 15));
     Ok(data)
 }
