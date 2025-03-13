@@ -58,8 +58,7 @@ pub fn run_az_cli_graph() -> Result<Data, Box<dyn std::error::Error>> {
                 | where type == \"microsoft.resources/subscriptions\"
                 | project subscription_id=subscriptionId, subscription_name=name
             ) on subscription_id
-| project subscription_id, subscription_name, vnet_name, vnet_cidr, subnet_name, subnet_cidr, nsg, location, dns_servers
-| sort by vnet_name asc
+        | project subscription_id, subscription_name, vnet_name, vnet_cidr, subnet_name, subnet_cidr, nsg, location, dns_servers
         | sort by vnet_name asc' --output json"
         ))
         .expect("Error running az graph query");

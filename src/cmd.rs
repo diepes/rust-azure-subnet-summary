@@ -57,7 +57,7 @@ pub fn run(cmd: &str) -> Result<String, Box<dyn Error>> {
             failed = "failed".on_red(),
             cmd = cmd.on_blue()
         );
-        return Err(format!("ERROR running: {cmd}").into());
+        return Err(format!("ERROR running: {stderr}").into());
     }
 
     let stdout = String::from_utf8(output.stdout).expect("Error converting utf8");
