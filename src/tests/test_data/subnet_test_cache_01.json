@@ -1,0 +1,26 @@
+{
+    "data": [
+        {
+            "vnet_name": "z-env-shared_services-vnet-AbCdEf",
+            "vnet_cidr": [
+                "10.31.176.0/21"
+            ],
+            "subnet_name": "env-logs-crm-appgw-subnet",
+            "subnet_cidr": "10.31.179.96/27",
+            "nsg": "/subscriptions/7789013b-1e8e-4444-eeee-abab809aeead/resourceGroups/env-vnet-rg/providers/Microsoft.Network/networkSecurityGroups/logs-crm-appgw-env-nsg",
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.31.72.5",
+                "10.44.65.11"
+            ],
+            "subscription_id": "7789013b-1e8e-4444-eeee-abab809aeead",
+            "subscription_name": "My Sub Name",
+            "gap": null,
+            "src_index": 46,
+            "block_id": 2
+        }
+    ],
+    "skip_token": null,
+    "total_records": 1,
+    "count": 1
+}

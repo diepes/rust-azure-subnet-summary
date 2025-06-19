@@ -29,8 +29,11 @@ impl<'a> Vnet<'a> {
     }
 }
 
+type StrVnet = str;
+type StrSubscription = str;
 pub struct VnetList<'a> {
-    pub vnets: HashMap<(&'a str, &'a str), Vnet<'a>>,
+    // subnet.vnet_name and subnet.subscription_name
+    pub vnets: HashMap<(&'a StrVnet, &'a StrSubscription), Vnet<'a>>,
 }
 
 impl<'a> VnetList<'a> {

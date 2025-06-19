@@ -8,6 +8,15 @@ rust calls ```az graph query``` to get all the subnets then outputs a csv of sub
 
       cargo run | grep -v " INFO \| WARN " > subnets-$( date -I).csv
 
+## Code flow
+
+1. read subnet data for local cache or 
+   1. call ```az graph query``` to get subnets in pages
+   1. write to cache
+1. parse pages into struct Data
+1. serde parse into struct Subnet vec
+1. group into struct Vnet with vec of subnets
+
 
 ## Problems / TODO
 

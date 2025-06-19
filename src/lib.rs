@@ -18,8 +18,8 @@ pub mod print_subnets;
 //mod read_csv;
 mod write_banner;
 
-pub fn get_subnets() -> Result<graph_read_subnet_data::Data, Box<dyn std::error::Error>> {
-    let mut data = graph_read_subnet_data::read_subnet_cache().expect("Error running az cli graph");
+pub fn get_sorted_subnets() -> Result<graph_read_subnet_data::Data, Box<dyn std::error::Error>> {
+    let mut data = graph_read_subnet_data::read_subnet_cache(None).expect("Error running az cli graph");
     // Sort by subnet_cidr
     data.data.sort_by_key(|s| s.subnet_cidr);
     Ok(data)
