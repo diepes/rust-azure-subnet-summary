@@ -1,4 +1,5 @@
-{
+
+{  "note": "# Used in tests src/graph_read_subnet_data.rs and src/de_duplicate_subnets.rs",
     "data": [
         {
             "vnet_name": "z-env-shared_services-vnet-AbCdEf",

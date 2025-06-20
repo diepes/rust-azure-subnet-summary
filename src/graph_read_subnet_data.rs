@@ -1,9 +1,9 @@
 use crate::cmd;
 use crate::config;
 use crate::struct_subnet::Subnet;
+use chrono;
 /// Runs az cli graph to read subnets
 use serde::{Deserialize, Serialize};
-use chrono;
 
 /// fn read_subnet_cache()
 /// Reads from cache if exists else call run_az_cli_graph() to get data
@@ -19,11 +19,8 @@ pub fn read_subnet_cache(cache_file: Option<&str>) -> Result<Data, Box<dyn std::
             }
             log::info!("Using provided cache file: {}", file);
             file.to_string()
-        },
-        None => format!(
-            "subnet_cache_{}.json",
-            now.format("%Y-%m").to_string()
-        ),
+        }
+        None => format!("subnet_cache_{}.json", now.format("%Y-%m").to_string()),
     };
     let data_from_cache_or_cli: Data = match std::fs::read_to_string(&cache_file) {
         Ok(json) => {
@@ -36,7 +33,8 @@ pub fn read_subnet_cache(cache_file: Option<&str>) -> Result<Data, Box<dyn std::
             log::info!("parse json data received from azure cli");
             let json = serde_json::to_string(&data).expect("Error serializing json");
             log::warn!("Write data to Cache file: {}", cache_file);
-            std::fs::write(&cache_file, json).expect(format!("Error writing cache file {cache_file}").as_str());
+            std::fs::write(&cache_file, json)
+                .expect(format!("Error writing cache file {cache_file}").as_str());
             data
         }
     };
@@ -46,7 +44,7 @@ pub fn read_subnet_cache(cache_file: Option<&str>) -> Result<Data, Box<dyn std::
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct Data {
     pub data: Vec<Subnet>,
-    skip_token: Option<String>,
+    pub skip_token: Option<String>,
     pub total_records: Option<u32>,
     pub count: i32,
 }
@@ -151,9 +149,13 @@ mod tests {
     #[tokio::test]
     async fn test_read_subnet_cache() {
         // Test reading from cache file form path in tests folder
-        let data = read_subnet_cache(Some("src/tests/test_data/subnet_test_cache_01.json")).expect("Error reading subnet cache");
+        let data = read_subnet_cache(Some("src/tests/test_data/subnet_test_cache_01.json"))
+            .expect("Error reading subnet cache");
         assert!(!data.data.is_empty(), "Data should not be empty");
-        assert_eq!(data.data[0].vnet_name,"z-env-shared_services-vnet-AbCdEf", "Wrong vnet from test sample.");
+        assert_eq!(
+            data.data[0].vnet_name, "z-env-shared_services-vnet-AbCdEf",
+            "Wrong vnet from test sample."
+        );
         assert!(data.total_records.is_some(), "Total records should be set");
         assert!(data.count > 0, "Count should be greater than 0");
         log::info!("Data read from cache: {:?}", data);
@@ -167,5 +169,4 @@ mod tests {
     //     assert!(data.count > 0, "Count should be greater than 0");
     //     log::info!("Data from az cli graph: {:?}", data);
     // }
-
 }

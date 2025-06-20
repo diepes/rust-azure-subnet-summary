@@ -16,7 +16,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let data = get_sorted_subnets().expect("Error reading subnets form cache or az cli graph");
     let _vnets = get_vnets(&data).expect("Error getting vnets");
-    let data = de_duplicate_subnets(data).expect("Error deduplicating subnets");
+    let data = de_duplicate_subnets(data, None).expect("Error deduplicating subnets");
     check_for_duplicate_subnets(&data).expect("Error validating subnets");
 
     print_subnets(data).await?;
