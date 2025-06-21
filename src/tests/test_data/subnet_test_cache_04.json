@@ -1,0 +1,3230 @@
+{
+    "data": [
+        {
+            "vnet_name": "Docker_vSEC",
+            "vnet_cidr": [
+                "10.20.6.0/27"
+            ],
+            "subnet_name": "default",
+            "subnet_cidr": "10.20.6.0/27",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": null,
+            "subscription_id": "340a0b12-71df-5946-a7f9-29117c563312",
+            "subscription_name": "ORG Infrastructure",
+            "gap": null,
+            "src_index": 0,
+            "block_id": 0
+        },
+        {
+            "vnet_name": "ORG-AusE1-VNET",
+            "vnet_cidr": [
+                "10.17.0.0/17"
+            ],
+            "subnet_name": "ORG-AusE1-Sub-APIM-DEV2",
+            "subnet_cidr": "10.17.3.0/24",
+            "nsg": "/subscriptions/341e2b88-6bd7-1b90-8542-41d8b13e3388/resourceGroups/ORG-AusE1/providers/Microsoft.Network/networkSecurityGroups/ORG-AusE1-NSG-APIM-DEV1",
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.32.65.11",
+                "10.1.2.207"
+            ],
+            "subscription_id": "341e2b88-6bd7-1b90-8542-41d8b13e3388",
+            "subscription_name": "ORG Production",
+            "gap": null,
+            "src_index": 1,
+            "block_id": 0
+        },
+        {
+            "vnet_name": "ORG-AusE1-VNET",
+            "vnet_cidr": [
+                "10.17.0.0/17"
+            ],
+            "subnet_name": "ORG-AusE1-Sub-Infra1",
+            "subnet_cidr": "10.17.1.0/28",
+            "nsg": "/subscriptions/341e2b88-6bd7-1b90-8542-41d8b13e3388/resourceGroups/ORG-AusE1/providers/Microsoft.Network/networkSecurityGroups/ORG-AusE1-NSG-DC1",
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.32.65.11",
+                "10.1.2.207"
+            ],
+            "subscription_id": "341e2b88-6bd7-1b90-8542-41d8b13e3388",
+            "subscription_name": "ORG Production",
+            "gap": null,
+            "src_index": 2,
+            "block_id": 0
+        },
+        {
+            "vnet_name": "ORG-AusE1-VNET",
+            "vnet_cidr": [
+                "10.17.0.0/17"
+            ],
+            "subnet_name": "ORG-AusE1-Sub-APIM-PRDSTV2",
+            "subnet_cidr": "10.17.4.0/27",
+            "nsg": "/subscriptions/341e2b88-6bd7-1b90-8542-41d8b13e3388/resourceGroups/ORG-AusE1/providers/Microsoft.Network/networkSecurityGroups/ORG-AusE1-NSG-APIM-PRODSTV2",
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.32.65.11",
+                "10.1.2.207"
+            ],
+            "subscription_id": "341e2b88-6bd7-1b90-8542-41d8b13e3388",
+            "subscription_name": "ORG Production",
+            "gap": null,
+            "src_index": 3,
+            "block_id": 0
+        },
+        {
+            "vnet_name": "ORG-AusE1-VNET",
+            "vnet_cidr": [
+                "10.17.0.0/17"
+            ],
+            "subnet_name": "ORG-AusE1-Sub-DMZ01",
+            "subnet_cidr": "10.17.8.0/24",
+            "nsg": "/subscriptions/341e2b88-6bd7-1b90-8542-41d8b13e3388/resourceGroups/ORG-AusE1/providers/Microsoft.Network/networkSecurityGroups/ORG-AusE1-NSG-DMZ",
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.32.65.11",
+                "10.1.2.207"
+            ],
+            "subscription_id": "341e2b88-6bd7-1b90-8542-41d8b13e3388",
+            "subscription_name": "ORG Production",
+            "gap": null,
+            "src_index": 4,
+            "block_id": 0
+        },
+        {
+            "vnet_name": "ORG-AusE1-VNET",
+            "vnet_cidr": [
+                "10.17.0.0/17"
+            ],
+            "subnet_name": "ORG-AusE1-Sub-APIM-PRD1",
+            "subnet_cidr": "10.17.9.0/27",
+            "nsg": "/subscriptions/341e2b88-6bd7-1b90-8542-41d8b13e3388/resourceGroups/ORG-AusE1/providers/Microsoft.Network/networkSecurityGroups/ORG-AusE1-NSG-APIM-PRD1",
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.32.65.11",
+                "10.1.2.207"
+            ],
+            "subscription_id": "341e2b88-6bd7-1b90-8542-41d8b13e3388",
+            "subscription_name": "ORG Production",
+            "gap": null,
+            "src_index": 5,
+            "block_id": 0
+        },
+        {
+            "vnet_name": "ORG-AusE1-VNET",
+            "vnet_cidr": [
+                "10.17.0.0/17"
+            ],
+            "subnet_name": "ORG-AusE1-Sub-Internal01",
+            "subnet_cidr": "10.17.2.0/24",
+            "nsg": "/subscriptions/341e2b88-6bd7-1b90-8542-41d8b13e3388/resourceGroups/ORG-AusE1/providers/Microsoft.Network/networkSecurityGroups/ORG-AusE1-NSG-Internal",
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.32.65.11",
+                "10.1.2.207"
+            ],
+            "subscription_id": "341e2b88-6bd7-1b90-8542-41d8b13e3388",
+            "subscription_name": "ORG Production",
+            "gap": null,
+            "src_index": 6,
+            "block_id": 0
+        },
+        {
+            "vnet_name": "ORG-AusE1-VNET",
+            "vnet_cidr": [
+                "10.17.0.0/17"
+            ],
+            "subnet_name": "GatewaySubnet",
+            "subnet_cidr": "10.17.0.0/24",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.32.65.11",
+                "10.1.2.207"
+            ],
+            "subscription_id": "341e2b88-6bd7-1b90-8542-41d8b13e3388",
+            "subscription_name": "ORG Production",
+            "gap": null,
+            "src_index": 7,
+            "block_id": 0
+        },
+        {
+            "vnet_name": "ORG-Infrastructure_Aust-East",
+            "vnet_cidr": [
+                "10.20.0.0/22"
+            ],
+            "subnet_name": "vSEC_External",
+            "subnet_cidr": "10.20.0.0/24",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.5.49.92",
+                "10.1.2.207"
+            ],
+            "subscription_id": "340a0b12-71df-5946-a7f9-29117c563312",
+            "subscription_name": "ORG Infrastructure",
+            "gap": null,
+            "src_index": 8,
+            "block_id": 0
+        },
+        {
+            "vnet_name": "ORG-Infrastructure_Aust-East",
+            "vnet_cidr": [
+                "10.20.0.0/22"
+            ],
+            "subnet_name": "Replication_Subnet_1",
+            "subnet_cidr": "10.20.1.0/24",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.5.49.92",
+                "10.1.2.207"
+            ],
+            "subscription_id": "340a0b12-71df-5946-a7f9-29117c563312",
+            "subscription_name": "ORG Infrastructure",
+            "gap": null,
+            "src_index": 9,
+            "block_id": 0
+        },
+        {
+            "vnet_name": "ORG-Infrastructure_Aust-East",
+            "vnet_cidr": [
+                "10.20.0.0/22"
+            ],
+            "subnet_name": "Citrix_Servers",
+            "subnet_cidr": "10.20.2.0/24",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.5.49.92",
+                "10.1.2.207"
+            ],
+            "subscription_id": "340a0b12-71df-5946-a7f9-29117c563312",
+            "subscription_name": "ORG Infrastructure",
+            "gap": null,
+            "src_index": 10,
+            "block_id": 0
+        },
+        {
+            "vnet_name": "ORG-Infrastructure_Aust-East",
+            "vnet_cidr": [
+                "10.20.0.0/22"
+            ],
+            "subnet_name": "Net_10.20.3.0_24",
+            "subnet_cidr": "10.20.3.0/24",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.5.49.92",
+                "10.1.2.207"
+            ],
+            "subscription_id": "340a0b12-71df-5946-a7f9-29117c563312",
+            "subscription_name": "ORG Infrastructure",
+            "gap": null,
+            "src_index": 11,
+            "block_id": 0
+        },
+        {
+            "vnet_name": "ORG-TransportManagementSystemQA-vnet",
+            "vnet_cidr": [
+                "10.0.3.0/24"
+            ],
+            "subnet_name": "default",
+            "subnet_cidr": "10.0.3.0/24",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": null,
+            "subscription_id": "341e2b88-6bd7-1b90-8542-41d8b13e3388",
+            "subscription_name": "ORG Production",
+            "gap": null,
+            "src_index": 12,
+            "block_id": 0
+        },
+        {
+            "vnet_name": "TRG-Infrastructure-Dev-vnet",
+            "vnet_cidr": [
+                "10.0.0.0/16"
+            ],
+            "subnet_name": "default",
+            "subnet_cidr": "10.0.0.0/24",
+            "nsg": null,
+            "location": "eastus",
+            "dns_servers": null,
+            "subscription_id": "3447fb48-5e7b-4ef4-94ca-1187d3cc3348",
+            "subscription_name": "ORG Development (MSDN Users Only)",
+            "gap": null,
+            "src_index": 13,
+            "block_id": 0
+        },
+        {
+            "vnet_name": "TRGInfrastructureDe775",
+            "vnet_cidr": [
+                "10.1.0.0/16"
+            ],
+            "subnet_name": "default",
+            "subnet_cidr": "10.1.0.0/24",
+            "nsg": null,
+            "location": "westus",
+            "dns_servers": null,
+            "subscription_id": "3447fb48-5e7b-4ef4-94ca-1187d3cc3348",
+            "subscription_name": "ORG Development (MSDN Users Only)",
+            "gap": null,
+            "src_index": 14,
+            "block_id": 0
+        },
+        {
+            "vnet_name": "Test-vnet",
+            "vnet_cidr": [
+                "10.0.0.0/24"
+            ],
+            "subnet_name": "default",
+            "subnet_cidr": "10.0.0.0/24",
+            "nsg": null,
+            "location": "southeastasia",
+            "dns_servers": null,
+            "subscription_id": "34081b05-b9cf-7d37-8c3b-14e5602a3305",
+            "subscription_name": "Visual Studio Professional",
+            "gap": null,
+            "src_index": 15,
+            "block_id": 0
+        },
+        {
+            "vnet_name": "jenkinsarm-vnet",
+            "vnet_cidr": [
+                "10.0.0.0/16"
+            ],
+            "subnet_name": "jenkinsarm-snet",
+            "subnet_cidr": "10.0.0.0/24",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": null,
+            "subscription_id": "343f1b30-c06d-28a7-833b-d6ab57453330",
+            "subscription_name": "ORG Shared Services - Non-Prod",
+            "gap": null,
+            "src_index": 16,
+            "block_id": 0
+        },
+        {
+            "vnet_name": "org_mobile_net_app_services_prod1_vnet",
+            "vnet_cidr": [
+                "10.16.20.0/22"
+            ],
+            "subnet_name": "org_mobile_net_app_services_prod1_subnet3",
+            "subnet_cidr": "10.16.23.0/24",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": null,
+            "subscription_id": "341e2b88-6bd7-1b90-8542-41d8b13e3388",
+            "subscription_name": "ORG Production",
+            "gap": null,
+            "src_index": 17,
+            "block_id": 0
+        },
+        {
+            "vnet_name": "org_mobile_net_app_services_prod1_vnet",
+            "vnet_cidr": [
+                "10.16.20.0/22"
+            ],
+            "subnet_name": "org_mobile_net_app_services_prod1_subnet2",
+            "subnet_cidr": "10.16.22.0/24",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": null,
+            "subscription_id": "341e2b88-6bd7-1b90-8542-41d8b13e3388",
+            "subscription_name": "ORG Production",
+            "gap": null,
+            "src_index": 18,
+            "block_id": 0
+        },
+        {
+            "vnet_name": "org_mobile_net_app_services_prod1_vnet",
+            "vnet_cidr": [
+                "10.16.20.0/22"
+            ],
+            "subnet_name": "org_mobile_net_app_services_prod1_subnet1",
+            "subnet_cidr": "10.16.20.0/23",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": null,
+            "subscription_id": "341e2b88-6bd7-1b90-8542-41d8b13e3388",
+            "subscription_name": "ORG Production",
+            "gap": null,
+            "src_index": 19,
+            "block_id": 0
+        },
+        {
+            "vnet_name": "org_mobile_net_app_services_qat1_vnet",
+            "vnet_cidr": [
+                "10.16.18.0/23"
+            ],
+            "subnet_name": "org_mobile_net_app_services_qat1_subnet1",
+            "subnet_cidr": "10.16.18.0/24",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": null,
+            "subscription_id": "341e2b88-6bd7-1b90-8542-41d8b13e3388",
+            "subscription_name": "ORG Production",
+            "gap": null,
+            "src_index": 20,
+            "block_id": 0
+        },
+        {
+            "vnet_name": "org_mobile_net_app_services_qat1_vnet",
+            "vnet_cidr": [
+                "10.16.18.0/23"
+            ],
+            "subnet_name": "org_mobile_net_app_services_qat1_subnet2",
+            "subnet_cidr": "10.16.19.0/24",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": null,
+            "subscription_id": "341e2b88-6bd7-1b90-8542-41d8b13e3388",
+            "subscription_name": "ORG Production",
+            "gap": null,
+            "src_index": 21,
+            "block_id": 0
+        },
+        {
+            "vnet_name": "org_mobile_net_hub_vnet",
+            "vnet_cidr": [
+                "10.16.16.0/24"
+            ],
+            "subnet_name": "org_mobile_net_hub_subnet1",
+            "subnet_cidr": "10.16.16.64/27",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": null,
+            "subscription_id": "341e2b88-6bd7-1b90-8542-41d8b13e3388",
+            "subscription_name": "ORG Production",
+            "gap": null,
+            "src_index": 22,
+            "block_id": 0
+        },
+        {
+            "vnet_name": "org_network_spoke2_vnet",
+            "vnet_cidr": [
+                "10.6.2.64/26"
+            ],
+            "subnet_name": "org_network_spoke2_subnet1",
+            "subnet_cidr": "10.6.2.64/28",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [],
+            "subscription_id": "34d88b88-55ef-3204-8983-cc071fa33388",
+            "subscription_name": "ORG Sandbox - POC",
+            "gap": null,
+            "src_index": 23,
+            "block_id": 0
+        },
+        {
+            "vnet_name": "orggmcmg",
+            "vnet_cidr": [
+                "10.0.0.0/16"
+            ],
+            "subnet_name": "orggmcmg",
+            "subnet_cidr": "10.0.0.0/24",
+            "nsg": "/subscriptions/34e60b20-0c39-fb2d-b745-b74d8e573320/resourceGroups/prod-sccm-cmg-rg/providers/Microsoft.Network/networkSecurityGroups/orggmcmg",
+            "location": "australiaeast",
+            "dns_servers": null,
+            "subscription_id": "34e60b20-0c39-fb2d-b745-b74d8e573320",
+            "subscription_name": "Management",
+            "gap": null,
+            "src_index": 24,
+            "block_id": 0
+        },
+        {
+            "vnet_name": "vSEC_HA_POC_VNET",
+            "vnet_cidr": [
+                "10.20.7.0/24"
+            ],
+            "subnet_name": "Backend",
+            "subnet_cidr": "10.20.7.16/28",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": null,
+            "subscription_id": "340a0b12-71df-5946-a7f9-29117c563312",
+            "subscription_name": "ORG Infrastructure",
+            "gap": null,
+            "src_index": 25,
+            "block_id": 0
+        },
+        {
+            "vnet_name": "vSEC_HA_POC_VNET",
+            "vnet_cidr": [
+                "10.20.7.0/24"
+            ],
+            "subnet_name": "APPS",
+            "subnet_cidr": "10.20.7.32/27",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": null,
+            "subscription_id": "340a0b12-71df-5946-a7f9-29117c563312",
+            "subscription_name": "ORG Infrastructure",
+            "gap": null,
+            "src_index": 26,
+            "block_id": 0
+        },
+        {
+            "vnet_name": "vSEC_HA_POC_VNET",
+            "vnet_cidr": [
+                "10.20.7.0/24"
+            ],
+            "subnet_name": "Frontend",
+            "subnet_cidr": "10.20.7.0/28",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": null,
+            "subscription_id": "340a0b12-71df-5946-a7f9-29117c563312",
+            "subscription_name": "ORG Infrastructure",
+            "gap": null,
+            "src_index": 27,
+            "block_id": 0
+        },
+        {
+            "vnet_name": "vnet_prod_network_hub",
+            "vnet_cidr": [
+                "10.6.8.0/24"
+            ],
+            "subnet_name": "AzureFirewallSubnet",
+            "subnet_cidr": "10.6.8.64/26",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [],
+            "subscription_id": "34db9b34-cb41-21f3-b92f-83f49a413334",
+            "subscription_name": "ORG Stock Finder",
+            "gap": null,
+            "src_index": 28,
+            "block_id": 0
+        },
+        {
+            "vnet_name": "vnet_prod_network_hub",
+            "vnet_cidr": [
+                "10.6.8.0/24"
+            ],
+            "subnet_name": "GatewaySubnet",
+            "subnet_cidr": "10.6.8.0/27",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [],
+            "subscription_id": "34db9b34-cb41-21f3-b92f-83f49a413334",
+            "subscription_name": "ORG Stock Finder",
+            "gap": null,
+            "src_index": 29,
+            "block_id": 0
+        },
+        {
+            "vnet_name": "vnet_prod_network_hub",
+            "vnet_cidr": [
+                "10.6.8.0/24"
+            ],
+            "subnet_name": "snet1_prod_network_hub",
+            "subnet_cidr": "10.6.8.32/27",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [],
+            "subscription_id": "34db9b34-cb41-21f3-b92f-83f49a413334",
+            "subscription_name": "ORG Stock Finder",
+            "gap": null,
+            "src_index": 30,
+            "block_id": 0
+        },
+        {
+            "vnet_name": "z-backup_test-id-vnet-000001",
+            "vnet_cidr": [
+                "10.1.0.0/16"
+            ],
+            "subnet_name": "restore-vm-subnet",
+            "subnet_cidr": "10.1.1.0/24",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.1.1.5"
+            ],
+            "subscription_id": "34c72bb8-8901-aebf-9442-34235d5033b8",
+            "subscription_name": "Identity",
+            "gap": null,
+            "src_index": 31,
+            "block_id": 0
+        },
+        {
+            "vnet_name": "z-backup_test-ss-vnet-000001",
+            "vnet_cidr": [
+                "10.1.0.0/16"
+            ],
+            "subnet_name": "restore-vm-subnet",
+            "subnet_cidr": "10.1.1.0/24",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.1.1.5"
+            ],
+            "subscription_id": "34ec6bad-809a-6bab-aeec-b897178e33ad",
+            "subscription_name": "ORG Shared Services",
+            "gap": null,
+            "src_index": 32,
+            "block_id": 0
+        },
+        {
+            "vnet_name": "z-dr-cvault-vnet-ESQkhq",
+            "vnet_cidr": [
+                "10.19.9.0/27"
+            ],
+            "subnet_name": "vm-subnet",
+            "subnet_cidr": "10.19.9.0/27",
+            "nsg": null,
+            "location": "australiasoutheast",
+            "dns_servers": [
+                "10.19.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "34e60b20-0c39-fb2d-b745-b74d8e573320",
+            "subscription_name": "Management",
+            "gap": null,
+            "src_index": 33,
+            "block_id": 0
+        },
+        {
+            "vnet_name": "z-dr-dmz-vnet-ffgVte",
+            "vnet_cidr": [
+                "10.19.200.0/22"
+            ],
+            "subnet_name": "go-anywhere-subnet",
+            "subnet_cidr": "10.19.200.0/29",
+            "nsg": null,
+            "location": "australiasoutheast",
+            "dns_servers": [],
+            "subscription_id": "34368bb7-2afa-9728-b3ce-32b4927833b7",
+            "subscription_name": "ORG DMZ",
+            "gap": null,
+            "src_index": 34,
+            "block_id": 0
+        },
+        {
+            "vnet_name": "z-dr-hub-vnet-b4cykv",
+            "vnet_cidr": [
+                "10.19.0.0/21"
+            ],
+            "subnet_name": "RouteServerSubnet",
+            "subnet_cidr": "10.19.0.0/27",
+            "nsg": null,
+            "location": "australiasoutheast",
+            "dns_servers": [],
+            "subscription_id": "34ae6bc4-74d2-34dc-9db6-4855e4fb33c4",
+            "subscription_name": "Connectivity",
+            "gap": null,
+            "src_index": 35,
+            "block_id": 0
+        },
+        {
+            "vnet_name": "z-dr-hub-vnet-b4cykv",
+            "vnet_cidr": [
+                "10.19.0.0/21"
+            ],
+            "subnet_name": "Transit-mgmt",
+            "subnet_cidr": "10.19.2.0/24",
+            "nsg": "/subscriptions/34ae6bc4-74d2-34dc-9db6-4855e4fb33c4/resourceGroups/dr-vnet-rg/providers/Microsoft.Network/networkSecurityGroups/z-dr-transit_mgmt_subnet-nsg-b4cykv",
+            "location": "australiasoutheast",
+            "dns_servers": [],
+            "subscription_id": "34ae6bc4-74d2-34dc-9db6-4855e4fb33c4",
+            "subscription_name": "Connectivity",
+            "gap": null,
+            "src_index": 36,
+            "block_id": 0
+        },
+        {
+            "vnet_name": "z-dr-hub-vnet-b4cykv",
+            "vnet_cidr": [
+                "10.19.0.0/21"
+            ],
+            "subnet_name": "Transit-public",
+            "subnet_cidr": "10.19.3.0/24",
+            "nsg": "/subscriptions/34ae6bc4-74d2-34dc-9db6-4855e4fb33c4/resourceGroups/dr-vnet-rg/providers/Microsoft.Network/networkSecurityGroups/z-dr-transit_public_subnet-nsg-b4cykv",
+            "location": "australiasoutheast",
+            "dns_servers": [],
+            "subscription_id": "34ae6bc4-74d2-34dc-9db6-4855e4fb33c4",
+            "subscription_name": "Connectivity",
+            "gap": null,
+            "src_index": 37,
+            "block_id": 0
+        },
+        {
+            "vnet_name": "z-dr-hub-vnet-b4cykv",
+            "vnet_cidr": [
+                "10.19.0.0/21"
+            ],
+            "subnet_name": "dns-private-resolver-subnet",
+            "subnet_cidr": "10.19.0.64/26",
+            "nsg": null,
+            "location": "australiasoutheast",
+            "dns_servers": [],
+            "subscription_id": "34ae6bc4-74d2-34dc-9db6-4855e4fb33c4",
+            "subscription_name": "Connectivity",
+            "gap": null,
+            "src_index": 38,
+            "block_id": 0
+        },
+        {
+            "vnet_name": "z-dr-hub-vnet-b4cykv",
+            "vnet_cidr": [
+                "10.19.0.0/21"
+            ],
+            "subnet_name": "Transit-private",
+            "subnet_cidr": "10.19.4.0/24",
+            "nsg": null,
+            "location": "australiasoutheast",
+            "dns_servers": [],
+            "subscription_id": "34ae6bc4-74d2-34dc-9db6-4855e4fb33c4",
+            "subscription_name": "Connectivity",
+            "gap": null,
+            "src_index": 39,
+            "block_id": 0
+        },
+        {
+            "vnet_name": "z-dr-hub-vnet-b4cykv",
+            "vnet_cidr": [
+                "10.19.0.0/21"
+            ],
+            "subnet_name": "GatewaySubnet",
+            "subnet_cidr": "10.19.1.0/24",
+            "nsg": null,
+            "location": "australiasoutheast",
+            "dns_servers": [],
+            "subscription_id": "34ae6bc4-74d2-34dc-9db6-4855e4fb33c4",
+            "subscription_name": "Connectivity",
+            "gap": null,
+            "src_index": 40,
+            "block_id": 0
+        },
+        {
+            "vnet_name": "z-dr-id-vnet-TbGNi3",
+            "vnet_cidr": [
+                "10.19.72.0/22"
+            ],
+            "subnet_name": "vm-subnet",
+            "subnet_cidr": "10.19.72.0/25",
+            "nsg": null,
+            "location": "australiasoutheast",
+            "dns_servers": [
+                "10.32.65.11",
+                "10.5.49.92"
+            ],
+            "subscription_id": "34c72bb8-8901-aebf-9442-34235d5033b8",
+            "subscription_name": "Identity",
+            "gap": null,
+            "src_index": 41,
+            "block_id": 0
+        },
+        {
+            "vnet_name": "z-dr-management-vnet-gbQFCw",
+            "vnet_cidr": [
+                "10.19.68.0/22"
+            ],
+            "subnet_name": "sql-migration-subnet",
+            "subnet_cidr": "10.19.71.240/28",
+            "nsg": null,
+            "location": "australiasoutheast",
+            "dns_servers": [],
+            "subscription_id": "34e60b20-0c39-fb2d-b745-b74d8e573320",
+            "subscription_name": "Management",
+            "gap": null,
+            "src_index": 42,
+            "block_id": 0
+        },
+        {
+            "vnet_name": "z-dr-management-vnet-gbQFCw",
+            "vnet_cidr": [
+                "10.19.68.0/22"
+            ],
+            "subnet_name": "vm-subnet",
+            "subnet_cidr": "10.19.68.0/25",
+            "nsg": null,
+            "location": "australiasoutheast",
+            "dns_servers": [],
+            "subscription_id": "34e60b20-0c39-fb2d-b745-b74d8e573320",
+            "subscription_name": "Management",
+            "gap": null,
+            "src_index": 43,
+            "block_id": 0
+        },
+        {
+            "vnet_name": "z-dr-nl-vnet-MSBfYX",
+            "vnet_cidr": [
+                "10.19.136.0/21"
+            ],
+            "subnet_name": "vm-subnet",
+            "subnet_cidr": "10.19.136.0/24",
+            "nsg": null,
+            "location": "australiasoutheast",
+            "dns_servers": [
+                "10.5.49.92",
+                "10.5.49.45"
+            ],
+            "subscription_id": "34bc7bf8-0b54-639e-9d52-cdd616e333f8",
+            "subscription_name": "Nl",
+            "gap": null,
+            "src_index": 44,
+            "block_id": 0
+        },
+        {
+            "vnet_name": "z-dr-shared_services-vnet-436Wvr",
+            "vnet_cidr": [
+                "10.19.176.0/21"
+            ],
+            "subnet_name": "dr-postgresql-subnet",
+            "subnet_cidr": "10.19.177.64/26",
+            "nsg": null,
+            "location": "australiasoutheast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "34ec6bad-809a-6bab-aeec-b897178e33ad",
+            "subscription_name": "ORG Shared Services",
+            "gap": null,
+            "src_index": 45,
+            "block_id": 0
+        },
+        {
+            "vnet_name": "z-dr-shared_services-vnet-436Wvr",
+            "vnet_cidr": [
+                "10.19.176.0/21"
+            ],
+            "subnet_name": "dr-hpaem-subnet",
+            "subnet_cidr": "10.19.177.32/27",
+            "nsg": null,
+            "location": "australiasoutheast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "34ec6bad-809a-6bab-aeec-b897178e33ad",
+            "subscription_name": "ORG Shared Services",
+            "gap": null,
+            "src_index": 46,
+            "block_id": 0
+        },
+        {
+            "vnet_name": "z-dr-shared_services-vnet-436Wvr",
+            "vnet_cidr": [
+                "10.19.176.0/21"
+            ],
+            "subnet_name": "dr-apim-ha-subnet",
+            "subnet_cidr": "10.19.177.16/28",
+            "nsg": null,
+            "location": "australiasoutheast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "34ec6bad-809a-6bab-aeec-b897178e33ad",
+            "subscription_name": "ORG Shared Services",
+            "gap": null,
+            "src_index": 47,
+            "block_id": 0
+        },
+        {
+            "vnet_name": "z-dr-shared_services-vnet-436Wvr",
+            "vnet_cidr": [
+                "10.19.176.0/21"
+            ],
+            "subnet_name": "vm-subnet",
+            "subnet_cidr": "10.19.176.0/24",
+            "nsg": null,
+            "location": "australiasoutheast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "34ec6bad-809a-6bab-aeec-b897178e33ad",
+            "subscription_name": "ORG Shared Services",
+            "gap": null,
+            "src_index": 48,
+            "block_id": 0
+        },
+        {
+            "vnet_name": "z-dr-shared_services-vnet-436Wvr",
+            "vnet_cidr": [
+                "10.19.176.0/21"
+            ],
+            "subnet_name": "dr-paloaltouia-subnet",
+            "subnet_cidr": "10.19.177.128/28",
+            "nsg": null,
+            "location": "australiasoutheast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "34ec6bad-809a-6bab-aeec-b897178e33ad",
+            "subscription_name": "ORG Shared Services",
+            "gap": null,
+            "src_index": 49,
+            "block_id": 0
+        },
+        {
+            "vnet_name": "z-dr-shared_services-vnet-436Wvr",
+            "vnet_cidr": [
+                "10.19.176.0/21"
+            ],
+            "subnet_name": "dr-postgresql-subnet",
+            "subnet_cidr": "10.19.177.64/26",
+            "nsg": null,
+            "location": "australiasoutheast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "34ec6bad-809a-6bab-aeec-b897178e33ad",
+            "subscription_name": "ORG Shared Services",
+            "gap": null,
+            "src_index": 0,
+            "block_id": 1
+        },
+        {
+            "vnet_name": "z-dr-shared_services-vnet-436Wvr",
+            "vnet_cidr": [
+                "10.19.176.0/21"
+            ],
+            "subnet_name": "dr-clearpass-subnet",
+            "subnet_cidr": "10.19.177.0/28",
+            "nsg": null,
+            "location": "australiasoutheast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "34ec6bad-809a-6bab-aeec-b897178e33ad",
+            "subscription_name": "ORG Shared Services",
+            "gap": null,
+            "src_index": 1,
+            "block_id": 1
+        },
+        {
+            "vnet_name": "z-dr-test_shared_services-vnet-EJFCvz",
+            "vnet_cidr": [
+                "10.19.184.0/21"
+            ],
+            "subnet_name": "vm-subnet",
+            "subnet_cidr": "10.19.184.0/24",
+            "nsg": null,
+            "location": "australiasoutheast",
+            "dns_servers": [
+                "10.5.49.92",
+                "10.5.49.45"
+            ],
+            "subscription_id": "34ec6bad-809a-6bab-aeec-b897178e33ad",
+            "subscription_name": "ORG Shared Services",
+            "gap": null,
+            "src_index": 2,
+            "block_id": 1
+        },
+        {
+            "vnet_name": "z-dr-trg_wrg-vnet-DdRlbf",
+            "vnet_cidr": [
+                "10.19.96.0/21"
+            ],
+            "subnet_name": "vm-subnet",
+            "subnet_cidr": "10.19.96.0/24",
+            "nsg": null,
+            "location": "australiasoutheast",
+            "dns_servers": [
+                "10.5.49.92",
+                "10.5.49.45"
+            ],
+            "subscription_id": "34348b1a-58d3-e241-bb97-156d08fd331a",
+            "subscription_name": "TRG\\WRG",
+            "gap": null,
+            "src_index": 3,
+            "block_id": 1
+        },
+        {
+            "vnet_name": "z-dr-trg_wrg-vnet-DdRlbf",
+            "vnet_cidr": [
+                "10.19.96.0/21"
+            ],
+            "subnet_name": "dr-xui-vm-subnet",
+            "subnet_cidr": "10.19.100.128/26",
+            "nsg": null,
+            "location": "australiasoutheast",
+            "dns_servers": [
+                "10.5.49.92",
+                "10.5.49.45"
+            ],
+            "subscription_id": "34348b1a-58d3-e241-bb97-156d08fd331a",
+            "subscription_name": "TRG\\WRG",
+            "gap": null,
+            "src_index": 4,
+            "block_id": 1
+        },
+        {
+            "vnet_name": "z-dr-vendor-transit-vnet-5RWJAp",
+            "vnet_cidr": [
+                "10.19.76.0/24"
+            ],
+            "subnet_name": "AzureFirewallSubnet",
+            "subnet_cidr": "10.19.76.0/26",
+            "nsg": null,
+            "location": "australiasoutheast",
+            "dns_servers": [],
+            "subscription_id": "34ae6bc4-74d2-34dc-9db6-4855e4fb33c4",
+            "subscription_name": "Connectivity",
+            "gap": null,
+            "src_index": 5,
+            "block_id": 1
+        },
+        {
+            "vnet_name": "z-ilt-lab3-vnet-01",
+            "vnet_cidr": [
+                "172.25.250.0/24",
+                "172.25.251.0/24"
+            ],
+            "subnet_name": "z-ilt-lab3-snet-mgmt-01",
+            "subnet_cidr": "172.25.250.160/27",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": null,
+            "subscription_id": "34195b63-5ab6-2394-b7b9-4c595bca3363",
+            "subscription_name": "Lab3 Migration ILT",
+            "gap": null,
+            "src_index": 6,
+            "block_id": 1
+        },
+        {
+            "vnet_name": "z-ilt-lab3-vnet-01",
+            "vnet_cidr": [
+                "172.25.250.0/24",
+                "172.25.251.0/24"
+            ],
+            "subnet_name": "z-ilt-lab3-snet-lnc-01",
+            "subnet_cidr": "172.25.250.128/27",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": null,
+            "subscription_id": "34195b63-5ab6-2394-b7b9-4c595bca3363",
+            "subscription_name": "Lab3 Migration ILT",
+            "gap": null,
+            "src_index": 7,
+            "block_id": 1
+        },
+        {
+            "vnet_name": "z-ilt-lab3-vnet-01",
+            "vnet_cidr": [
+                "172.25.250.0/24",
+                "172.25.251.0/24"
+            ],
+            "subnet_name": "PrivateLinkService",
+            "subnet_cidr": "172.25.251.0/29",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": null,
+            "subscription_id": "34195b63-5ab6-2394-b7b9-4c595bca3363",
+            "subscription_name": "Lab3 Migration ILT",
+            "gap": null,
+            "src_index": 8,
+            "block_id": 1
+        },
+        {
+            "vnet_name": "z-ilt-lab3-vnet-01",
+            "vnet_cidr": [
+                "172.25.250.0/24",
+                "172.25.251.0/24"
+            ],
+            "subnet_name": "z-ilt-lab3-snet-app-01",
+            "subnet_cidr": "172.25.250.64/27",
+            "nsg": "/subscriptions/34195b63-5ab6-2394-b7b9-4c595bca3363/resourceGroups/z-ilt-lab3-bkdiag-01-rg/providers/Microsoft.Network/networkSecurityGroups/z-ilt-lab3-nsg-snet-mgmt-01",
+            "location": "australiaeast",
+            "dns_servers": null,
+            "subscription_id": "34195b63-5ab6-2394-b7b9-4c595bca3363",
+            "subscription_name": "Lab3 Migration ILT",
+            "gap": null,
+            "src_index": 9,
+            "block_id": 1
+        },
+        {
+            "vnet_name": "z-ilt-lab3-vnet-01",
+            "vnet_cidr": [
+                "172.25.250.0/24",
+                "172.25.251.0/24"
+            ],
+            "subnet_name": "z-ilt-lab3-snet-adds-01",
+            "subnet_cidr": "172.25.250.96/27",
+            "nsg": "/subscriptions/34195b63-5ab6-2394-b7b9-4c595bca3363/resourceGroups/z-ilt-lab3-bkdiag-01-rg/providers/Microsoft.Network/networkSecurityGroups/z-ilt-lab3-nsg-snet-mgmt-01",
+            "location": "australiaeast",
+            "dns_servers": null,
+            "subscription_id": "34195b63-5ab6-2394-b7b9-4c595bca3363",
+            "subscription_name": "Lab3 Migration ILT",
+            "gap": null,
+            "src_index": 10,
+            "block_id": 1
+        },
+        {
+            "vnet_name": "z-ilt-lab3-vnet-01",
+            "vnet_cidr": [
+                "172.25.250.0/24",
+                "172.25.251.0/24"
+            ],
+            "subnet_name": "AzureBastionSubnet",
+            "subnet_cidr": "172.25.250.0/26",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": null,
+            "subscription_id": "34195b63-5ab6-2394-b7b9-4c595bca3363",
+            "subscription_name": "Lab3 Migration ILT",
+            "gap": null,
+            "src_index": 11,
+            "block_id": 1
+        },
+        {
+            "vnet_name": "z-ilt-lab3-vnet-01",
+            "vnet_cidr": [
+                "172.25.250.0/24",
+                "172.25.251.0/24"
+            ],
+            "subnet_name": "z-ilt-lab3-snet-app-02",
+            "subnet_cidr": "172.25.251.64/26",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": null,
+            "subscription_id": "34195b63-5ab6-2394-b7b9-4c595bca3363",
+            "subscription_name": "Lab3 Migration ILT",
+            "gap": null,
+            "src_index": 12,
+            "block_id": 1
+        },
+        {
+            "vnet_name": "z-ilt-lab3-vnet-01",
+            "vnet_cidr": [
+                "172.25.250.0/24",
+                "172.25.251.0/24"
+            ],
+            "subnet_name": "app-gw-snet",
+            "subnet_cidr": "172.25.251.8/29",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": null,
+            "subscription_id": "34195b63-5ab6-2394-b7b9-4c595bca3363",
+            "subscription_name": "Lab3 Migration ILT",
+            "gap": null,
+            "src_index": 13,
+            "block_id": 1
+        },
+        {
+            "vnet_name": "z-ilt-lab3-vnet-01",
+            "vnet_cidr": [
+                "172.25.250.0/24",
+                "172.25.251.0/24"
+            ],
+            "subnet_name": "z-ilt-lab3-snet-sql-secondary",
+            "subnet_cidr": "172.25.250.224/27",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": null,
+            "subscription_id": "34195b63-5ab6-2394-b7b9-4c595bca3363",
+            "subscription_name": "Lab3 Migration ILT",
+            "gap": null,
+            "src_index": 14,
+            "block_id": 1
+        },
+        {
+            "vnet_name": "z-ilt-lab3-vnet-01",
+            "vnet_cidr": [
+                "172.25.250.0/24",
+                "172.25.251.0/24"
+            ],
+            "subnet_name": "z-ilt-lab3-snet-sql-primary",
+            "subnet_cidr": "172.25.250.192/27",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": null,
+            "subscription_id": "34195b63-5ab6-2394-b7b9-4c595bca3363",
+            "subscription_name": "Lab3 Migration ILT",
+            "gap": null,
+            "src_index": 15,
+            "block_id": 1
+        },
+        {
+            "vnet_name": "z-nonprod-dmz-vnet-aGwRrk",
+            "vnet_cidr": [
+                "10.18.204.0/23"
+            ],
+            "subnet_name": "dev-fantail-subnet",
+            "subnet_cidr": "10.18.204.16/29",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [],
+            "subscription_id": "341e3b57-63f6-4cd1-b7b7-3f49860f3357",
+            "subscription_name": "ORG DMZ - Non-Prod",
+            "gap": null,
+            "src_index": 16,
+            "block_id": 1
+        },
+        {
+            "vnet_name": "z-nonprod-dmz-vnet-aGwRrk",
+            "vnet_cidr": [
+                "10.18.204.0/23"
+            ],
+            "subnet_name": "dev-go-anywhere-subnet",
+            "subnet_cidr": "10.18.204.0/29",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [],
+            "subscription_id": "341e3b57-63f6-4cd1-b7b7-3f49860f3357",
+            "subscription_name": "ORG DMZ - Non-Prod",
+            "gap": null,
+            "src_index": 17,
+            "block_id": 1
+        },
+        {
+            "vnet_name": "z-nonprod-dmz-vnet-aGwRrk",
+            "vnet_cidr": [
+                "10.18.204.0/23"
+            ],
+            "subnet_name": "dev-payglobal-subnet",
+            "subnet_cidr": "10.18.204.8/29",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [],
+            "subscription_id": "341e3b57-63f6-4cd1-b7b7-3f49860f3357",
+            "subscription_name": "ORG DMZ - Non-Prod",
+            "gap": null,
+            "src_index": 18,
+            "block_id": 1
+        },
+        {
+            "vnet_name": "z-nonprod-dmz-vnet-aGwRrk",
+            "vnet_cidr": [
+                "10.18.204.0/23"
+            ],
+            "subnet_name": "vm-subnet",
+            "subnet_cidr": "10.18.205.0/24",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [],
+            "subscription_id": "341e3b57-63f6-4cd1-b7b7-3f49860f3357",
+            "subscription_name": "ORG DMZ - Non-Prod",
+            "gap": null,
+            "src_index": 19,
+            "block_id": 1
+        },
+        {
+            "vnet_name": "z-nonprod-nl-vnet-QS0DIj",
+            "vnet_cidr": [
+                "10.18.144.0/21"
+            ],
+            "subnet_name": "vm-subnet",
+            "subnet_cidr": "10.18.144.0/24",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.4.5.10",
+                "10.32.129.11"
+            ],
+            "subscription_id": "34308b52-bba7-456a-b731-fa5cc4703352",
+            "subscription_name": "Nl - Non-Prod",
+            "gap": null,
+            "src_index": 20,
+            "block_id": 1
+        },
+        {
+            "vnet_name": "z-nonprod-nl-vnet-QS0DIj",
+            "vnet_cidr": [
+                "10.18.144.0/21"
+            ],
+            "subnet_name": "eticketing-subnet",
+            "subnet_cidr": "10.18.145.0/28",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.4.5.10",
+                "10.32.129.11"
+            ],
+            "subscription_id": "34308b52-bba7-456a-b731-fa5cc4703352",
+            "subscription_name": "Nl - Non-Prod",
+            "gap": null,
+            "src_index": 21,
+            "block_id": 1
+        },
+        {
+            "vnet_name": "z-nonprod-shared_services-vnet-5xj2YA",
+            "vnet_cidr": [
+                "10.18.184.0/21"
+            ],
+            "subnet_name": "test-apim-subnet",
+            "subnet_cidr": "10.18.191.248/29",
+            "nsg": "/subscriptions/343f1b30-c06d-28a7-833b-d6ab57453330/resourceGroups/nonprod-vnet-rg/providers/Microsoft.Network/networkSecurityGroups/z-test-apim-nsg-5koxHT",
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "343f1b30-c06d-28a7-833b-d6ab57453330",
+            "subscription_name": "ORG Shared Services - Non-Prod",
+            "gap": null,
+            "src_index": 22,
+            "block_id": 1
+        },
+        {
+            "vnet_name": "z-nonprod-shared_services-vnet-5xj2YA",
+            "vnet_cidr": [
+                "10.18.184.0/21"
+            ],
+            "subnet_name": "dev-appgw-cf-subnet",
+            "subnet_cidr": "10.18.189.0/26",
+            "nsg": "/subscriptions/343f1b30-c06d-28a7-833b-d6ab57453330/resourceGroups/nonprod-vnet-rg/providers/Microsoft.Network/networkSecurityGroups/z-dev-appgw-cf-nsg-gBxQEJ",
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "343f1b30-c06d-28a7-833b-d6ab57453330",
+            "subscription_name": "ORG Shared Services - Non-Prod",
+            "gap": null,
+            "src_index": 23,
+            "block_id": 1
+        },
+        {
+            "vnet_name": "z-nonprod-shared_services-vnet-5xj2YA",
+            "vnet_cidr": [
+                "10.18.184.0/21"
+            ],
+            "subnet_name": "dev-apim-subnet",
+            "subnet_cidr": "10.18.191.224/29",
+            "nsg": "/subscriptions/343f1b30-c06d-28a7-833b-d6ab57453330/resourceGroups/nonprod-vnet-rg/providers/Microsoft.Network/networkSecurityGroups/z-dev-apim-nsg-ivERwQ",
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "343f1b30-c06d-28a7-833b-d6ab57453330",
+            "subscription_name": "ORG Shared Services - Non-Prod",
+            "gap": null,
+            "src_index": 24,
+            "block_id": 1
+        },
+        {
+            "vnet_name": "z-nonprod-shared_services-vnet-5xj2YA",
+            "vnet_cidr": [
+                "10.18.184.0/21"
+            ],
+            "subnet_name": "vm-subnet",
+            "subnet_cidr": "10.18.184.0/24",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "343f1b30-c06d-28a7-833b-d6ab57453330",
+            "subscription_name": "ORG Shared Services - Non-Prod",
+            "gap": null,
+            "src_index": 25,
+            "block_id": 1
+        },
+        {
+            "vnet_name": "z-nonprod-shared_services-vnet-5xj2YA",
+            "vnet_cidr": [
+                "10.18.184.0/21"
+            ],
+            "subnet_name": "test-logs-wms-subnet",
+            "subnet_cidr": "10.18.189.192/27",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "343f1b30-c06d-28a7-833b-d6ab57453330",
+            "subscription_name": "ORG Shared Services - Non-Prod",
+            "gap": null,
+            "src_index": 26,
+            "block_id": 1
+        },
+        {
+            "vnet_name": "z-nonprod-shared_services-vnet-5xj2YA",
+            "vnet_cidr": [
+                "10.18.184.0/21"
+            ],
+            "subnet_name": "dev-dcm-subnet",
+            "subnet_cidr": "10.18.187.48/28",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "343f1b30-c06d-28a7-833b-d6ab57453330",
+            "subscription_name": "ORG Shared Services - Non-Prod",
+            "gap": null,
+            "src_index": 27,
+            "block_id": 1
+        },
+        {
+            "vnet_name": "z-nonprod-shared_services-vnet-5xj2YA",
+            "vnet_cidr": [
+                "10.18.184.0/21"
+            ],
+            "subnet_name": "vm-mssql-cluster-b-subnet",
+            "subnet_cidr": "10.18.187.208/28",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "343f1b30-c06d-28a7-833b-d6ab57453330",
+            "subscription_name": "ORG Shared Services - Non-Prod",
+            "gap": null,
+            "src_index": 28,
+            "block_id": 1
+        },
+        {
+            "vnet_name": "z-nonprod-shared_services-vnet-5xj2YA",
+            "vnet_cidr": [
+                "10.18.184.0/21"
+            ],
+            "subnet_name": "test-aks-subnet",
+            "subnet_cidr": "10.18.190.128/25",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "343f1b30-c06d-28a7-833b-d6ab57453330",
+            "subscription_name": "ORG Shared Services - Non-Prod",
+            "gap": null,
+            "src_index": 29,
+            "block_id": 1
+        },
+        {
+            "vnet_name": "z-nonprod-shared_services-vnet-5xj2YA",
+            "vnet_cidr": [
+                "10.18.184.0/21"
+            ],
+            "subnet_name": "Docker-subnet",
+            "subnet_cidr": "10.18.188.0/24",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "343f1b30-c06d-28a7-833b-d6ab57453330",
+            "subscription_name": "ORG Shared Services - Non-Prod",
+            "gap": null,
+            "src_index": 30,
+            "block_id": 1
+        },
+        {
+            "vnet_name": "z-nonprod-shared_services-vnet-5xj2YA",
+            "vnet_cidr": [
+                "10.18.184.0/21"
+            ],
+            "subnet_name": "dev-sqlMI-subnet",
+            "subnet_cidr": "10.18.185.0/24",
+            "nsg": "/subscriptions/343f1b30-c06d-28a7-833b-d6ab57453330/resourceGroups/dev-sqlMI-rg/providers/Microsoft.Network/networkSecurityGroups/z-dev-sql-mi-nsg",
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "343f1b30-c06d-28a7-833b-d6ab57453330",
+            "subscription_name": "ORG Shared Services - Non-Prod",
+            "gap": null,
+            "src_index": 31,
+            "block_id": 1
+        },
+        {
+            "vnet_name": "z-nonprod-shared_services-vnet-5xj2YA",
+            "vnet_cidr": [
+                "10.18.184.0/21"
+            ],
+            "subnet_name": "dev-appgw-subnet",
+            "subnet_cidr": "10.18.191.240/29",
+            "nsg": "/subscriptions/343f1b30-c06d-28a7-833b-d6ab57453330/resourceGroups/nonprod-vnet-rg/providers/Microsoft.Network/networkSecurityGroups/z-dev-appgw-nsg-QSLfHm",
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "343f1b30-c06d-28a7-833b-d6ab57453330",
+            "subscription_name": "ORG Shared Services - Non-Prod",
+            "gap": null,
+            "src_index": 32,
+            "block_id": 1
+        },
+        {
+            "vnet_name": "z-nonprod-shared_services-vnet-5xj2YA",
+            "vnet_cidr": [
+                "10.18.184.0/21"
+            ],
+            "subnet_name": "dev-logs-wms-subnet",
+            "subnet_cidr": "10.18.189.64/27",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "343f1b30-c06d-28a7-833b-d6ab57453330",
+            "subscription_name": "ORG Shared Services - Non-Prod",
+            "gap": null,
+            "src_index": 33,
+            "block_id": 1
+        },
+        {
+            "vnet_name": "z-nonprod-shared_services-vnet-5xj2YA",
+            "vnet_cidr": [
+                "10.18.184.0/21"
+            ],
+            "subnet_name": "dev-max-subnet",
+            "subnet_cidr": "10.18.191.192/28",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "343f1b30-c06d-28a7-833b-d6ab57453330",
+            "subscription_name": "ORG Shared Services - Non-Prod",
+            "gap": null,
+            "src_index": 34,
+            "block_id": 1
+        },
+        {
+            "vnet_name": "z-nonprod-shared_services-vnet-5xj2YA",
+            "vnet_cidr": [
+                "10.18.184.0/21"
+            ],
+            "subnet_name": "test-apim-ha-subnet",
+            "subnet_cidr": "10.18.191.32/27",
+            "nsg": "/subscriptions/343f1b30-c06d-28a7-833b-d6ab57453330/resourceGroups/nonprod-vnet-rg/providers/Microsoft.Network/networkSecurityGroups/z-test-apim-nsg-5koxHT",
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "343f1b30-c06d-28a7-833b-d6ab57453330",
+            "subscription_name": "ORG Shared Services - Non-Prod",
+            "gap": null,
+            "src_index": 35,
+            "block_id": 1
+        },
+        {
+            "vnet_name": "z-nonprod-shared_services-vnet-5xj2YA",
+            "vnet_cidr": [
+                "10.18.184.0/21"
+            ],
+            "subnet_name": "dev-fax-subnet",
+            "subnet_cidr": "10.18.187.32/28",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "343f1b30-c06d-28a7-833b-d6ab57453330",
+            "subscription_name": "ORG Shared Services - Non-Prod",
+            "gap": null,
+            "src_index": 36,
+            "block_id": 1
+        },
+        {
+            "vnet_name": "z-nonprod-shared_services-vnet-5xj2YA",
+            "vnet_cidr": [
+                "10.18.184.0/21"
+            ],
+            "subnet_name": "test-mysql-subnet",
+            "subnet_cidr": "10.18.189.240/28",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "343f1b30-c06d-28a7-833b-d6ab57453330",
+            "subscription_name": "ORG Shared Services - Non-Prod",
+            "gap": null,
+            "src_index": 37,
+            "block_id": 1
+        },
+        {
+            "vnet_name": "z-nonprod-shared_services-vnet-5xj2YA",
+            "vnet_cidr": [
+                "10.18.184.0/21"
+            ],
+            "subnet_name": "dev-postgresql-subnet",
+            "subnet_cidr": "10.18.191.64/26",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "343f1b30-c06d-28a7-833b-d6ab57453330",
+            "subscription_name": "ORG Shared Services - Non-Prod",
+            "gap": null,
+            "src_index": 38,
+            "block_id": 1
+        },
+        {
+            "vnet_name": "z-nonprod-shared_services-vnet-5xj2YA",
+            "vnet_cidr": [
+                "10.18.184.0/21"
+            ],
+            "subnet_name": "dev-mlops-aks-subnet",
+            "subnet_cidr": "10.18.186.0/24",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "343f1b30-c06d-28a7-833b-d6ab57453330",
+            "subscription_name": "ORG Shared Services - Non-Prod",
+            "gap": null,
+            "src_index": 39,
+            "block_id": 1
+        },
+        {
+            "vnet_name": "z-nonprod-shared_services-vnet-5xj2YA",
+            "vnet_cidr": [
+                "10.18.184.0/21"
+            ],
+            "subnet_name": "dev-mysql-subnet",
+            "subnet_cidr": "10.18.189.224/28",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "343f1b30-c06d-28a7-833b-d6ab57453330",
+            "subscription_name": "ORG Shared Services - Non-Prod",
+            "gap": null,
+            "src_index": 40,
+            "block_id": 1
+        },
+        {
+            "vnet_name": "z-nonprod-shared_services-vnet-5xj2YA",
+            "vnet_cidr": [
+                "10.18.184.0/21"
+            ],
+            "subnet_name": "AzureBastionSubnet",
+            "subnet_cidr": "10.18.187.64/26",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "343f1b30-c06d-28a7-833b-d6ab57453330",
+            "subscription_name": "ORG Shared Services - Non-Prod",
+            "gap": null,
+            "src_index": 41,
+            "block_id": 1
+        },
+        {
+            "vnet_name": "z-nonprod-shared_services-vnet-5xj2YA",
+            "vnet_cidr": [
+                "10.18.184.0/21"
+            ],
+            "subnet_name": "dev-aks-subnet",
+            "subnet_cidr": "10.18.190.0/25",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "343f1b30-c06d-28a7-833b-d6ab57453330",
+            "subscription_name": "ORG Shared Services - Non-Prod",
+            "gap": null,
+            "src_index": 42,
+            "block_id": 1
+        },
+        {
+            "vnet_name": "z-nonprod-shared_services-vnet-5xj2YA",
+            "vnet_cidr": [
+                "10.18.184.0/21"
+            ],
+            "subnet_name": "devstv2-api-mgmt-subnet",
+            "subnet_cidr": "10.18.187.224/29",
+            "nsg": "/subscriptions/343f1b30-c06d-28a7-833b-d6ab57453330/resourceGroups/nonprod-vnet-rg/providers/Microsoft.Network/networkSecurityGroups/z-dev-apim-nsg-ivERwQ",
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "343f1b30-c06d-28a7-833b-d6ab57453330",
+            "subscription_name": "ORG Shared Services - Non-Prod",
+            "gap": null,
+            "src_index": 43,
+            "block_id": 1
+        },
+        {
+            "vnet_name": "z-nonprod-shared_services-vnet-5xj2YA",
+            "vnet_cidr": [
+                "10.18.184.0/21"
+            ],
+            "subnet_name": "test-logs-wms-appgw-subnet",
+            "subnet_cidr": "10.18.189.160/27",
+            "nsg": "/subscriptions/343f1b30-c06d-28a7-833b-d6ab57453330/resourceGroups/nonprod-vnet-rg/providers/Microsoft.Network/networkSecurityGroups/logs-wms-appgw-np-nsg",
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "343f1b30-c06d-28a7-833b-d6ab57453330",
+            "subscription_name": "ORG Shared Services - Non-Prod",
+            "gap": null,
+            "src_index": 44,
+            "block_id": 1
+        },
+        {
+            "vnet_name": "z-nonprod-shared_services-vnet-5xj2YA",
+            "vnet_cidr": [
+                "10.18.184.0/21"
+            ],
+            "subnet_name": "dev-payglobal-subnet",
+            "subnet_cidr": "10.18.189.128/27",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "343f1b30-c06d-28a7-833b-d6ab57453330",
+            "subscription_name": "ORG Shared Services - Non-Prod",
+            "gap": null,
+            "src_index": 45,
+            "block_id": 1
+        },
+        {
+            "vnet_name": "z-nonprod-shared_services-vnet-5xj2YA",
+            "vnet_cidr": [
+                "10.18.184.0/21"
+            ],
+            "subnet_name": "vm-mssql-cluster-a-subnet",
+            "subnet_cidr": "10.18.187.192/28",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "343f1b30-c06d-28a7-833b-d6ab57453330",
+            "subscription_name": "ORG Shared Services - Non-Prod",
+            "gap": null,
+            "src_index": 46,
+            "block_id": 1
+        },
+        {
+            "vnet_name": "z-nonprod-shared_services-vnet-5xj2YA",
+            "vnet_cidr": [
+                "10.18.184.0/21"
+            ],
+            "subnet_name": "dev-apim-ha-subnet",
+            "subnet_cidr": "10.18.191.0/27",
+            "nsg": "/subscriptions/343f1b30-c06d-28a7-833b-d6ab57453330/resourceGroups/nonprod-vnet-rg/providers/Microsoft.Network/networkSecurityGroups/z-dev-apim-nsg-ivERwQ",
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "343f1b30-c06d-28a7-833b-d6ab57453330",
+            "subscription_name": "ORG Shared Services - Non-Prod",
+            "gap": null,
+            "src_index": 47,
+            "block_id": 1
+        },
+        {
+            "vnet_name": "z-nonprod-shared_services-vnet-5xj2YA",
+            "vnet_cidr": [
+                "10.18.184.0/21"
+            ],
+            "subnet_name": "dev-netmon-subnet",
+            "subnet_cidr": "10.18.187.240/28",
+            "nsg": "/subscriptions/343f1b30-c06d-28a7-833b-d6ab57453330/resourceGroups/nonprod-vnet-rg/providers/Microsoft.Network/networkSecurityGroups/dev-netmon-nsg-o2hPOC",
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "343f1b30-c06d-28a7-833b-d6ab57453330",
+            "subscription_name": "ORG Shared Services - Non-Prod",
+            "gap": null,
+            "src_index": 48,
+            "block_id": 1
+        },
+        {
+            "vnet_name": "z-nonprod-shared_services-vnet-5xj2YA",
+            "vnet_cidr": [
+                "10.18.184.0/21"
+            ],
+            "subnet_name": "test-appgw-subnet",
+            "subnet_cidr": "10.18.191.232/29",
+            "nsg": "/subscriptions/343f1b30-c06d-28a7-833b-d6ab57453330/resourceGroups/nonprod-vnet-rg/providers/Microsoft.Network/networkSecurityGroups/z-test-appgw-nsg-CBL4Mq",
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "343f1b30-c06d-28a7-833b-d6ab57453330",
+            "subscription_name": "ORG Shared Services - Non-Prod",
+            "gap": null,
+            "src_index": 49,
+            "block_id": 1
+        },
+        {
+            "vnet_name": "z-nonprod-shared_services-vnet-5xj2YA",
+            "vnet_cidr": [
+                "10.18.184.0/21"
+            ],
+            "subnet_name": "vm-mssql-subnet",
+            "subnet_cidr": "10.18.187.128/27",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "343f1b30-c06d-28a7-833b-d6ab57453330",
+            "subscription_name": "ORG Shared Services - Non-Prod",
+            "gap": null,
+            "src_index": 0,
+            "block_id": 2
+        },
+        {
+            "vnet_name": "z-nonprod-shared_services-vnet-5xj2YA",
+            "vnet_cidr": [
+                "10.18.184.0/21"
+            ],
+            "subnet_name": "dev-max-subnet",
+            "subnet_cidr": "10.18.191.192/28",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "343f1b30-c06d-28a7-833b-d6ab57453330",
+            "subscription_name": "ORG Shared Services - Non-Prod",
+            "gap": null,
+            "src_index": 1,
+            "block_id": 2
+        },
+        {
+            "vnet_name": "z-nonprod-shared_services-vnet-5xj2YA",
+            "vnet_cidr": [
+                "10.18.184.0/21"
+            ],
+            "subnet_name": "dev-mysql-subnet",
+            "subnet_cidr": "10.18.189.224/28",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "343f1b30-c06d-28a7-833b-d6ab57453330",
+            "subscription_name": "ORG Shared Services - Non-Prod",
+            "gap": null,
+            "src_index": 2,
+            "block_id": 2
+        },
+        {
+            "vnet_name": "z-nonprod-shared_services-vnet-5xj2YA",
+            "vnet_cidr": [
+                "10.18.184.0/21"
+            ],
+            "subnet_name": "dev-mlops-cc-subnet",
+            "subnet_cidr": "10.18.187.0/28",
+            "nsg": "/subscriptions/343f1b30-c06d-28a7-833b-d6ab57453330/resourceGroups/rg-dev-aue-aml-g8pi-01/providers/Microsoft.Network/networkSecurityGroups/nsg-dev-aue-aml-g8pi-01",
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "343f1b30-c06d-28a7-833b-d6ab57453330",
+            "subscription_name": "ORG Shared Services - Non-Prod",
+            "gap": null,
+            "src_index": 3,
+            "block_id": 2
+        },
+        {
+            "vnet_name": "z-nonprod-shared_services-vnet-5xj2YA",
+            "vnet_cidr": [
+                "10.18.184.0/21"
+            ],
+            "subnet_name": "dev-apim-subnet",
+            "subnet_cidr": "10.18.191.224/29",
+            "nsg": "/subscriptions/343f1b30-c06d-28a7-833b-d6ab57453330/resourceGroups/nonprod-vnet-rg/providers/Microsoft.Network/networkSecurityGroups/z-dev-apim-nsg-ivERwQ",
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "343f1b30-c06d-28a7-833b-d6ab57453330",
+            "subscription_name": "ORG Shared Services - Non-Prod",
+            "gap": null,
+            "src_index": 4,
+            "block_id": 2
+        },
+        {
+            "vnet_name": "z-nonprod-shared_services-vnet-5xj2YA",
+            "vnet_cidr": [
+                "10.18.184.0/21"
+            ],
+            "subnet_name": "dev-mlops-aks-subnet",
+            "subnet_cidr": "10.18.186.0/24",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "343f1b30-c06d-28a7-833b-d6ab57453330",
+            "subscription_name": "ORG Shared Services - Non-Prod",
+            "gap": null,
+            "src_index": 5,
+            "block_id": 2
+        },
+        {
+            "vnet_name": "z-nonprod-themarket-vnet-zuDEFJ",
+            "vnet_cidr": [
+                "10.18.40.0/22"
+            ],
+            "subnet_name": "vm-subnet",
+            "subnet_cidr": "10.18.40.0/25",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [],
+            "subscription_id": "34b2fb19-7d86-186d-9861-c35cd5303319",
+            "subscription_name": "TheMarket - Non-Prod",
+            "gap": null,
+            "src_index": 6,
+            "block_id": 2
+        },
+        {
+            "vnet_name": "z-nonprod-trg_wrg-vnet-CgKN1R",
+            "vnet_cidr": [
+                "10.18.112.0/21"
+            ],
+            "subnet_name": "AzureBastionSubnet",
+            "subnet_cidr": "10.18.113.0/27",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.8"
+            ],
+            "subscription_id": "3434cb96-c56e-aa67-86d5-3ca98e443396",
+            "subscription_name": "TRG\\WRG - Non-Prod",
+            "gap": null,
+            "src_index": 7,
+            "block_id": 2
+        },
+        {
+            "vnet_name": "z-nonprod-trg_wrg-vnet-CgKN1R",
+            "vnet_cidr": [
+                "10.18.112.0/21"
+            ],
+            "subnet_name": "dev-postgresql-subnet",
+            "subnet_cidr": "10.18.114.0/26",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.8"
+            ],
+            "subscription_id": "3434cb96-c56e-aa67-86d5-3ca98e443396",
+            "subscription_name": "TRG\\WRG - Non-Prod",
+            "gap": null,
+            "src_index": 8,
+            "block_id": 2
+        },
+        {
+            "vnet_name": "z-nonprod-trg_wrg-vnet-CgKN1R",
+            "vnet_cidr": [
+                "10.18.112.0/21"
+            ],
+            "subnet_name": "dev-xui-vm-subnet",
+            "subnet_cidr": "10.18.113.64/26",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.8"
+            ],
+            "subscription_id": "3434cb96-c56e-aa67-86d5-3ca98e443396",
+            "subscription_name": "TRG\\WRG - Non-Prod",
+            "gap": null,
+            "src_index": 9,
+            "block_id": 2
+        },
+        {
+            "vnet_name": "z-nonprod-trg_wrg-vnet-CgKN1R",
+            "vnet_cidr": [
+                "10.18.112.0/21"
+            ],
+            "subnet_name": "vm-subnet",
+            "subnet_cidr": "10.18.112.0/24",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.8"
+            ],
+            "subscription_id": "3434cb96-c56e-aa67-86d5-3ca98e443396",
+            "subscription_name": "TRG\\WRG - Non-Prod",
+            "gap": null,
+            "src_index": 10,
+            "block_id": 2
+        },
+        {
+            "vnet_name": "z-prod-cvault-vnet-aKtkTh",
+            "vnet_cidr": [
+                "10.18.9.0/27"
+            ],
+            "subnet_name": "vm-subnet",
+            "subnet_cidr": "10.18.9.0/27",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "34e60b20-0c39-fb2d-b745-b74d8e573320",
+            "subscription_name": "Management",
+            "gap": null,
+            "src_index": 11,
+            "block_id": 2
+        },
+        {
+            "vnet_name": "z-prod-dmz-vnet-KasfRj",
+            "vnet_cidr": [
+                "10.18.200.0/22"
+            ],
+            "subnet_name": "prod-fantail-subnet",
+            "subnet_cidr": "10.18.200.16/29",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [],
+            "subscription_id": "34368bb7-2afa-9728-b3ce-32b4927833b7",
+            "subscription_name": "ORG DMZ",
+            "gap": null,
+            "src_index": 12,
+            "block_id": 2
+        },
+        {
+            "vnet_name": "z-prod-dmz-vnet-KasfRj",
+            "vnet_cidr": [
+                "10.18.200.0/22"
+            ],
+            "subnet_name": "prod-payglobal-subnet",
+            "subnet_cidr": "10.18.200.8/29",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [],
+            "subscription_id": "34368bb7-2afa-9728-b3ce-32b4927833b7",
+            "subscription_name": "ORG DMZ",
+            "gap": null,
+            "src_index": 13,
+            "block_id": 2
+        },
+        {
+            "vnet_name": "z-prod-dmz-vnet-KasfRj",
+            "vnet_cidr": [
+                "10.18.200.0/22"
+            ],
+            "subnet_name": "vm-subnet",
+            "subnet_cidr": "10.18.201.0/24",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [],
+            "subscription_id": "34368bb7-2afa-9728-b3ce-32b4927833b7",
+            "subscription_name": "ORG DMZ",
+            "gap": null,
+            "src_index": 14,
+            "block_id": 2
+        },
+        {
+            "vnet_name": "z-prod-dmz-vnet-KasfRj",
+            "vnet_cidr": [
+                "10.18.200.0/22"
+            ],
+            "subnet_name": "prod-go-anywhere-subnet",
+            "subnet_cidr": "10.18.200.0/29",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [],
+            "subscription_id": "34368bb7-2afa-9728-b3ce-32b4927833b7",
+            "subscription_name": "ORG DMZ",
+            "gap": null,
+            "src_index": 15,
+            "block_id": 2
+        },
+        {
+            "vnet_name": "z-prod-hub-vnet-3YXfW",
+            "vnet_cidr": [
+                "10.18.0.0/21"
+            ],
+            "subnet_name": "Transit-public",
+            "subnet_cidr": "10.18.3.0/24",
+            "nsg": "/subscriptions/34ae6bc4-74d2-34dc-9db6-4855e4fb33c4/resourceGroups/prod-vnet-rg/providers/Microsoft.Network/networkSecurityGroups/z-prod-transit_public_subnet-nsg-3YXfW",
+            "location": "australiaeast",
+            "dns_servers": [],
+            "subscription_id": "34ae6bc4-74d2-34dc-9db6-4855e4fb33c4",
+            "subscription_name": "Connectivity",
+            "gap": null,
+            "src_index": 16,
+            "block_id": 2
+        },
+        {
+            "vnet_name": "z-prod-hub-vnet-3YXfW",
+            "vnet_cidr": [
+                "10.18.0.0/21"
+            ],
+            "subnet_name": "Transit-mgmt",
+            "subnet_cidr": "10.18.2.0/24",
+            "nsg": "/subscriptions/34ae6bc4-74d2-34dc-9db6-4855e4fb33c4/resourceGroups/prod-vnet-rg/providers/Microsoft.Network/networkSecurityGroups/z-prod-transit_mgmt_subnet-nsg-3YXfW",
+            "location": "australiaeast",
+            "dns_servers": [],
+            "subscription_id": "34ae6bc4-74d2-34dc-9db6-4855e4fb33c4",
+            "subscription_name": "Connectivity",
+            "gap": null,
+            "src_index": 17,
+            "block_id": 2
+        },
+        {
+            "vnet_name": "z-prod-hub-vnet-3YXfW",
+            "vnet_cidr": [
+                "10.18.0.0/21"
+            ],
+            "subnet_name": "GatewaySubnet",
+            "subnet_cidr": "10.18.1.0/24",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [],
+            "subscription_id": "34ae6bc4-74d2-34dc-9db6-4855e4fb33c4",
+            "subscription_name": "Connectivity",
+            "gap": null,
+            "src_index": 18,
+            "block_id": 2
+        },
+        {
+            "vnet_name": "z-prod-hub-vnet-3YXfW",
+            "vnet_cidr": [
+                "10.18.0.0/21"
+            ],
+            "subnet_name": "RouteServerSubnet",
+            "subnet_cidr": "10.18.0.0/27",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [],
+            "subscription_id": "34ae6bc4-74d2-34dc-9db6-4855e4fb33c4",
+            "subscription_name": "Connectivity",
+            "gap": null,
+            "src_index": 19,
+            "block_id": 2
+        },
+        {
+            "vnet_name": "z-prod-hub-vnet-3YXfW",
+            "vnet_cidr": [
+                "10.18.0.0/21"
+            ],
+            "subnet_name": "Transit-private",
+            "subnet_cidr": "10.18.4.0/24",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [],
+            "subscription_id": "34ae6bc4-74d2-34dc-9db6-4855e4fb33c4",
+            "subscription_name": "Connectivity",
+            "gap": null,
+            "src_index": 20,
+            "block_id": 2
+        },
+        {
+            "vnet_name": "z-prod-hub-vnet-3YXfW",
+            "vnet_cidr": [
+                "10.18.0.0/21"
+            ],
+            "subnet_name": "dns-private-resolver-subnet",
+            "subnet_cidr": "10.18.0.64/26",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [],
+            "subscription_id": "34ae6bc4-74d2-34dc-9db6-4855e4fb33c4",
+            "subscription_name": "Connectivity",
+            "gap": null,
+            "src_index": 21,
+            "block_id": 2
+        },
+        {
+            "vnet_name": "z-prod-id-vnet-vMHVML",
+            "vnet_cidr": [
+                "10.18.72.0/22"
+            ],
+            "subnet_name": "AzureBastionSubnet",
+            "subnet_cidr": "10.18.74.0/27",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.32.65.11",
+                "10.5.49.92"
+            ],
+            "subscription_id": "34c72bb8-8901-aebf-9442-34235d5033b8",
+            "subscription_name": "Identity",
+            "gap": null,
+            "src_index": 22,
+            "block_id": 2
+        },
+        {
+            "vnet_name": "z-prod-id-vnet-vMHVML",
+            "vnet_cidr": [
+                "10.18.72.0/22"
+            ],
+            "subnet_name": "temp-subnet",
+            "subnet_cidr": "10.18.74.32/27",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.32.65.11",
+                "10.5.49.92"
+            ],
+            "subscription_id": "34c72bb8-8901-aebf-9442-34235d5033b8",
+            "subscription_name": "Identity",
+            "gap": null,
+            "src_index": 23,
+            "block_id": 2
+        },
+        {
+            "vnet_name": "z-prod-id-vnet-vMHVML",
+            "vnet_cidr": [
+                "10.18.72.0/22"
+            ],
+            "subnet_name": "prod-tako-subnet",
+            "subnet_cidr": "10.18.74.64/28",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.32.65.11",
+                "10.5.49.92"
+            ],
+            "subscription_id": "34c72bb8-8901-aebf-9442-34235d5033b8",
+            "subscription_name": "Identity",
+            "gap": null,
+            "src_index": 24,
+            "block_id": 2
+        },
+        {
+            "vnet_name": "z-prod-id-vnet-vMHVML",
+            "vnet_cidr": [
+                "10.18.72.0/22"
+            ],
+            "subnet_name": "vm-subnet",
+            "subnet_cidr": "10.18.72.0/23",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.32.65.11",
+                "10.5.49.92"
+            ],
+            "subscription_id": "34c72bb8-8901-aebf-9442-34235d5033b8",
+            "subscription_name": "Identity",
+            "gap": null,
+            "src_index": 25,
+            "block_id": 2
+        },
+        {
+            "vnet_name": "z-prod-management-vnet-ewQ5UJ",
+            "vnet_cidr": [
+                "10.18.68.0/22"
+            ],
+            "subnet_name": "AzureBastionSubnet",
+            "subnet_cidr": "10.18.68.128/26",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [],
+            "subscription_id": "34e60b20-0c39-fb2d-b745-b74d8e573320",
+            "subscription_name": "Management",
+            "gap": null,
+            "src_index": 26,
+            "block_id": 2
+        },
+        {
+            "vnet_name": "z-prod-management-vnet-ewQ5UJ",
+            "vnet_cidr": [
+                "10.18.68.0/22"
+            ],
+            "subnet_name": "vm-subnet",
+            "subnet_cidr": "10.18.68.0/25",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [],
+            "subscription_id": "34e60b20-0c39-fb2d-b745-b74d8e573320",
+            "subscription_name": "Management",
+            "gap": null,
+            "src_index": 27,
+            "block_id": 2
+        },
+        {
+            "vnet_name": "z-prod-management-vnet-ewQ5UJ",
+            "vnet_cidr": [
+                "10.18.68.0/22"
+            ],
+            "subnet_name": "sql-migration-subnet",
+            "subnet_cidr": "10.18.71.240/28",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [],
+            "subscription_id": "34e60b20-0c39-fb2d-b745-b74d8e573320",
+            "subscription_name": "Management",
+            "gap": null,
+            "src_index": 28,
+            "block_id": 2
+        },
+        {
+            "vnet_name": "z-prod-nl-vnet-StbnV9",
+            "vnet_cidr": [
+                "10.18.136.0/21"
+            ],
+            "subnet_name": "prod-lsf-sql-subnet",
+            "subnet_cidr": "10.18.137.32/27",
+            "nsg": "/subscriptions/34bc7bf8-0b54-639e-9d52-cdd616e333f8/resourceGroups/prod-laserfiche-rg/providers/Microsoft.Network/networkSecurityGroups/z-prod-nl-sqlmi-lf-nsg",
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.4.5.10",
+                "10.32.129.11"
+            ],
+            "subscription_id": "34bc7bf8-0b54-639e-9d52-cdd616e333f8",
+            "subscription_name": "Nl",
+            "gap": null,
+            "src_index": 29,
+            "block_id": 2
+        },
+        {
+            "vnet_name": "z-prod-nl-vnet-StbnV9",
+            "vnet_cidr": [
+                "10.18.136.0/21"
+            ],
+            "subnet_name": "prod-lsf-web-subnet",
+            "subnet_cidr": "10.18.137.0/28",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.4.5.10",
+                "10.32.129.11"
+            ],
+            "subscription_id": "34bc7bf8-0b54-639e-9d52-cdd616e333f8",
+            "subscription_name": "Nl",
+            "gap": null,
+            "src_index": 30,
+            "block_id": 2
+        },
+        {
+            "vnet_name": "z-prod-nl-vnet-StbnV9",
+            "vnet_cidr": [
+                "10.18.136.0/21"
+            ],
+            "subnet_name": "prod-lsf-app-subnet",
+            "subnet_cidr": "10.18.137.16/28",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.4.5.10",
+                "10.32.129.11"
+            ],
+            "subscription_id": "34bc7bf8-0b54-639e-9d52-cdd616e333f8",
+            "subscription_name": "Nl",
+            "gap": null,
+            "src_index": 31,
+            "block_id": 2
+        },
+        {
+            "vnet_name": "z-prod-nl-vnet-StbnV9",
+            "vnet_cidr": [
+                "10.18.136.0/21"
+            ],
+            "subnet_name": "vm-subnet",
+            "subnet_cidr": "10.18.136.0/24",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.4.5.10",
+                "10.32.129.11"
+            ],
+            "subscription_id": "34bc7bf8-0b54-639e-9d52-cdd616e333f8",
+            "subscription_name": "Nl",
+            "gap": null,
+            "src_index": 32,
+            "block_id": 2
+        },
+        {
+            "vnet_name": "z-prod-panorama-01-vnet-mjioz7",
+            "vnet_cidr": [
+                "10.18.8.0/24"
+            ],
+            "subnet_name": "pano-mgmt",
+            "subnet_cidr": "10.18.8.0/25",
+            "nsg": "/subscriptions/34ae6bc4-74d2-34dc-9db6-4855e4fb33c4/resourceGroups/prod-panorama-rg/providers/Microsoft.Network/networkSecurityGroups/z-prod-panorama-01-nsg-12trr1",
+            "location": "australiaeast",
+            "dns_servers": [],
+            "subscription_id": "34ae6bc4-74d2-34dc-9db6-4855e4fb33c4",
+            "subscription_name": "Connectivity",
+            "gap": null,
+            "src_index": 33,
+            "block_id": 2
+        },
+        {
+            "vnet_name": "z-prod-shared_services-vnet-DdDRei",
+            "vnet_cidr": [
+                "10.18.176.0/21"
+            ],
+            "subnet_name": "prod-dcm-subnet",
+            "subnet_cidr": "10.18.178.208/28",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "34ec6bad-809a-6bab-aeec-b897178e33ad",
+            "subscription_name": "ORG Shared Services",
+            "gap": null,
+            "src_index": 34,
+            "block_id": 2
+        },
+        {
+            "vnet_name": "z-prod-shared_services-vnet-DdDRei",
+            "vnet_cidr": [
+                "10.18.176.0/21"
+            ],
+            "subnet_name": "prod-fax-subnet",
+            "subnet_cidr": "10.18.179.0/28",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "34ec6bad-809a-6bab-aeec-b897178e33ad",
+            "subscription_name": "ORG Shared Services",
+            "gap": null,
+            "src_index": 35,
+            "block_id": 2
+        },
+        {
+            "vnet_name": "z-prod-shared_services-vnet-DdDRei",
+            "vnet_cidr": [
+                "10.18.176.0/21"
+            ],
+            "subnet_name": "prod-jamf-subnet",
+            "subnet_cidr": "10.18.183.48/28",
+            "nsg": "/subscriptions/34ec6bad-809a-6bab-aeec-b897178e33ad/resourceGroups/prod-vnet-rg/providers/Microsoft.Network/networkSecurityGroups/z-prod-jamf-nsg-KTbsoW",
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "34ec6bad-809a-6bab-aeec-b897178e33ad",
+            "subscription_name": "ORG Shared Services",
+            "gap": null,
+            "src_index": 36,
+            "block_id": 2
+        },
+        {
+            "vnet_name": "z-prod-shared_services-vnet-DdDRei",
+            "vnet_cidr": [
+                "10.18.176.0/21"
+            ],
+            "subnet_name": "prod-mlops-aks-subnet",
+            "subnet_cidr": "10.18.182.0/24",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "34ec6bad-809a-6bab-aeec-b897178e33ad",
+            "subscription_name": "ORG Shared Services",
+            "gap": null,
+            "src_index": 37,
+            "block_id": 2
+        },
+        {
+            "vnet_name": "z-prod-shared_services-vnet-DdDRei",
+            "vnet_cidr": [
+                "10.18.176.0/21"
+            ],
+            "subnet_name": "prod-aks-subnet",
+            "subnet_cidr": "10.18.178.0/25",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "34ec6bad-809a-6bab-aeec-b897178e33ad",
+            "subscription_name": "ORG Shared Services",
+            "gap": null,
+            "src_index": 38,
+            "block_id": 2
+        },
+        {
+            "vnet_name": "z-prod-shared_services-vnet-DdDRei",
+            "vnet_cidr": [
+                "10.18.176.0/21"
+            ],
+            "subnet_name": "vm-mssql-subnet",
+            "subnet_cidr": "10.18.179.128/27",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "34ec6bad-809a-6bab-aeec-b897178e33ad",
+            "subscription_name": "ORG Shared Services",
+            "gap": null,
+            "src_index": 39,
+            "block_id": 2
+        },
+        {
+            "vnet_name": "z-prod-shared_services-vnet-DdDRei",
+            "vnet_cidr": [
+                "10.18.176.0/21"
+            ],
+            "subnet_name": "prod-appgw-cf-subnet",
+            "subnet_cidr": "10.18.180.128/26",
+            "nsg": "/subscriptions/34ec6bad-809a-6bab-aeec-b897178e33ad/resourceGroups/prod-vnet-rg/providers/Microsoft.Network/networkSecurityGroups/z-prod-appgw-cf-nsg-Wbhb3W",
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "34ec6bad-809a-6bab-aeec-b897178e33ad",
+            "subscription_name": "ORG Shared Services",
+            "gap": null,
+            "src_index": 40,
+            "block_id": 2
+        },
+        {
+            "vnet_name": "z-prod-shared_services-vnet-DdDRei",
+            "vnet_cidr": [
+                "10.18.176.0/21"
+            ],
+            "subnet_name": "prod-logs-wms-subnet",
+            "subnet_cidr": "10.18.179.32/27",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "34ec6bad-809a-6bab-aeec-b897178e33ad",
+            "subscription_name": "ORG Shared Services",
+            "gap": null,
+            "src_index": 41,
+            "block_id": 2
+        },
+        {
+            "vnet_name": "z-prod-shared_services-vnet-DdDRei",
+            "vnet_cidr": [
+                "10.18.176.0/21"
+            ],
+            "subnet_name": "vm-mssql-cluster-a-subnet",
+            "subnet_cidr": "10.18.179.192/26",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "34ec6bad-809a-6bab-aeec-b897178e33ad",
+            "subscription_name": "ORG Shared Services",
+            "gap": null,
+            "src_index": 42,
+            "block_id": 2
+        },
+        {
+            "vnet_name": "z-prod-shared_services-vnet-DdDRei",
+            "vnet_cidr": [
+                "10.18.176.0/21"
+            ],
+            "subnet_name": "vm-subnet",
+            "subnet_cidr": "10.18.176.0/24",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "34ec6bad-809a-6bab-aeec-b897178e33ad",
+            "subscription_name": "ORG Shared Services",
+            "gap": null,
+            "src_index": 43,
+            "block_id": 2
+        },
+        {
+            "vnet_name": "z-prod-shared_services-vnet-DdDRei",
+            "vnet_cidr": [
+                "10.18.176.0/21"
+            ],
+            "subnet_name": "prod-logs-wms-appgw-subnet",
+            "subnet_cidr": "10.18.179.96/27",
+            "nsg": "/subscriptions/34ec6bad-809a-6bab-aeec-b897178e33ad/resourceGroups/prod-vnet-rg/providers/Microsoft.Network/networkSecurityGroups/logs-wms-appgw-prod-nsg",
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "34ec6bad-809a-6bab-aeec-b897178e33ad",
+            "subscription_name": "ORG Shared Services",
+            "gap": null,
+            "src_index": 44,
+            "block_id": 2
+        },
+        {
+            "vnet_name": "z-prod-shared_services-vnet-DdDRei",
+            "vnet_cidr": [
+                "10.18.176.0/21"
+            ],
+            "subnet_name": "vm-mssql-cluster-b-subnet",
+            "subnet_cidr": "10.18.180.0/26",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "34ec6bad-809a-6bab-aeec-b897178e33ad",
+            "subscription_name": "ORG Shared Services",
+            "gap": null,
+            "src_index": 45,
+            "block_id": 2
+        },
+        {
+            "vnet_name": "z-prod-shared_services-vnet-DdDRei",
+            "vnet_cidr": [
+                "10.18.176.0/21"
+            ],
+            "subnet_name": "prod-papercut-subnet",
+            "subnet_cidr": "10.18.179.64/28",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "34ec6bad-809a-6bab-aeec-b897178e33ad",
+            "subscription_name": "ORG Shared Services",
+            "gap": null,
+            "src_index": 46,
+            "block_id": 2
+        },
+        {
+            "vnet_name": "z-prod-shared_services-vnet-DdDRei",
+            "vnet_cidr": [
+                "10.18.176.0/21"
+            ],
+            "subnet_name": "prod-guestwifi-subnet",
+            "subnet_cidr": "10.18.183.80/28",
+            "nsg": "/subscriptions/34ec6bad-809a-6bab-aeec-b897178e33ad/resourceGroups/prod-vnet-rg/providers/Microsoft.Network/networkSecurityGroups/z-prod-guestwifi-nsg-WZ5yKS",
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "34ec6bad-809a-6bab-aeec-b897178e33ad",
+            "subscription_name": "ORG Shared Services",
+            "gap": null,
+            "src_index": 47,
+            "block_id": 2
+        },
+        {
+            "vnet_name": "z-prod-shared_services-vnet-DdDRei",
+            "vnet_cidr": [
+                "10.18.176.0/21"
+            ],
+            "subnet_name": "vm-mssql-cluster-c-subnet",
+            "subnet_cidr": "10.18.180.64/28",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "34ec6bad-809a-6bab-aeec-b897178e33ad",
+            "subscription_name": "ORG Shared Services",
+            "gap": null,
+            "src_index": 48,
+            "block_id": 2
+        },
+        {
+            "vnet_name": "z-prod-shared_services-vnet-DdDRei",
+            "vnet_cidr": [
+                "10.18.176.0/21"
+            ],
+            "subnet_name": "prod-max-subnet",
+            "subnet_cidr": "10.18.179.16/28",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "34ec6bad-809a-6bab-aeec-b897178e33ad",
+            "subscription_name": "ORG Shared Services",
+            "gap": null,
+            "src_index": 49,
+            "block_id": 2
+        },
+        {
+            "vnet_name": "z-prod-shared_services-vnet-DdDRei",
+            "vnet_cidr": [
+                "10.18.176.0/21"
+            ],
+            "subnet_name": "prod-appgw-cf-subnet",
+            "subnet_cidr": "10.18.180.128/26",
+            "nsg": "/subscriptions/34ec6bad-809a-6bab-aeec-b897178e33ad/resourceGroups/prod-vnet-rg/providers/Microsoft.Network/networkSecurityGroups/z-prod-appgw-cf-nsg-Wbhb3W",
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "34ec6bad-809a-6bab-aeec-b897178e33ad",
+            "subscription_name": "ORG Shared Services",
+            "gap": null,
+            "src_index": 0,
+            "block_id": 3
+        },
+        {
+            "vnet_name": "z-prod-shared_services-vnet-DdDRei",
+            "vnet_cidr": [
+                "10.18.176.0/21"
+            ],
+            "subnet_name": "prod-postgresql-subnet",
+            "subnet_cidr": "10.18.178.128/26",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "34ec6bad-809a-6bab-aeec-b897178e33ad",
+            "subscription_name": "ORG Shared Services",
+            "gap": null,
+            "src_index": 1,
+            "block_id": 3
+        },
+        {
+            "vnet_name": "z-prod-shared_services-vnet-DdDRei",
+            "vnet_cidr": [
+                "10.18.176.0/21"
+            ],
+            "subnet_name": "prod-hpaem-subnet",
+            "subnet_cidr": "10.18.178.224/27",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "34ec6bad-809a-6bab-aeec-b897178e33ad",
+            "subscription_name": "ORG Shared Services",
+            "gap": null,
+            "src_index": 2,
+            "block_id": 3
+        },
+        {
+            "vnet_name": "z-prod-shared_services-vnet-DdDRei",
+            "vnet_cidr": [
+                "10.18.176.0/21"
+            ],
+            "subnet_name": "prod-mlops-ci-subnet",
+            "subnet_cidr": "10.18.183.0/27",
+            "nsg": "/subscriptions/34ec6bad-809a-6bab-aeec-b897178e33ad/resourceGroups/rg-prod-aue-aml-isrs-01/providers/Microsoft.Network/networkSecurityGroups/nsg-prod-aue-aml-isrs-01",
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "34ec6bad-809a-6bab-aeec-b897178e33ad",
+            "subscription_name": "ORG Shared Services",
+            "gap": null,
+            "src_index": 3,
+            "block_id": 3
+        },
+        {
+            "vnet_name": "z-prod-shared_services-vnet-DdDRei",
+            "vnet_cidr": [
+                "10.18.176.0/21"
+            ],
+            "subnet_name": "apim-subnetstv2",
+            "subnet_cidr": "10.18.183.224/27",
+            "nsg": "/subscriptions/34ec6bad-809a-6bab-aeec-b897178e33ad/resourceGroups/prod-vnet-rg/providers/Microsoft.Network/networkSecurityGroups/z-prod-apim-nsg-zm02hM",
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "34ec6bad-809a-6bab-aeec-b897178e33ad",
+            "subscription_name": "ORG Shared Services",
+            "gap": null,
+            "src_index": 4,
+            "block_id": 3
+        },
+        {
+            "vnet_name": "z-prod-shared_services-vnet-DdDRei",
+            "vnet_cidr": [
+                "10.18.176.0/21"
+            ],
+            "subnet_name": "prod-active-subnet",
+            "subnet_cidr": "10.18.178.192/28",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "34ec6bad-809a-6bab-aeec-b897178e33ad",
+            "subscription_name": "ORG Shared Services",
+            "gap": null,
+            "src_index": 5,
+            "block_id": 3
+        },
+        {
+            "vnet_name": "z-prod-shared_services-vnet-DdDRei",
+            "vnet_cidr": [
+                "10.18.176.0/21"
+            ],
+            "subnet_name": "prod-fax-subnet",
+            "subnet_cidr": "10.18.179.0/28",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "34ec6bad-809a-6bab-aeec-b897178e33ad",
+            "subscription_name": "ORG Shared Services",
+            "gap": null,
+            "src_index": 6,
+            "block_id": 3
+        },
+        {
+            "vnet_name": "z-prod-shared_services-vnet-DdDRei",
+            "vnet_cidr": [
+                "10.18.176.0/21"
+            ],
+            "subnet_name": "vm-mssql-cluster-c-subnet",
+            "subnet_cidr": "10.18.180.64/28",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "34ec6bad-809a-6bab-aeec-b897178e33ad",
+            "subscription_name": "ORG Shared Services",
+            "gap": null,
+            "src_index": 7,
+            "block_id": 3
+        },
+        {
+            "vnet_name": "z-prod-shared_services-vnet-DdDRei",
+            "vnet_cidr": [
+                "10.18.176.0/21"
+            ],
+            "subnet_name": "prod-paloaltouia-subnet",
+            "subnet_cidr": "10.18.183.64/28",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "34ec6bad-809a-6bab-aeec-b897178e33ad",
+            "subscription_name": "ORG Shared Services",
+            "gap": null,
+            "src_index": 8,
+            "block_id": 3
+        },
+        {
+            "vnet_name": "z-prod-shared_services-vnet-DdDRei",
+            "vnet_cidr": [
+                "10.18.176.0/21"
+            ],
+            "subnet_name": "prod-max-subnet",
+            "subnet_cidr": "10.18.179.16/28",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "34ec6bad-809a-6bab-aeec-b897178e33ad",
+            "subscription_name": "ORG Shared Services",
+            "gap": null,
+            "src_index": 9,
+            "block_id": 3
+        },
+        {
+            "vnet_name": "z-prod-shared_services-vnet-DdDRei",
+            "vnet_cidr": [
+                "10.18.176.0/21"
+            ],
+            "subnet_name": "prod-papercut-subnet",
+            "subnet_cidr": "10.18.179.64/28",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "34ec6bad-809a-6bab-aeec-b897178e33ad",
+            "subscription_name": "ORG Shared Services",
+            "gap": null,
+            "src_index": 10,
+            "block_id": 3
+        },
+        {
+            "vnet_name": "z-prod-shared_services-vnet-DdDRei",
+            "vnet_cidr": [
+                "10.18.176.0/21"
+            ],
+            "subnet_name": "vm-subnet",
+            "subnet_cidr": "10.18.176.0/24",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "34ec6bad-809a-6bab-aeec-b897178e33ad",
+            "subscription_name": "ORG Shared Services",
+            "gap": null,
+            "src_index": 11,
+            "block_id": 3
+        },
+        {
+            "vnet_name": "z-prod-shared_services-vnet-DdDRei",
+            "vnet_cidr": [
+                "10.18.176.0/21"
+            ],
+            "subnet_name": "prod-aks-subnet",
+            "subnet_cidr": "10.18.178.0/25",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "34ec6bad-809a-6bab-aeec-b897178e33ad",
+            "subscription_name": "ORG Shared Services",
+            "gap": null,
+            "src_index": 12,
+            "block_id": 3
+        },
+        {
+            "vnet_name": "z-prod-shared_services-vnet-DdDRei",
+            "vnet_cidr": [
+                "10.18.176.0/21"
+            ],
+            "subnet_name": "prod-clearpass-subnet",
+            "subnet_cidr": "10.18.183.112/28",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "34ec6bad-809a-6bab-aeec-b897178e33ad",
+            "subscription_name": "ORG Shared Services",
+            "gap": null,
+            "src_index": 13,
+            "block_id": 3
+        },
+        {
+            "vnet_name": "z-prod-shared_services-vnet-DdDRei",
+            "vnet_cidr": [
+                "10.18.176.0/21"
+            ],
+            "subnet_name": "prod-mlops-aks-subnet",
+            "subnet_cidr": "10.18.182.0/24",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "34ec6bad-809a-6bab-aeec-b897178e33ad",
+            "subscription_name": "ORG Shared Services",
+            "gap": null,
+            "src_index": 14,
+            "block_id": 3
+        },
+        {
+            "vnet_name": "z-prod-themarket-vnet-25PE6s",
+            "vnet_cidr": [
+                "10.18.36.0/22"
+            ],
+            "subnet_name": "vm-subnet",
+            "subnet_cidr": "10.18.36.0/25",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [],
+            "subscription_id": "34595bc6-b5f3-c8b9-8022-00b0309933c6",
+            "subscription_name": "TheMarket",
+            "gap": null,
+            "src_index": 15,
+            "block_id": 3
+        },
+        {
+            "vnet_name": "z-prod-t7-vnet-fKmnKY",
+            "vnet_cidr": [
+                "10.18.52.0/22"
+            ],
+            "subnet_name": "vm-subnet",
+            "subnet_cidr": "10.18.52.0/25",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "344bdbc1-bcf0-1581-aeab-7891c68733c1",
+            "subscription_name": "T7",
+            "gap": null,
+            "src_index": 16,
+            "block_id": 3
+        },
+        {
+            "vnet_name": "z-prod-t7-vnet-fKmnKY",
+            "vnet_cidr": [
+                "10.18.52.0/22"
+            ],
+            "subnet_name": "AzureBastionSubnet",
+            "subnet_cidr": "10.18.52.128/26",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "344bdbc1-bcf0-1581-aeab-7891c68733c1",
+            "subscription_name": "T7",
+            "gap": null,
+            "src_index": 17,
+            "block_id": 3
+        },
+        {
+            "vnet_name": "z-prod-trg_wrg-vnet-w4H20V",
+            "vnet_cidr": [
+                "10.18.96.0/21"
+            ],
+            "subnet_name": "dr-xui-vm-subnet",
+            "subnet_cidr": "10.18.100.192/26",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "34348b1a-58d3-e241-bb97-156d08fd331a",
+            "subscription_name": "TRG\\WRG",
+            "gap": null,
+            "src_index": 18,
+            "block_id": 3
+        },
+        {
+            "vnet_name": "z-prod-trg_wrg-vnet-w4H20V",
+            "vnet_cidr": [
+                "10.18.96.0/21"
+            ],
+            "subnet_name": "AzureBastionSubnet",
+            "subnet_cidr": "10.18.100.0/27",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "34348b1a-58d3-e241-bb97-156d08fd331a",
+            "subscription_name": "TRG\\WRG",
+            "gap": null,
+            "src_index": 19,
+            "block_id": 3
+        },
+        {
+            "vnet_name": "z-prod-trg_wrg-vnet-w4H20V",
+            "vnet_cidr": [
+                "10.18.96.0/21"
+            ],
+            "subnet_name": "vm-subnet",
+            "subnet_cidr": "10.18.96.0/24",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "34348b1a-58d3-e241-bb97-156d08fd331a",
+            "subscription_name": "TRG\\WRG",
+            "gap": null,
+            "src_index": 20,
+            "block_id": 3
+        },
+        {
+            "vnet_name": "z-prod-trg_wrg-vnet-w4H20V",
+            "vnet_cidr": [
+                "10.18.96.0/21"
+            ],
+            "subnet_name": "prod-xui-vm-subnet",
+            "subnet_cidr": "10.18.100.128/26",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "34348b1a-58d3-e241-bb97-156d08fd331a",
+            "subscription_name": "TRG\\WRG",
+            "gap": null,
+            "src_index": 21,
+            "block_id": 3
+        },
+        {
+            "vnet_name": "z-prod-trg_wrg-vnet-w4H20V",
+            "vnet_cidr": [
+                "10.18.96.0/21"
+            ],
+            "subnet_name": "postgresql-subnet",
+            "subnet_cidr": "10.18.100.64/26",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.18.72.5",
+                "10.32.65.11"
+            ],
+            "subscription_id": "34348b1a-58d3-e241-bb97-156d08fd331a",
+            "subscription_name": "TRG\\WRG",
+            "gap": null,
+            "src_index": 22,
+            "block_id": 3
+        },
+        {
+            "vnet_name": "z-prod-vendor-transit-vnet-SFBHQv",
+            "vnet_cidr": [
+                "10.18.76.0/24"
+            ],
+            "subnet_name": "AzureFirewallSubnet",
+            "subnet_cidr": "10.18.76.0/26",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [],
+            "subscription_id": "34ae6bc4-74d2-34dc-9db6-4855e4fb33c4",
+            "subscription_name": "Connectivity",
+            "gap": null,
+            "src_index": 23,
+            "block_id": 3
+        },
+        {
+            "vnet_name": "z-sandbox-nl-vnet-w8tBwC",
+            "vnet_cidr": [
+                "10.18.152.0/21"
+            ],
+            "subnet_name": "vm-subnet",
+            "subnet_cidr": "10.18.152.0/24",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [],
+            "subscription_id": "343b5b02-30b6-8143-ace7-475a7d5b3302",
+            "subscription_name": "Nl - Sandbox",
+            "gap": null,
+            "src_index": 24,
+            "block_id": 3
+        },
+        {
+            "vnet_name": "z-sandbox-shared_services-vnet-EPjs9l",
+            "vnet_cidr": [
+                "10.18.192.0/21"
+            ],
+            "subnet_name": "AzureBastionSubnet",
+            "subnet_cidr": "10.18.193.0/26",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [],
+            "subscription_id": "34729b87-d6d5-de92-8466-f4b585ce3387",
+            "subscription_name": "ORG Shared Services - Sandbox",
+            "gap": null,
+            "src_index": 25,
+            "block_id": 3
+        },
+        {
+            "vnet_name": "z-sandbox-shared_services-vnet-EPjs9l",
+            "vnet_cidr": [
+                "10.18.192.0/21"
+            ],
+            "subnet_name": "vm-subnet",
+            "subnet_cidr": "10.18.192.0/24",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [],
+            "subscription_id": "34729b87-d6d5-de92-8466-f4b585ce3387",
+            "subscription_name": "ORG Shared Services - Sandbox",
+            "gap": null,
+            "src_index": 26,
+            "block_id": 3
+        },
+        {
+            "vnet_name": "z-sandbox-trg_wrg-vnet-LKcvML",
+            "vnet_cidr": [
+                "10.18.120.0/21"
+            ],
+            "subnet_name": "vm-subnet",
+            "subnet_cidr": "10.18.120.0/24",
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": [],
+            "subscription_id": "34d63b77-c3a9-712b-ac11-3f79444e3377",
+            "subscription_name": "TRG\\WRG - Sandbox",
+            "gap": null,
+            "src_index": 27,
+            "block_id": 3
+        },
+        {
+            "vnet_name": "z-test-wmsdb-restore-network-deleteme",
+            "vnet_cidr": [
+                "10.0.0.0/16"
+            ],
+            "subnet_name": "AzureBastionSubnet",
+            "subnet_cidr": null,
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": null,
+            "subscription_id": "343f1b30-c06d-28a7-833b-d6ab57453330",
+            "subscription_name": "ORG Shared Services - Non-Prod",
+            "gap": null,
+            "src_index": 28,
+            "block_id": 3
+        },
+        {
+            "vnet_name": "z-test-wmsdb-restore-network-deleteme",
+            "vnet_cidr": [
+                "10.0.0.0/16"
+            ],
+            "subnet_name": "default",
+            "subnet_cidr": null,
+            "nsg": null,
+            "location": "australiaeast",
+            "dns_servers": null,
+            "subscription_id": "343f1b30-c06d-28a7-833b-d6ab57453330",
+            "subscription_name": "ORG Shared Services - Non-Prod",
+            "gap": null,
+            "src_index": 29,
+            "block_id": 3
+        }
+    ],
+    "skip_token": null,
+    "total_records": 180,
+    "count": 180
+}

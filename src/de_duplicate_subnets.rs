@@ -75,6 +75,7 @@ pub fn de_duplicate_subnets(
             data.data.remove(i);
             continue;
         };
+        //TODO: should be normal filter by name
         if s.subnet_cidr
             == Some(Ipv4 {
                 addr: Ipv4Addr::new(10, 1, 1, 0),
@@ -91,7 +92,7 @@ pub fn de_duplicate_subnets(
         };
         if cidr == s.subnet_cidr.unwrap() {
             let msg_duplicate = format!(
-                "Duplicate cidr:{cidr},\n    Name[{prev_index}]{prev_sub_name} Sub['{prev_sub}'] cidr:{cidr_prev}\n    Name[{index}]{subnet_name} Sub['{sub}'] cidr:{subnet}",
+                "Duplicate[A] cidr:{cidr} Sub['{subnet_name}'],\n    Name[{prev_index}]{prev_sub_name} Sub['{prev_sub}'] cidr:{cidr_prev}\n    Name[{index}]{subnet_name} Sub['{sub}'] cidr:{subnet}",
                 prev_sub_name = prev_subnet.subnet_name,
                 prev_index = format!("{:2}/b{:2}",prev_subnet.src_index,prev_subnet.block_id).red(),
                 prev_sub = prev_subnet.subscription_name.red(),
@@ -146,9 +147,27 @@ mod tests {
         assert_eq!(
             result.data.len(),
             1,
-            "Expected 2 subnets after de-duplication"
+            "Expected 1 subnets after de-duplication"
         );
         assert_eq!(result.data[0].subnet_name, "env-logs-crm-appgw-subnet");
+    }
+        #[test]
+    fn test_de_duplicate_subnets_empty() {
+        //let mut data = gen_cache_data();
+        let data = read_subnet_cache(Some("src/tests/test_data/subnet_test_cache_03.json"))
+            .expect("Error reading subnet cache");
+        assert_eq!(
+            data.data.len(),
+            3,
+            "Expected 3 subnets before de-duplication"
+        );
+        // 1st filterd subnet = null, 2nd subnet = 10.0.0.0/24 Default
+        let result = de_duplicate_subnets(data, None).expect("Failed to de-duplicate subnets");
+        assert_eq!(
+            result.data.len(),
+            1,
+            "Expected 1 subnets after de-duplication"
+        );
     }
     #[test]
     fn test_de_duplicate_subnets_multi() {
@@ -163,18 +182,47 @@ mod tests {
         // Replace default subnet filter list
         let filter = vec![
             "default",
-            "pkrsn1ooslfxj77",
-            "pkrsn8jufz9plf6",
-            "pkrsnsnajtq3h3i",
-            "pkrsnxocivqofa6",
+            "pkrsn1ooslfxj77", // Once in data
+            "pkrsnsnajtq3h3i", // Not in data
+            "pkrsnxocivqofa6", // Not in data
+            "ORGgmcmg",        // Once in data
         ];
         let result = de_duplicate_subnets(data,Some(filter)).expect("Failed to de-duplicate subnets");
         assert_eq!(
             result.data.len(),
-            170,
-            "Expected 170 subnets after de-duplication"
+            169,
+            "Expected 169 subnets after de-duplication"
         );
-        assert_eq!(result.data[0].subnet_name, "default");
+        // Verify this is expected dataset
+        assert_eq!(result.data[151].subnet_name, "vm-mssql-cluster-a-subnet");
+
+    }
+        #[test]
+    fn test_de_duplicate_subnets_multi_03() {
+        //let mut data = gen_cache_data();
+        let data = read_subnet_cache(Some("src/tests/test_data/subnet_test_cache_04.json"))
+            .expect("Error reading subnet cache");
+        assert_eq!(
+            data.data.len(),
+            180,
+            "Expected 177 subnets before de-duplication"
+        );
+        // Replace default subnet filter list
+        let filter = vec![
+            "default",
+            "pkrsn1ooslfxj77", // Once in data
+            "pkrsnsnajtq3h3i", // Not in data
+            "pkrsnxocivqofa6", // Not in data
+            "orggmcmg",        // Once in data
+        ];
+        let result = de_duplicate_subnets(data,Some(filter)).expect("Failed to de-duplicate subnets");
+        assert_eq!(
+            result.data.len(),
+            173,
+            "Expected 173 subnets after de-duplication"
+        );
+        // Verify this is expected dataset
+        assert_eq!(result.data[151].subnet_name, "prod-fax-subnet");
 
     }
 }

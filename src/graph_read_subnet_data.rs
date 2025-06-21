@@ -2,14 +2,14 @@ use crate::cmd;
 use crate::config;
 use crate::struct_subnet::Subnet;
 use chrono;
+//use chrono::TimeZone;
 /// Runs az cli graph to read subnets
 use serde::{Deserialize, Serialize};
 
 /// fn read_subnet_cache()
 /// Reads from cache if exists else call run_az_cli_graph() to get data
 pub fn read_subnet_cache(cache_file: Option<&str>) -> Result<Data, Box<dyn std::error::Error>> {
-    // get current yyyy-mm for cache file
-    let now = chrono::Utc::now();
+    let now = chrono::Utc::now().with_timezone(&chrono_tz::Pacific::Auckland);
     // if cache_file is provided, use it, else create a default cache file name
     let cache_file = match cache_file {
         Some(file) => {
@@ -20,7 +20,7 @@ pub fn read_subnet_cache(cache_file: Option<&str>) -> Result<Data, Box<dyn std::
             log::info!("Using provided cache file: {}", file);
             file.to_string()
         }
-        None => format!("subnet_cache_{}.json", now.format("%Y-%m").to_string()),
+        None => format!("subnet_cache_{}.json", now.format("%Y-%m-%d").to_string()),
     };
     let data_from_cache_or_cli: Data = match std::fs::read_to_string(&cache_file) {
         Ok(json) => {
@@ -160,13 +160,24 @@ mod tests {
         assert!(data.count > 0, "Count should be greater than 0");
         log::info!("Data read from cache: {:?}", data);
     }
-    // #[tokio::test]
-    // async fn test_run_az_cli_graph() {
-    //     // Test running az cli graph
-    //     let data = run_az_cli_graph().expect("Error running az cli graph");
-    //     assert!(!data.data.is_empty(), "Data should not be empty");
-    //     assert!(data.total_records.is_some(), "Total records should be set");
-    //     assert!(data.count > 0, "Count should be greater than 0");
-    //     log::info!("Data from az cli graph: {:?}", data);
-    // }
+    #[tokio::test]
+    async fn test_read_subnet_cache_04() {
+        // Test reading from cache file form path in tests folder
+        let test_cache = "src/tests/test_data/subnet_test_cache_04.json";
+        let data = read_subnet_cache(Some(test_cache))
+            .expect("Error reading subnet cache");
+        assert!(!data.data.is_empty(), "Data should not be empty");
+        assert_eq!(
+            data.data.len(),
+            180,
+            "Expected 180 subnets in test sample {test_cache}"
+        );
+        assert_eq!(
+            data.data[0].vnet_name, "Docker_vSEC",
+            "Wrong vnet from test sample."
+        );
+        assert!(data.total_records.is_some(), "Total records should be set");
+        assert!(data.count > 0, "Count should be greater than 0");
+        log::info!("Data read from cache: {:?}", data);
+    }
 }

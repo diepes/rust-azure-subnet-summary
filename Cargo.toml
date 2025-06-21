@@ -28,3 +28,4 @@ term = "0.7.0"
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 serde_path_to_error = "0.1.16"
 chrono = "0.4.41"
+chrono-tz = "0.10.3"

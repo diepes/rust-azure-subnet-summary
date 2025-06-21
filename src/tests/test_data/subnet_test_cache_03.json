@@ -1,0 +1,59 @@
+
+{  "note": "# Used in tests src/de_duplicate_subnets.rs, 1st - null subnet, 2nd - default 10.0.0.0/24",
+    "data": [
+        {
+            "vnet_name": "z-env-shared_services-vnet-AbCdEf",
+            "vnet_cidr": [
+                "10.31.176.0/21"
+            ],
+            "subnet_name": "env-logs-crm-appgw-subnet",
+            "subnet_cidr": null,
+            "nsg": "/subscriptions/7789013b-1e8e-4444-eeee-abab809aeead/resourceGroups/env-vnet-rg/providers/Microsoft.Network/networkSecurityGroups/logs-crm-appgw-env-nsg",
+            "location": "australiaeast",
+            "dns_servers": [
+                "10.31.72.5",
+                "10.44.65.11"
+            ],
+            "subscription_id": "7789013b-1e8e-4444-eeee-abab809aeead",
+            "subscription_name": "My Sub Name",
+            "gap": null,
+            "src_index": 46,
+            "block_id": 2
+        },
+        {
+            "vnet_name": "ORG-Infrastructure-Dev-vnet",
+            "vnet_cidr": [
+                "10.0.0.0/16"
+            ],
+            "subnet_name": "default",
+            "subnet_cidr": "10.0.0.0/24",
+            "nsg": null,
+            "location": "eastus",
+            "dns_servers": null,
+            "subscription_id": "41667788-9988-1100-2233-445544554448",
+            "subscription_name": "ORG Development (MSDN Users Only)",
+            "gap": null,
+            "src_index": 2,
+            "block_id": 3
+        },
+        {
+            "vnet_name": "Test-vnet-should-stay",
+            "vnet_cidr": [
+                "10.0.0.0/16"
+            ],
+            "subnet_name": "NotDefault",
+            "subnet_cidr": "10.0.0.0/24",
+            "nsg": null,
+            "location": "eastus",
+            "dns_servers": null,
+            "subscription_id": "41447788-9988-1100-2233-445544554448",
+            "subscription_name": "ORG Development (MSDN Users Only)",
+            "gap": null,
+            "src_index": 13,
+            "block_id": 4
+        }
+    ],
+    "skip_token": null,
+    "total_records": 1,
+    "count": 1
+}
