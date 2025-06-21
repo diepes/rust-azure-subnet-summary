@@ -5,13 +5,13 @@
 mod cmd;
 mod config;
 mod graph_read_subnet_data;
+mod de_duplicate_subnets;
 mod ipv4;
 mod struct_subnet;
 pub mod struct_vnet;
 use std::collections::HashSet;
 
 use struct_vnet::VnetList;
-mod de_duplicate_subnets;
 pub mod print_subnets;
 mod write_banner;
 
