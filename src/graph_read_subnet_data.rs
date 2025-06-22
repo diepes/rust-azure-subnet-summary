@@ -164,8 +164,7 @@ mod tests {
     async fn test_read_subnet_cache_04() {
         // Test reading from cache file form path in tests folder
         let test_cache = "src/tests/test_data/subnet_test_cache_04.json";
-        let data = read_subnet_cache(Some(test_cache))
-            .expect("Error reading subnet cache");
+        let data = read_subnet_cache(Some(test_cache)).expect("Error reading subnet cache");
         assert!(!data.data.is_empty(), "Data should not be empty");
         assert_eq!(
             data.data.len(),

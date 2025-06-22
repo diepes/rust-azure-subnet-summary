@@ -973,41 +973,41 @@
             "block_id": 1
         },
         {
-            "vnet_name": "z-ilt-lab3-vnet-01",
+            "vnet_name": "z-ilt-lab5-vnet-01",
             "vnet_cidr": [
                 "172.25.250.0/24",
                 "172.25.251.0/24"
             ],
-            "subnet_name": "z-ilt-lab3-snet-mgmt-01",
+            "subnet_name": "z-ilt-lab5-snet-mgmt-01",
             "subnet_cidr": "172.25.250.160/27",
             "nsg": null,
             "location": "australiaeast",
             "dns_servers": null,
             "subscription_id": "34195b63-5ab6-2394-b7b9-4c595bca3363",
-            "subscription_name": "Lab3 Migration ILT",
+            "subscription_name": "Lab5 Migration ILT",
             "gap": null,
             "src_index": 6,
             "block_id": 1
         },
         {
-            "vnet_name": "z-ilt-lab3-vnet-01",
+            "vnet_name": "z-ilt-lab5-vnet-01",
             "vnet_cidr": [
                 "172.25.250.0/24",
                 "172.25.251.0/24"
             ],
-            "subnet_name": "z-ilt-lab3-snet-lnc-01",
+            "subnet_name": "z-ilt-lab5-snet-lnc-01",
             "subnet_cidr": "172.25.250.128/27",
             "nsg": null,
             "location": "australiaeast",
             "dns_servers": null,
             "subscription_id": "34195b63-5ab6-2394-b7b9-4c595bca3363",
-            "subscription_name": "Lab3 Migration ILT",
+            "subscription_name": "Lab5 Migration ILT",
             "gap": null,
             "src_index": 7,
             "block_id": 1
         },
         {
-            "vnet_name": "z-ilt-lab3-vnet-01",
+            "vnet_name": "z-ilt-lab5-vnet-01",
             "vnet_cidr": [
                 "172.25.250.0/24",
                 "172.25.251.0/24"
@@ -1018,47 +1018,47 @@
             "location": "australiaeast",
             "dns_servers": null,
             "subscription_id": "34195b63-5ab6-2394-b7b9-4c595bca3363",
-            "subscription_name": "Lab3 Migration ILT",
+            "subscription_name": "Lab5 Migration ILT",
             "gap": null,
             "src_index": 8,
             "block_id": 1
         },
         {
-            "vnet_name": "z-ilt-lab3-vnet-01",
+            "vnet_name": "z-ilt-lab5-vnet-01",
             "vnet_cidr": [
                 "172.25.250.0/24",
                 "172.25.251.0/24"
             ],
-            "subnet_name": "z-ilt-lab3-snet-app-01",
+            "subnet_name": "z-ilt-lab5-snet-app-01",
             "subnet_cidr": "172.25.250.64/27",
-            "nsg": "/subscriptions/34195b63-5ab6-2394-b7b9-4c595bca3363/resourceGroups/z-ilt-lab3-bkdiag-01-rg/providers/Microsoft.Network/networkSecurityGroups/z-ilt-lab3-nsg-snet-mgmt-01",
+            "nsg": "/subscriptions/34195b63-5ab6-2394-b7b9-4c595bca3363/resourceGroups/z-ilt-lab5-bkdiag-01-rg/providers/Microsoft.Network/networkSecurityGroups/z-ilt-lab5-nsg-snet-mgmt-01",
             "location": "australiaeast",
             "dns_servers": null,
             "subscription_id": "34195b63-5ab6-2394-b7b9-4c595bca3363",
-            "subscription_name": "Lab3 Migration ILT",
+            "subscription_name": "Lab5 Migration ILT",
             "gap": null,
             "src_index": 9,
             "block_id": 1
         },
         {
-            "vnet_name": "z-ilt-lab3-vnet-01",
+            "vnet_name": "z-ilt-lab5-vnet-01",
             "vnet_cidr": [
                 "172.25.250.0/24",
                 "172.25.251.0/24"
             ],
-            "subnet_name": "z-ilt-lab3-snet-adds-01",
+            "subnet_name": "z-ilt-lab5-snet-adds-01",
             "subnet_cidr": "172.25.250.96/27",
-            "nsg": "/subscriptions/34195b63-5ab6-2394-b7b9-4c595bca3363/resourceGroups/z-ilt-lab3-bkdiag-01-rg/providers/Microsoft.Network/networkSecurityGroups/z-ilt-lab3-nsg-snet-mgmt-01",
+            "nsg": "/subscriptions/34195b63-5ab6-2394-b7b9-4c595bca3363/resourceGroups/z-ilt-lab5-bkdiag-01-rg/providers/Microsoft.Network/networkSecurityGroups/z-ilt-lab5-nsg-snet-mgmt-01",
             "location": "australiaeast",
             "dns_servers": null,
             "subscription_id": "34195b63-5ab6-2394-b7b9-4c595bca3363",
-            "subscription_name": "Lab3 Migration ILT",
+            "subscription_name": "Lab5 Migration ILT",
             "gap": null,
             "src_index": 10,
             "block_id": 1
         },
         {
-            "vnet_name": "z-ilt-lab3-vnet-01",
+            "vnet_name": "z-ilt-lab5-vnet-01",
             "vnet_cidr": [
                 "172.25.250.0/24",
                 "172.25.251.0/24"
@@ -1069,30 +1069,30 @@
             "location": "australiaeast",
             "dns_servers": null,
             "subscription_id": "34195b63-5ab6-2394-b7b9-4c595bca3363",
-            "subscription_name": "Lab3 Migration ILT",
+            "subscription_name": "Lab5 Migration ILT",
             "gap": null,
             "src_index": 11,
             "block_id": 1
         },
         {
-            "vnet_name": "z-ilt-lab3-vnet-01",
+            "vnet_name": "z-ilt-lab5-vnet-01",
             "vnet_cidr": [
                 "172.25.250.0/24",
                 "172.25.251.0/24"
             ],
-            "subnet_name": "z-ilt-lab3-snet-app-02",
+            "subnet_name": "z-ilt-lab5-snet-app-02",
             "subnet_cidr": "172.25.251.64/26",
             "nsg": null,
             "location": "australiaeast",
             "dns_servers": null,
             "subscription_id": "34195b63-5ab6-2394-b7b9-4c595bca3363",
-            "subscription_name": "Lab3 Migration ILT",
+            "subscription_name": "Lab5 Migration ILT",
             "gap": null,
             "src_index": 12,
             "block_id": 1
         },
         {
-            "vnet_name": "z-ilt-lab3-vnet-01",
+            "vnet_name": "z-ilt-lab5-vnet-01",
             "vnet_cidr": [
                 "172.25.250.0/24",
                 "172.25.251.0/24"
@@ -1103,41 +1103,41 @@
             "location": "australiaeast",
             "dns_servers": null,
             "subscription_id": "34195b63-5ab6-2394-b7b9-4c595bca3363",
-            "subscription_name": "Lab3 Migration ILT",
+            "subscription_name": "Lab5 Migration ILT",
             "gap": null,
             "src_index": 13,
             "block_id": 1
         },
         {
-            "vnet_name": "z-ilt-lab3-vnet-01",
+            "vnet_name": "z-ilt-lab5-vnet-01",
             "vnet_cidr": [
                 "172.25.250.0/24",
                 "172.25.251.0/24"
             ],
-            "subnet_name": "z-ilt-lab3-snet-sql-secondary",
+            "subnet_name": "z-ilt-lab5-snet-sql-secondary",
             "subnet_cidr": "172.25.250.224/27",
             "nsg": null,
             "location": "australiaeast",
             "dns_servers": null,
             "subscription_id": "34195b63-5ab6-2394-b7b9-4c595bca3363",
-            "subscription_name": "Lab3 Migration ILT",
+            "subscription_name": "Lab5 Migration ILT",
             "gap": null,
             "src_index": 14,
             "block_id": 1
         },
         {
-            "vnet_name": "z-ilt-lab3-vnet-01",
+            "vnet_name": "z-ilt-lab5-vnet-01",
             "vnet_cidr": [
                 "172.25.250.0/24",
                 "172.25.251.0/24"
             ],
-            "subnet_name": "z-ilt-lab3-snet-sql-primary",
+            "subnet_name": "z-ilt-lab5-snet-sql-primary",
             "subnet_cidr": "172.25.250.192/27",
             "nsg": null,
             "location": "australiaeast",
             "dns_servers": null,
             "subscription_id": "34195b63-5ab6-2394-b7b9-4c595bca3363",
-            "subscription_name": "Lab3 Migration ILT",
+            "subscription_name": "Lab5 Migration ILT",
             "gap": null,
             "src_index": 15,
             "block_id": 1

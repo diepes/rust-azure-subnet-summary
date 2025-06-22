@@ -4,14 +4,6 @@ use colored::Colorize;
 use std::error::Error;
 use std::net::Ipv4Addr;
 
-
-struct PrintSubnetsState<'a> {
-    i: usize,
-    s: &'a crate::struct_subnet::Subnet,
-    next_ip: Ipv4,
-    vnet_previous_cidr: Ipv4,
-}
-
 #[derive(Debug)]
 pub struct SubnetPrintRow {
     pub j: usize,
@@ -30,14 +22,13 @@ pub struct SubnetPrintRow {
 }
 
 fn process_subnet_row<'a>(
-    state: PrintSubnetsState<'a>,
+    s: &'a crate::struct_subnet::Subnet,
+    i: usize,
+    mut next_ip: Ipv4,
+    mut vnet_previous_cidr: Ipv4,
     default_cidr_mask: u8,
     skip_subnet_smaller_than: Ipv4Addr,
-) -> (PrintSubnetsState<'a>, Vec<SubnetPrintRow>) {
-    let s = state.s;
-    let i = state.i;
-    let mut next_ip = state.next_ip;
-    let mut vnet_previous_cidr = state.vnet_previous_cidr;
+) -> (Ipv4, Ipv4, Vec<SubnetPrintRow>) {
     let mut rows = Vec::new();
     let subnet_cidr: Ipv4;
     match s.subnet_cidr {
@@ -57,21 +48,38 @@ fn process_subnet_row<'a>(
                 az_hosts: 0,
                 subnet_name: s.subnet_name.clone(),
                 subscription_name: s.subscription_name.clone(),
-                vnet_cidr: s.vnet_cidr.iter().map(|ip| ip.to_string()).collect::<Vec<String>>().join(","),
+                vnet_cidr: s
+                    .vnet_cidr
+                    .iter()
+                    .map(|ip| ip.to_string())
+                    .collect::<Vec<String>>()
+                    .join(","),
                 vnet_name: s.vnet_name.clone(),
                 location: s.location.clone(),
-                nsg: s.nsg.as_ref().unwrap_or(&"None".to_string()).split("/").last().unwrap().to_string(),
-                dns: s.dns_servers.as_ref().unwrap_or(&vec!["None".to_string()]).join(","),
+                nsg: s
+                    .nsg
+                    .as_ref()
+                    .unwrap_or(&"None".to_string())
+                    .split("/")
+                    .last()
+                    .unwrap()
+                    .to_string(),
+                dns: s
+                    .dns_servers
+                    .as_ref()
+                    .unwrap_or(&vec!["None".to_string()])
+                    .join(","),
                 subscription_id: s.subscription_id.clone(),
             });
-            return (state, rows);
+            return (next_ip, vnet_previous_cidr, rows);
         }
     }
     while next_ip.addr > skip_subnet_smaller_than
         && next_ip.addr < subnet_cidr.addr
         && next_ip < subnet_cidr
         && next_ip >= vnet_previous_cidr
-        && crate::ipv4::broadcast_addr_ipv4(next_ip).unwrap() < crate::ipv4::broadcast_addr_ipv4(vnet_previous_cidr).unwrap()
+        && crate::ipv4::broadcast_addr_ipv4(next_ip).unwrap()
+            < crate::ipv4::broadcast_addr_ipv4(vnet_previous_cidr).unwrap()
         && next_ip.addr.octets()[0] == s.vnet_cidr[0].addr.octets()[0]
     {
         let mut next_ip_broadcast = crate::ipv4::broadcast_addr_ipv4(next_ip).unwrap();
@@ -90,7 +98,12 @@ fn process_subnet_row<'a>(
             az_hosts: crate::ipv4::num_az_hosts(next_ip.mask).unwrap() as usize,
             subnet_name: "None".to_string(),
             subscription_name: s.subscription_name.clone(),
-            vnet_cidr: s.vnet_cidr.iter().map(|ip| ip.to_string()).collect::<Vec<String>>().join(","),
+            vnet_cidr: s
+                .vnet_cidr
+                .iter()
+                .map(|ip| ip.to_string())
+                .collect::<Vec<String>>()
+                .join(","),
             vnet_name: s.vnet_name.clone(),
             location: "None".to_string(),
             nsg: "None".to_string(),
@@ -123,36 +136,51 @@ fn process_subnet_row<'a>(
         }
         next_ip = crate::ipv4::next_subnet_ipv4(next_ip, Some(default_cidr_mask)).unwrap();
     }
+    vnet_previous_cidr = s.vnet_cidr[0];
     rows.push(SubnetPrintRow {
         j: i + 1,
-        gap: s.gap.as_ref().unwrap_or(&format!("Sub{}", s.src_index)).to_string(),
+        gap: s
+            .gap
+            .as_ref()
+            .unwrap_or(&format!("Sub{}", s.src_index))
+            .to_string(),
         subnet_cidr: subnet_cidr.to_string(),
-        broadcast: crate::ipv4::broadcast_addr_ipv4(subnet_cidr).unwrap().addr.to_string(),
+        broadcast: crate::ipv4::broadcast_addr_ipv4(subnet_cidr)
+            .unwrap()
+            .addr
+            .to_string(),
         az_hosts: crate::ipv4::num_az_hosts(subnet_cidr.mask).unwrap() as usize,
         subnet_name: s.subnet_name.clone(),
         subscription_name: s.subscription_name.clone(),
-        vnet_cidr: s.vnet_cidr.iter().map(|ip| ip.to_string()).collect::<Vec<String>>().join(","),
+        vnet_cidr: s
+            .vnet_cidr
+            .iter()
+            .map(|ip| ip.to_string())
+            .collect::<Vec<String>>()
+            .join(","),
         vnet_name: s.vnet_name.clone(),
         location: s.location.clone(),
-        nsg: s.nsg.as_ref().unwrap_or(&"None".to_string()).split("/").last().unwrap().to_string(),
-        dns: s.dns_servers.as_ref().unwrap_or(&vec!["None".to_string()]).join(","),
+        nsg: s
+            .nsg
+            .as_ref()
+            .unwrap_or(&"None".to_string())
+            .split("/")
+            .last()
+            .unwrap()
+            .to_string(),
+        dns: s
+            .dns_servers
+            .as_ref()
+            .unwrap_or(&vec!["None".to_string()])
+            .join(","),
         subscription_id: s.subscription_id.clone(),
     });
-    vnet_previous_cidr = s.vnet_cidr[0];
     if subnet_cidr.mask < 29 {
         next_ip = crate::ipv4::next_subnet_ipv4(subnet_cidr, Some(28)).unwrap();
     } else {
         next_ip = crate::ipv4::next_subnet_ipv4(subnet_cidr, Some(28)).unwrap();
     }
-    (
-        PrintSubnetsState {
-            i,
-            s,
-            next_ip,
-            vnet_previous_cidr,
-        },
-        rows,
-    )
+    (next_ip, vnet_previous_cidr, rows)
 }
 
 pub async fn print_subnets(data: graph_read_subnet_data::Data) -> Result<(), Box<dyn Error>> {
@@ -167,15 +195,16 @@ pub async fn print_subnets(data: graph_read_subnet_data::Data) -> Result<(), Box
     let mut vnet_previous_cidr = Ipv4::new("0.0.0.0/24")?;
     let mut output_rows = Vec::new();
     for (i, s) in data.data.iter().enumerate() {
-        let state = PrintSubnetsState {
-            i,
+        let (new_next_ip, new_vnet_previous_cidr, rows) = process_subnet_row(
             s,
+            i,
             next_ip,
             vnet_previous_cidr,
-        };
-        let (new_state, rows) = process_subnet_row(state, DEFAULT_CIDR_MASK, SKIP_SUBNET_SMALLER_THAN);
-        next_ip = new_state.next_ip;
-        vnet_previous_cidr = new_state.vnet_previous_cidr;
+            DEFAULT_CIDR_MASK,
+            SKIP_SUBNET_SMALLER_THAN,
+        );
+        next_ip = new_next_ip;
+        vnet_previous_cidr = new_vnet_previous_cidr;
         output_rows.extend(rows);
     }
     // print the subnets
@@ -205,25 +234,29 @@ pub async fn print_subnets(data: graph_read_subnet_data::Data) -> Result<(), Box
     Ok(())
 }
 
-
 #[cfg(test)]
 mod tests {
-    use log4rs::filter;
-
     use super::*;
+    use crate::get_sorted_subnets;
     use crate::graph_read_subnet_data::read_subnet_cache;
     // Import de_duplicate_subnets if it is defined in graph_read_subnet_data or another module
-    use crate::de_duplicate_subnets::de_duplicate_subnets;
+    use crate::de_duplicate_subnets::de_duplicate_subnets2;
 
-        #[test]
+    #[test]
     fn test_print_subnets_04() {
         //let mut data = gen_cache_data();
-        let data = read_subnet_cache(Some("src/tests/test_data/subnet_test_cache_04.json"))
-            .expect("Error reading subnet cache");
+        let cache_file = Some("src/tests/test_data/subnet_test_cache_04.json");
+        let data_unsorted = read_subnet_cache(cache_file).expect("Error reading subnet cache");
+        let data = get_sorted_subnets(cache_file).expect("Error reading subnet cache");
+        assert_eq!(
+            data_unsorted.data.len(),
+            data.data.len(),
+            "Expected unsorted and sorted subnets to have the same length"
+        );
         assert_eq!(
             data.data.len(),
             180,
-            "Expected 177 subnets before de-duplication"
+            "Expected 180 subnets before de-duplication"
         );
         // Replace default subnet filter list
         let filter = vec![
@@ -233,14 +266,47 @@ mod tests {
             "pkrsnxocivqofa6", // Not in data
             "orggmcmg",        // Once in data
         ];
-        let result = de_duplicate_subnets(data,Some(filter)).expect("Failed to de-duplicate subnets");
+        let result_unsorted = de_duplicate_subnets2(data_unsorted, Some(&filter))
+            .expect("Failed to de-duplicate subnets");
+        assert_eq!(
+            result_unsorted.data.len(),
+            159,
+            "Expected 159 subnets after de-duplication. data_unsorted"
+        );
+        let result =
+            de_duplicate_subnets2(data, Some(&filter)).expect("Failed to de-duplicate subnets");
         assert_eq!(
             result.data.len(),
-            173,
-            "Expected 173 subnets after de-duplication"
+            159,
+            "Expected 159 subnets after de-duplication. data sorted"
         );
         // Verify this is expected dataset
-        assert_eq!(result.data[151].subnet_name, "prod-fax-subnet");
+        assert_eq!(result.data[151].subnet_name, "z-ilt-lab5-snet-adds-01");
+        assert_eq!(
+            result.data[151].subnet_name,
+            result_unsorted.data[151].subnet_name
+        );
 
+        // test process_subnet_row
+        let (next_ip, _vnet_previous_cidr, print_rows) = process_subnet_row(
+            &result.data[0],
+            1,
+            Ipv4::new("0.0.0.0/24").unwrap(),
+            Ipv4::new("0.0.0.0/24").unwrap(),
+            28,
+            Ipv4Addr::new(10, 17, 255, 255),
+        );
+        assert_eq!(
+            result.data[0].subnet_name, "jenkinsarm-snet",
+            "Not expected test subnet name."
+        );
+        assert_eq!(
+            next_ip.to_string(),
+            "10.0.1.0/28",
+            "result.data[0].subnet_cidr ={:?} \n {:?} \n",
+            result.data[0].subnet_cidr,
+            result.data[0],
+        );
+        assert_eq!(print_rows.len(), 1, "Expected 1 row for subnet 151");
     }
 }
