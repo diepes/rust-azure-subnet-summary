@@ -183,13 +183,18 @@ fn process_subnet_row<'a>(
     (next_ip, vnet_previous_cidr, rows)
 }
 
-pub async fn print_subnets(data: graph_read_subnet_data::Data) -> Result<(), Box<dyn Error>> {
-    log::info!("#Start print_subnets()");
+pub async fn print_subnets(
+    data: &graph_read_subnet_data::Data,
+    gap_cidr_mask: u8,
+) -> Result<(), Box<dyn Error>> {
+    log::info!(
+        "#Start print_subnets() add gap subnets with mask /{}",
+        gap_cidr_mask
+    );
     log::info!("# Got subnet count = {} == {}", data.count, data.data.len());
     println!(
         r#""cnt","gap","subnet_cidr","broadcast","subnet_name","subscription_name","vnet_cidr","vnet_name","location","nsg","dns","subscription_id""#
     );
-    const DEFAULT_CIDR_MASK: u8 = 28; // /28 = 11 ips for hosts in Azure. (16-5)
     const SKIP_SUBNET_SMALLER_THAN: Ipv4Addr = Ipv4Addr::new(10, 17, 255, 255);
     let mut next_ip = Ipv4::new("0.0.0.0/24")?;
     let mut vnet_previous_cidr = Ipv4::new("0.0.0.0/24")?;
@@ -200,7 +205,7 @@ pub async fn print_subnets(data: graph_read_subnet_data::Data) -> Result<(), Box
             i,
             next_ip,
             vnet_previous_cidr,
-            DEFAULT_CIDR_MASK,
+            gap_cidr_mask,
             SKIP_SUBNET_SMALLER_THAN,
         );
         next_ip = new_next_ip;

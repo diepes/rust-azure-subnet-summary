@@ -51,7 +51,7 @@ pub fn next_subnet_ipv4(ipv4: Ipv4, mask: Option<u8>) -> Result<Ipv4, Box<dyn Er
     let new_mask = mask.unwrap_or(current_mask);
     if new_mask <= current_mask {
         // eq or larger subnet (smaller mask)
-        let next_subnet = next_subnet(ipv4.addr, new_mask)?;
+        let next_subnet = ip_after_subnet(ipv4.addr, new_mask)?;
         return Ok(Ipv4 {
             addr: next_subnet,
             mask: new_mask,
@@ -59,7 +59,7 @@ pub fn next_subnet_ipv4(ipv4: Ipv4, mask: Option<u8>) -> Result<Ipv4, Box<dyn Er
     } else {
         //smaller subnet
         let current_broadcast = broadcast_addr(ipv4.addr, current_mask)?;
-        let next_subnet = next_subnet(current_broadcast, new_mask)?;
+        let next_subnet = ip_after_subnet(current_broadcast, new_mask)?;
         return Ok(Ipv4 {
             addr: next_subnet,
             mask: new_mask,
@@ -67,14 +67,15 @@ pub fn next_subnet_ipv4(ipv4: Ipv4, mask: Option<u8>) -> Result<Ipv4, Box<dyn Er
     };
 }
 
-// Not accurate as original subent mask not available.
-pub fn next_subnet(addr: Ipv4Addr, len: u8) -> Result<Ipv4Addr, Box<dyn Error>> {
-    if len > MAX_LENGTH {
+// Not accurate as original subnet mask not available.
+/// Returns the ip address following the given subnet.
+pub fn ip_after_subnet(addr: Ipv4Addr, cidr: u8) -> Result<Ipv4Addr, Box<dyn Error>> {
+    if cidr > MAX_LENGTH {
         Err("Network length is too long".into())
     } else {
-        let subnet_size = 1 << (MAX_LENGTH - len);
+        let subnet_size = 1 << (MAX_LENGTH - cidr);
         let addr_bits = u32::from(addr);
-        let network_bits = addr_bits & get_cidr_mask(len)?; // Mask the address to get the network part
+        let network_bits = addr_bits & get_cidr_mask(cidr)?; // Mask the address to get the network part
         let next_subnet_bits = network_bits
             .checked_add(subnet_size)
             .ok_or("Next subnet calculation overflowed")?;
@@ -202,12 +203,21 @@ mod tests {
     #[test]
     fn test_next_subnet() {
         let ip = Ipv4Addr::new(192, 168, 1, 0);
-        assert_eq!(next_subnet(ip, 24).unwrap(), Ipv4Addr::new(192, 168, 2, 0));
-        assert_eq!(next_subnet(ip, 16).unwrap(), Ipv4Addr::new(192, 169, 0, 0));
-        assert_eq!(next_subnet(ip, 8).unwrap(), Ipv4Addr::new(193, 0, 0, 0));
-        assert_eq!(next_subnet(ip, 32).unwrap(), Ipv4Addr::new(192, 168, 1, 1));
+        assert_eq!(
+            ip_after_subnet(ip, 24).unwrap(),
+            Ipv4Addr::new(192, 168, 2, 0)
+        );
+        assert_eq!(
+            ip_after_subnet(ip, 16).unwrap(),
+            Ipv4Addr::new(192, 169, 0, 0)
+        );
+        assert_eq!(ip_after_subnet(ip, 8).unwrap(), Ipv4Addr::new(193, 0, 0, 0));
+        assert_eq!(
+            ip_after_subnet(ip, 32).unwrap(),
+            Ipv4Addr::new(192, 168, 1, 1)
+        );
 
-        assert!(next_subnet(Ipv4Addr::new(255, 255, 255, 255), 24).is_err());
+        assert!(ip_after_subnet(Ipv4Addr::new(255, 255, 255, 255), 24).is_err());
     }
     #[test]
     fn test_next_subnet_ipv4() {

@@ -25,14 +25,8 @@ pub fn get_sorted_subnets(
     Ok(data)
 }
 
-pub fn get_vnets(
-    data: &graph_read_subnet_data::Data,
-) -> Result<VnetList, Box<dyn std::error::Error>> {
-    let mut vnets = VnetList::new();
-    vnets.add_vnet(data.data.first().unwrap());
-    // = data.data.iter().map(|s| s.vnet_name.clone()).collect();
-    Ok(vnets)
-}
+// Remove get_vnets from lib.rs and re-export from struct_vnet
+pub use struct_vnet::get_vnets;
 // return error if duplicate subnets found
 pub fn check_for_duplicate_subnets(
     data: &graph_read_subnet_data::Data,
