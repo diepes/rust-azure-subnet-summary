@@ -1,18 +1,18 @@
 // cargo watch -x 'fmt' -x 'run'  // 'run -- --some-arg'
 
-//use crate::struct_subnet::Subnet;
+//use crate::subnet_struct::Subnet;
 //use ipv4::{get_cidr_mask_ipv4, Ipv4};
 mod cmd;
 mod config;
 mod de_duplicate_subnets;
 mod graph_read_subnet_data;
 mod ipv4;
-mod struct_subnet;
+mod subnet_struct;
 pub mod struct_vnet;
 use std::collections::HashSet;
 
 use struct_vnet::VnetList;
-pub mod print_subnets;
+pub mod subnet_print;
 mod write_banner;
 
 pub fn get_sorted_subnets(

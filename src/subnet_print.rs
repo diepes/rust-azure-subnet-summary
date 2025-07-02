@@ -23,7 +23,7 @@ pub struct SubnetPrintRow {
 }
 
 fn process_subnet_row<'a>(
-    s: &'a crate::struct_subnet::Subnet,
+    s: &'a crate::subnet_struct::Subnet,
     i: usize,
     mut next_ip: Ipv4,
     mut vnet_previous_cidr: Ipv4,
@@ -201,12 +201,12 @@ pub fn f<T: ToString>(value: T, width: usize) -> String {
     }
 }
 
-pub async fn print_subnets(
+pub async fn subnet_print(
     data: &graph_read_subnet_data::Data,
     gap_cidr_mask: u8,
 ) -> Result<(), Box<dyn Error>> {
     log::info!(
-        "#Start print_subnets() add gap subnets with mask /{}",
+        "#Start subnet_print() add gap subnets with mask /{}",
         gap_cidr_mask
     );
     log::info!("# Got subnet count = {} == {}", data.count, data.data.len());
@@ -273,7 +273,7 @@ mod tests {
     use crate::de_duplicate_subnets::de_duplicate_subnets2;
 
     #[test]
-    fn test_print_subnets_04() {
+    fn test_subnet_print_04() {
         //let mut data = gen_cache_data();
         let cache_file = Some("src/tests/test_data/subnet_test_cache_04.json");
         let data_unsorted = read_subnet_cache(cache_file).expect("Error reading subnet cache");

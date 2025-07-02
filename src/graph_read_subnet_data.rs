@@ -1,6 +1,6 @@
 use crate::cmd;
 use crate::config;
-use crate::struct_subnet::Subnet;
+use crate::subnet_struct::Subnet;
 use chrono;
 //use chrono::TimeZone;
 /// Runs az cli graph to read subnets

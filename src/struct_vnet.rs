@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::graph_read_subnet_data;
 use crate::ipv4::Ipv4;
-use crate::struct_subnet::Subnet;
+use crate::subnet_struct::Subnet;
 
 #[derive(Debug)]
 pub struct Vnet<'a> {
