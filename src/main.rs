@@ -1,9 +1,9 @@
 use azure_subnet_summary::check_for_duplicate_subnets;
 use azure_subnet_summary::de_duplicate_subnets2;
 use azure_subnet_summary::get_sorted_subnets;
-use azure_subnet_summary::subnet_print::subnet_print;
 use azure_subnet_summary::struct_vnet::get_vnets;
 use azure_subnet_summary::struct_vnet::print_vnets;
+use azure_subnet_summary::subnet_print::subnet_print;
 use log4rs;
 use std::error::Error;
 

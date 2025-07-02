@@ -1,4 +1,6 @@
 use crate::graph_read_subnet_data;
+use crate::subnet_add_row;
+
 use crate::ipv4::Ipv4;
 use colored::Colorize;
 use std::error::Error;
@@ -20,173 +22,6 @@ pub struct SubnetPrintRow {
     pub dns: String,
     pub subscription_id: String,
     pub ip_configurations_count: u32,
-}
-
-fn process_subnet_row<'a>(
-    s: &'a crate::subnet_struct::Subnet,
-    i: usize,
-    mut next_ip: Ipv4,
-    mut vnet_previous_cidr: Ipv4,
-    default_cidr_mask: u8,
-    skip_subnet_smaller_than: Ipv4Addr,
-) -> (Ipv4, Ipv4, Vec<SubnetPrintRow>) {
-    let mut rows = Vec::new();
-    let subnet_cidr: Ipv4;
-    match s.subnet_cidr {
-        Some(s_cidr) => {
-            subnet_cidr = s_cidr;
-        }
-        None => {
-            log::warn!(
-                "Warning: subnet_cidr is None for subnet_name: {}",
-                s.subnet_name
-            );
-            rows.push(SubnetPrintRow {
-                j: i + 1,
-                gap: "None".to_string(),
-                subnet_cidr: "none".to_string(),
-                broadcast: "none".to_string(),
-                az_hosts: 0,
-                subnet_name: s.subnet_name.clone(),
-                subscription_name: s.subscription_name.clone(),
-                vnet_cidr: s
-                    .vnet_cidr
-                    .iter()
-                    .map(|ip| ip.to_string())
-                    .collect::<Vec<String>>()
-                    .join(","),
-                vnet_name: s.vnet_name.clone(),
-                location: s.location.clone(),
-                nsg: s
-                    .nsg
-                    .as_ref()
-                    .unwrap_or(&"No_NSG_name".to_string())
-                    .split("/")
-                    .last()
-                    .unwrap()
-                    .to_string(),
-                dns: s
-                    .dns_servers
-                    .as_ref()
-                    .unwrap_or(&vec!["No_Subnet_IPs".to_string()])
-                    .join(","),
-                subscription_id: s.subscription_id.clone(),
-                ip_configurations_count: s.ip_configurations_count.unwrap_or(0),
-            });
-            return (next_ip, vnet_previous_cidr, rows);
-        }
-    }
-    // Look for unused subnet gaps
-    while next_ip.addr > skip_subnet_smaller_than
-        && next_ip.addr < subnet_cidr.addr
-        && next_ip < subnet_cidr
-        && next_ip >= vnet_previous_cidr
-        && crate::ipv4::broadcast_addr_ipv4(next_ip).unwrap()
-            < crate::ipv4::broadcast_addr_ipv4(vnet_previous_cidr).unwrap()
-        && next_ip.addr.octets()[0] == s.vnet_cidr[0].addr.octets()[0]
-    {
-        let mut next_ip_broadcast = crate::ipv4::broadcast_addr_ipv4(next_ip).unwrap();
-        if next_ip_broadcast >= subnet_cidr {
-            next_ip.mask = subnet_cidr.mask;
-            next_ip_broadcast = crate::ipv4::broadcast_addr_ipv4(next_ip).unwrap();
-            if next_ip_broadcast >= subnet_cidr {
-                panic!("Gap bigger than subnet, after mask reduction !!! next_ip_broadcast:{:?} subnet:{}  next_ip{}", next_ip_broadcast, subnet_cidr, next_ip)
-            }
-        }
-        // Add gap subnet row
-        rows.push(SubnetPrintRow {
-            j: 0, // Not a real subnet, so no index
-            gap: "-gap-".to_string(),
-            subnet_cidr: next_ip.to_string(),
-            broadcast: next_ip_broadcast.addr.to_string(),
-            az_hosts: crate::ipv4::num_az_hosts(next_ip.mask).unwrap() as usize,
-            subnet_name: "None".to_string(),
-            subscription_name: s.subscription_name.clone(),
-            vnet_cidr: s
-                .vnet_cidr
-                .iter()
-                .map(|ip| ip.to_string())
-                .collect::<Vec<String>>()
-                .join(","),
-            vnet_name: s.vnet_name.clone(),
-            location: "None".to_string(),
-            nsg: "Unused_nsg".to_string(),
-            dns: "Unused_dns".to_string(),
-            subscription_id: s.subscription_id.clone(),
-            ip_configurations_count: 0,
-        });
-        let vnet_broadcast_max = if s.vnet_cidr[0] == vnet_previous_cidr {
-            crate::ipv4::broadcast_addr_ipv4(s.vnet_cidr[0]).unwrap()
-        } else {
-            s.vnet_cidr[0]
-        };
-        if next_ip_broadcast > vnet_broadcast_max || next_ip_broadcast >= subnet_cidr {
-            if next_ip_broadcast >= vnet_broadcast_max {
-                log::error!(
-                    "next_ip_broadcast[{}] >= vnet_broadcast_max[{}]   ... next_ip:[{}]",
-                    next_ip_broadcast,
-                    vnet_broadcast_max,
-                    next_ip,
-                );
-            }
-            if next_ip_broadcast >= subnet_cidr {
-                log::error!(
-                    "next_ip_broadcast[{}] >= s.subnet_cidr[{}]... next_ip:[{}]",
-                    next_ip_broadcast,
-                    subnet_cidr,
-                    next_ip,
-                );
-            }
-            panic!("Gap bigger than subnet or vnet !!! next:{:?} vnet:{:?} following_subnet:{:?} previous_vnet: {:?}", next_ip_broadcast, s.vnet_cidr[0], subnet_cidr, vnet_previous_cidr)
-        }
-        next_ip = crate::ipv4::next_subnet_ipv4(next_ip, Some(default_cidr_mask)).unwrap();
-    }
-    vnet_previous_cidr = s.vnet_cidr[0];
-    rows.push(SubnetPrintRow {
-        j: i + 1,
-        gap: s
-            .gap
-            .as_ref()
-            .unwrap_or(&format!("Sub{}", s.src_index))
-            .to_string(),
-        subnet_cidr: subnet_cidr.to_string(),
-        broadcast: crate::ipv4::broadcast_addr_ipv4(subnet_cidr)
-            .unwrap()
-            .addr
-            .to_string(),
-        az_hosts: crate::ipv4::num_az_hosts(subnet_cidr.mask).unwrap() as usize,
-        subnet_name: s.subnet_name.clone(),
-        subscription_name: s.subscription_name.clone(),
-        vnet_cidr: s
-            .vnet_cidr
-            .iter()
-            .map(|ip| ip.to_string())
-            .collect::<Vec<String>>()
-            .join(","),
-        vnet_name: s.vnet_name.clone(),
-        location: s.location.clone(),
-        nsg: s
-            .nsg
-            .as_ref()
-            .unwrap_or(&"None".to_string())
-            .split("/")
-            .last()
-            .unwrap()
-            .to_string(),
-        dns: s
-            .dns_servers
-            .as_ref()
-            .unwrap_or(&vec!["None".to_string()])
-            .join(","),
-        subscription_id: s.subscription_id.clone(),
-        ip_configurations_count: s.ip_configurations_count.unwrap_or(0),
-    });
-    if subnet_cidr.mask < 29 {
-        next_ip = crate::ipv4::next_subnet_ipv4(subnet_cidr, Some(28)).unwrap();
-    } else {
-        next_ip = crate::ipv4::next_subnet_ipv4(subnet_cidr, Some(28)).unwrap();
-    }
-    (next_ip, vnet_previous_cidr, rows)
 }
 
 pub fn f<T: ToString>(value: T, width: usize) -> String {
@@ -218,7 +53,7 @@ pub async fn subnet_print(
     let mut vnet_previous_cidr = Ipv4::new("0.0.0.0/24")?;
     let mut output_rows = Vec::new();
     for (i, s) in data.data.iter().enumerate() {
-        let (new_next_ip, new_vnet_previous_cidr, rows) = process_subnet_row(
+        let (new_next_ip, new_vnet_previous_cidr, rows) = subnet_add_row::process_subnet_row(
             s,
             i,
             next_ip,
@@ -246,14 +81,14 @@ pub async fn subnet_print(
                 12
             ),
             broadcast = f(format!("{}_br", row.broadcast), 19),
-            subnet_name = f(row.subnet_name,24),
-            subscription_name = f(row.subscription_name,21),
-            vnet_cidr = f(format!("{}_vnet", row.vnet_cidr),24),
-            vnet_name = f(row.vnet_name,30),
-            location = f(row.location,16),
-            nsg = f(row.nsg,13),
-            dns = f(row.dns,13),
-            subscription_id = f(row.subscription_id,39),
+            subnet_name = f(row.subnet_name, 24),
+            subscription_name = f(row.subscription_name, 21),
+            vnet_cidr = f(format!("{}_vnet", row.vnet_cidr), 24),
+            vnet_name = f(row.vnet_name, 30),
+            location = f(row.location, 16),
+            nsg = f(row.nsg, 13),
+            dns = f(row.dns, 13),
+            subscription_id = f(row.subscription_id, 39),
         );
     }
     println!(
@@ -271,6 +106,7 @@ mod tests {
     use crate::graph_read_subnet_data::read_subnet_cache;
     // Import de_duplicate_subnets if it is defined in graph_read_subnet_data or another module
     use crate::de_duplicate_subnets::de_duplicate_subnets2;
+    use crate::subnet_add_row::process_subnet_row;
 
     #[test]
     fn test_subnet_print_04() {
