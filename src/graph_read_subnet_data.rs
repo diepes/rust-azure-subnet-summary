@@ -68,12 +68,13 @@ pub fn run_az_cli_graph() -> Result<Data, Box<dyn std::error::Error>> {
                 ,nsg=properties_subnets.properties.networkSecurityGroup.id
                 ,location=location
                 ,dns_servers=properties.dhcpOptions.dnsServers
+                ,ip_configurations_count=array_length(properties_subnets.properties.ipConfigurations)
         | join kind=leftouter (
             resourcecontainers
                 | where type == \"microsoft.resources/subscriptions\"
                 | project subscription_id=subscriptionId, subscription_name=name
             ) on subscription_id
-        | project subscription_id, subscription_name, vnet_name, vnet_cidr, subnet_name, subnet_cidr, nsg, location, dns_servers
+        | project subscription_id, subscription_name, vnet_name, vnet_cidr, subnet_name, subnet_cidr, nsg, location, dns_servers, ip_configurations_count
         | sort by vnet_name asc' --output json"
         ))
         .expect("Error running az graph query");

@@ -12,6 +12,12 @@ pub struct Subnet {
     pub dns_servers: Option<Vec<String>>,
     pub subscription_id: String,
     pub subscription_name: String,
+    pub ip_configurations_count: Option<u32>,
+    //  "ip_configurations": [
+    //     {
+    //       "id": "/subscriptions/c4855b85-e4fb-4ae6-9db6-34dc74d21cc4/resourceGroups/DR-VNET-RG/providers/Microsoft.Network/virtualHubs/Z-DR-HUB-ARS-GBGKFC/ipConfigurations/IPCONFIG1",
+    //       "resourceGroup": "DR-VNET-RG"
+    //     },
     // Fill value to gap if we create new subnet
     pub gap: Option<String>,
     // Serde field to ignore and set default value
@@ -32,6 +38,7 @@ impl Default for Subnet {
             dns_servers: None,
             subscription_id: "blank".to_string(),
             subscription_name: "blank".to_string(),
+            ip_configurations_count: None,
             gap: Some("blank".to_string()),
             src_index: 0,
             block_id: 0,
