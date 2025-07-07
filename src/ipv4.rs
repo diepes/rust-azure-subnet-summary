@@ -35,6 +35,7 @@ pub fn cut_addr_ipv4(ipv4: Ipv4, len: u8) -> Result<Ipv4, Box<dyn Error>> {
         })
     }
 }
+
 pub fn cut_addr(addr: Ipv4Addr, len: u8) -> Result<Ipv4Addr, Box<dyn Error>> {
     if len > MAX_LENGTH {
         Err("Network length is too long".into())
@@ -46,6 +47,7 @@ pub fn cut_addr(addr: Ipv4Addr, len: u8) -> Result<Ipv4Addr, Box<dyn Error>> {
         Ok(Ipv4Addr::from(new_bits as u32))
     }
 }
+
 pub fn next_subnet_ipv4(ipv4: Ipv4, mask: Option<u8>) -> Result<Ipv4, Box<dyn Error>> {
     let current_mask = ipv4.mask;
     let new_mask = mask.unwrap_or(current_mask);
@@ -82,13 +84,7 @@ pub fn ip_after_subnet(addr: Ipv4Addr, cidr: u8) -> Result<Ipv4Addr, Box<dyn Err
         Ok(Ipv4Addr::from(next_subnet_bits))
     }
 }
-pub fn broadcast_addr_ipv4(ipv4: Ipv4) -> Result<Ipv4, Box<dyn Error>> {
-    let broadcast = broadcast_addr(ipv4.addr, ipv4.mask)?;
-    Ok(Ipv4 {
-        addr: broadcast,
-        mask: ipv4.mask,
-    })
-}
+
 pub fn broadcast_addr(addr: Ipv4Addr, len: u8) -> Result<Ipv4Addr, Box<dyn Error>> {
     if len > MAX_LENGTH {
         Err("Network length is too long".into())
@@ -157,6 +153,21 @@ impl Ipv4 {
             return Err("Network length is too long".into());
         }
         Ok(Ipv4 { addr, mask })
+    }
+    pub fn broadcast(&self) -> Result<Ipv4, Box<dyn Error>> {
+        let broadcast = broadcast_addr(self.addr, self.mask)?;
+        Ok(Ipv4 {
+            addr: broadcast,
+            mask: self.mask,
+        })
+    }
+    pub fn hi(&self) -> Ipv4Addr {
+        broadcast_addr(self.addr, self.mask)
+            .unwrap_or_else(|e| panic!("Error calculating broadcast address: {}", e))
+    }
+    pub fn lo(&self) -> Ipv4Addr {
+        cut_addr(self.addr, self.mask)
+            .unwrap_or_else(|e| panic!("Error calculating minimum address for {}: {}", self, e))
     }
 }
 impl std::fmt::Display for Ipv4 {
@@ -249,7 +260,7 @@ mod tests {
 
         let ipv4 = Ipv4::new("192.168.1.0/8").unwrap();
         assert_eq!(
-            broadcast_addr_ipv4(ipv4).unwrap(),
+            ipv4.broadcast().unwrap(),
             Ipv4::new("192.255.255.255/8").unwrap()
         );
         assert_eq!(
@@ -257,7 +268,9 @@ mod tests {
             Ipv4::new("193.0.0.0/8").unwrap()
         );
         assert_eq!(
-            broadcast_addr_ipv4(Ipv4::new("192.255.255.255/8").unwrap()).unwrap(),
+            (Ipv4::new("192.255.255.255/8").unwrap())
+                .broadcast()
+                .unwrap(),
             Ipv4::new("192.255.255.255/8").unwrap()
         );
         // moving from big subnet to smaller subnet
@@ -326,5 +339,39 @@ mod tests {
         );
 
         assert!(num_az_hosts(33).is_err());
+    }
+
+    #[test]
+    fn test_ip4_cmp() {
+        let ip1 = Ipv4::new("10.0.0.1/24").unwrap();
+        let ip2 = Ipv4::new("10.0.0.2/24").unwrap();
+        let ip3 = Ipv4::new("10.0.0.1/24").unwrap();
+
+        assert!(ip1 < ip2);
+        assert!(ip1 == ip3);
+        assert!(ip2 > ip1);
+        assert!(ip2 >= ip3);
+    }
+    #[test]
+    fn test_ip4_cmp_overlap() {
+        let ip1 = Ipv4::new("10.0.10.0/24").unwrap();
+        let ip2 = Ipv4::new("10.0.0.0/8").unwrap();
+        let ip3 = Ipv4::new("10.0.10.64/26").unwrap();
+
+        assert!(ip1.addr > ip2.addr);
+        assert!(ip1.addr < ip3.addr);
+        assert!(ip1.mask > ip2.mask);
+        // ip is start of subnet
+        assert!(ip1 > ip2);
+        assert!(ip1 < ip3);
+        assert!(ip2 < ip1);
+        assert!(ip2 < ip3);
+        // min
+        assert!(ip2.lo() < ip1.lo());
+        assert!(ip2.lo() < ip3.lo());
+        // max
+        assert!(ip2.hi() > ip1.hi());
+        assert!(ip2.hi() > ip3.hi());
+        assert_eq!(ip2.hi(), Ipv4Addr::new(10, 255, 255, 255));
     }
 }

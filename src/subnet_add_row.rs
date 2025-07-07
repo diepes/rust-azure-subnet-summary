@@ -1,36 +1,19 @@
 use crate::ipv4::Ipv4;
-use colored::Colorize;
-use std::error::Error;
+use crate::subnet_print::SubnetPrintRow;
 use std::net::Ipv4Addr;
 
-#[derive(Debug)]
-pub struct SubnetPrintRow {
-    pub j: usize,
-    pub gap: String,
-    pub subnet_cidr: String,
-    pub broadcast: String,
-    pub az_hosts: usize,
-    pub subnet_name: String,
-    pub subscription_name: String,
-    pub vnet_cidr: String,
-    pub vnet_name: String,
-    pub location: String,
-    pub nsg: String,
-    pub dns: String,
-    pub subscription_id: String,
-    pub ip_configurations_count: u32,
-}
-
+// recieve previous ip and next subnet, add print rows for gap subnets and given subnet
 pub fn process_subnet_row<'a>(
     s: &'a crate::subnet_struct::Subnet,
     i: usize,
-    mut next_ip: Ipv4,
-    mut vnet_previous_cidr: Ipv4,
+    mut next_ip: Ipv4,            // next ip from previous run
+    mut vnet_previous_cidr: Ipv4, // vnet cidr from previous run
     default_cidr_mask: u8,
     skip_subnet_smaller_than: Ipv4Addr,
 ) -> (Ipv4, Ipv4, Vec<SubnetPrintRow>) {
     let mut rows = Vec::new();
     let subnet_cidr: Ipv4;
+    // if empty subnet_cidr return it.
     match s.subnet_cidr {
         Some(s_cidr) => {
             subnet_cidr = s_cidr;
@@ -40,6 +23,7 @@ pub fn process_subnet_row<'a>(
                 "Warning: subnet_cidr is None for subnet_name: {}",
                 s.subnet_name
             );
+            // Subnet with no CIDR IP, add and return nothing else to add.
             rows.push(SubnetPrintRow {
                 j: i + 1,
                 gap: "None".to_string(),
@@ -75,19 +59,27 @@ pub fn process_subnet_row<'a>(
             return (next_ip, vnet_previous_cidr, rows);
         }
     }
+
     // Look for unused subnet gaps
+    assert!(
+        next_ip.addr <= subnet_cidr.addr,
+        "next_ip[{}] > subnet_cidr[{}] should never happen.",
+        next_ip,
+        subnet_cidr
+    );
+    // create new subnets
     while next_ip.addr > skip_subnet_smaller_than
-        && next_ip.addr < subnet_cidr.addr
-        && next_ip < subnet_cidr
-        && next_ip >= vnet_previous_cidr
-        && crate::ipv4::broadcast_addr_ipv4(next_ip).unwrap()
-            < crate::ipv4::broadcast_addr_ipv4(vnet_previous_cidr).unwrap()
+        && next_ip.addr != subnet_cidr.addr // test if next_ip.addr == subnet_cidr.addr
+        && next_ip < subnet_cidr // test subnets
+        && next_ip >= vnet_previous_cidr //??
+        && next_ip.broadcast().unwrap()
+            < vnet_previous_cidr.broadcast().unwrap()
         && next_ip.addr.octets()[0] == s.vnet_cidr[0].addr.octets()[0]
     {
-        let mut next_ip_broadcast = crate::ipv4::broadcast_addr_ipv4(next_ip).unwrap();
+        let mut next_ip_broadcast = next_ip.broadcast().unwrap();
         if next_ip_broadcast >= subnet_cidr {
             next_ip.mask = subnet_cidr.mask;
-            next_ip_broadcast = crate::ipv4::broadcast_addr_ipv4(next_ip).unwrap();
+            next_ip_broadcast = next_ip.broadcast().unwrap();
             if next_ip_broadcast >= subnet_cidr {
                 panic!("Gap bigger than subnet, after mask reduction !!! next_ip_broadcast:{:?} subnet:{}  next_ip{}", next_ip_broadcast, subnet_cidr, next_ip)
             }
@@ -115,7 +107,7 @@ pub fn process_subnet_row<'a>(
             ip_configurations_count: 0,
         });
         let vnet_broadcast_max = if s.vnet_cidr[0] == vnet_previous_cidr {
-            crate::ipv4::broadcast_addr_ipv4(s.vnet_cidr[0]).unwrap()
+            s.vnet_cidr[0].broadcast().unwrap()
         } else {
             s.vnet_cidr[0]
         };
@@ -149,10 +141,7 @@ pub fn process_subnet_row<'a>(
             .unwrap_or(&format!("Sub{}", s.src_index))
             .to_string(),
         subnet_cidr: subnet_cidr.to_string(),
-        broadcast: crate::ipv4::broadcast_addr_ipv4(subnet_cidr)
-            .unwrap()
-            .addr
-            .to_string(),
+        broadcast: subnet_cidr.broadcast().unwrap().addr.to_string(),
         az_hosts: crate::ipv4::num_az_hosts(subnet_cidr.mask).unwrap() as usize,
         subnet_name: s.subnet_name.clone(),
         subscription_name: s.subscription_name.clone(),

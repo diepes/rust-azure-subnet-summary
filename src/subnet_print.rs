@@ -53,6 +53,7 @@ pub async fn subnet_print(
     let mut vnet_previous_cidr = Ipv4::new("0.0.0.0/24")?;
     let mut output_rows = Vec::new();
     for (i, s) in data.data.iter().enumerate() {
+        // Get list of rows to print up to this subnet
         let (new_next_ip, new_vnet_previous_cidr, rows) = subnet_add_row::process_subnet_row(
             s,
             i,

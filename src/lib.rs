@@ -11,7 +11,7 @@ pub mod struct_vnet;
 mod subnet_struct;
 use std::collections::HashSet;
 
-use struct_vnet::VnetList;
+// use struct_vnet::VnetList;
 pub mod subnet_add_row;
 pub mod subnet_print;
 mod write_banner;
