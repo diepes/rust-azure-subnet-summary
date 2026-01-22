@@ -6,11 +6,11 @@ use std::net::Ipv4Addr;
 pub fn process_subnet_row<'a>(
     s: &'a crate::subnet_struct::Subnet,
     i: usize,
-    mut next_ip: Ipv4,            // next ip from previous run
+    mut next_ip: Ipv4Addr,        // next ip from previous run
     mut vnet_previous_cidr: Ipv4, // vnet cidr from previous run
     default_cidr_mask: u8,
-    skip_subnet_smaller_than: Ipv4Addr,
-) -> (Ipv4, Ipv4, Vec<SubnetPrintRow>) {
+    _skip_subnet_smaller_than: Ipv4Addr,
+) -> (Ipv4Addr, Ipv4, Vec<SubnetPrintRow>) {
     let mut rows = Vec::new();
     let subnet_cidr: Ipv4;
     // if empty subnet_cidr return it.
@@ -62,35 +62,28 @@ pub fn process_subnet_row<'a>(
 
     // Look for unused subnet gaps
     assert!(
-        next_ip.addr <= subnet_cidr.addr,
+        next_ip <= subnet_cidr.addr,
         "next_ip[{}] > subnet_cidr[{}] should never happen.",
         next_ip,
         subnet_cidr
     );
     // create new subnets
-    while next_ip.addr > skip_subnet_smaller_than
-        && next_ip.addr != subnet_cidr.addr // test if next_ip.addr == subnet_cidr.addr
-        && next_ip < subnet_cidr // test subnets
-        && next_ip >= vnet_previous_cidr //??
-        && next_ip.broadcast().unwrap()
-            < vnet_previous_cidr.broadcast().unwrap()
-        && next_ip.addr.octets()[0] == s.vnet_cidr[0].addr.octets()[0]
+    while next_ip < subnet_cidr.lo()
+    // test if next_ip.addr == subnet_cidr.addr
     {
-        let mut next_ip_broadcast = next_ip.broadcast().unwrap();
-        if next_ip_broadcast >= subnet_cidr {
-            next_ip.mask = subnet_cidr.mask;
-            next_ip_broadcast = next_ip.broadcast().unwrap();
-            if next_ip_broadcast >= subnet_cidr {
-                panic!("Gap bigger than subnet, after mask reduction !!! next_ip_broadcast:{:?} subnet:{}  next_ip{}", next_ip_broadcast, subnet_cidr, next_ip)
-            }
-        }
+        // calculate min musk below subnet start
+        let next_mask = find_bigest_subnet(next_ip, default_cidr_mask, subnet_cidr);
+        let next_subnet = Ipv4 {
+            addr: next_ip,
+            mask: next_mask,
+        };
         // Add gap subnet row
         rows.push(SubnetPrintRow {
             j: 0, // Not a real subnet, so no index
             gap: "-gap-".to_string(),
-            subnet_cidr: next_ip.to_string(),
-            broadcast: next_ip_broadcast.addr.to_string(),
-            az_hosts: crate::ipv4::num_az_hosts(next_ip.mask).unwrap() as usize,
+            subnet_cidr: next_subnet.to_string(),
+            broadcast: next_subnet.broadcast().unwrap().addr.to_string(),
+            az_hosts: crate::ipv4::num_az_hosts(next_mask).unwrap() as usize,
             subnet_name: "None".to_string(),
             subscription_name: s.subscription_name.clone(),
             vnet_cidr: s
@@ -106,31 +99,14 @@ pub fn process_subnet_row<'a>(
             subscription_id: s.subscription_id.clone(),
             ip_configurations_count: 0,
         });
-        let vnet_broadcast_max = if s.vnet_cidr[0] == vnet_previous_cidr {
+        let _vnet_broadcast_max = if s.vnet_cidr[0] == vnet_previous_cidr {
             s.vnet_cidr[0].broadcast().unwrap()
         } else {
             s.vnet_cidr[0]
         };
-        if next_ip_broadcast > vnet_broadcast_max || next_ip_broadcast >= subnet_cidr {
-            if next_ip_broadcast >= vnet_broadcast_max {
-                log::error!(
-                    "next_ip_broadcast[{}] >= vnet_broadcast_max[{}]   ... next_ip:[{}]",
-                    next_ip_broadcast,
-                    vnet_broadcast_max,
-                    next_ip,
-                );
-            }
-            if next_ip_broadcast >= subnet_cidr {
-                log::error!(
-                    "next_ip_broadcast[{}] >= s.subnet_cidr[{}]... next_ip:[{}]",
-                    next_ip_broadcast,
-                    subnet_cidr,
-                    next_ip,
-                );
-            }
-            panic!("Gap bigger than subnet or vnet !!! next:{:?} vnet:{:?} following_subnet:{:?} previous_vnet: {:?}", next_ip_broadcast, s.vnet_cidr[0], subnet_cidr, vnet_previous_cidr)
-        }
-        next_ip = crate::ipv4::next_subnet_ipv4(next_ip, Some(default_cidr_mask)).unwrap();
+        next_ip = crate::ipv4::next_subnet_ipv4(next_subnet, None)
+            .unwrap()
+            .lo();
     }
     vnet_previous_cidr = s.vnet_cidr[0];
     rows.push(SubnetPrintRow {
@@ -169,18 +145,63 @@ pub fn process_subnet_row<'a>(
         subscription_id: s.subscription_id.clone(),
         ip_configurations_count: s.ip_configurations_count.unwrap_or(0),
     });
-    if subnet_cidr.mask < 29 {
-        next_ip = crate::ipv4::next_subnet_ipv4(subnet_cidr, Some(28)).unwrap();
-    } else {
-        next_ip = crate::ipv4::next_subnet_ipv4(subnet_cidr, Some(28)).unwrap();
-    }
+    next_ip = crate::ipv4::next_subnet_ipv4(subnet_cidr, None)
+        .unwrap()
+        .lo();
     (next_ip, vnet_previous_cidr, rows)
+}
+
+fn find_bigest_subnet(start_ip: Ipv4Addr, start_mask: u8, below_subnet_cidr: Ipv4) -> u8 {
+    assert!(
+        start_mask <= 32,
+        "start_mask[{}] > 32 should never happen.",
+        start_mask
+    );
+    let mut next_mask = start_mask;
+    let mut next_subnet: Ipv4;
+    loop {
+        next_subnet = Ipv4 {
+            addr: start_ip,
+            mask: next_mask,
+        };
+        if next_subnet.hi() >= below_subnet_cidr.lo() {
+            next_mask += 1;
+        } else {
+            break;
+        }
+    }
+    assert!(
+        next_mask <= 32,
+        "next_mask[{}] > 32 should never happen.",
+        next_mask
+    );
+    next_mask
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::subnet_struct::Subnet;
+
+    #[test]
+    fn test_find_bigest_subnet() {
+        let start_ip = Ipv4Addr::new(10, 0, 0, 0);
+        let below_subnet_cidr = Ipv4::new("10.0.1.0/24").unwrap();
+        assert_eq!(24, find_bigest_subnet(start_ip, 8, below_subnet_cidr));
+        assert_eq!(28, find_bigest_subnet(start_ip, 28, below_subnet_cidr));
+        //
+        let start_ip = Ipv4Addr::new(10, 11, 12, 16);
+        let below_subnet_cidr = Ipv4::new("10.11.16.0/24").unwrap();
+        assert_eq!(20, find_bigest_subnet(start_ip, 8, below_subnet_cidr));
+        // test for small mask 8
+        let start_ip = Ipv4Addr::new(10, 0, 0, 0);
+        let below_subnet_cidr = Ipv4::new("10.11.16.0/24").unwrap();
+        assert_eq!(13, find_bigest_subnet(start_ip, 8, below_subnet_cidr));
+        // 
+        let below_subnet_cidr = Ipv4::new("10.192.0.0/24").unwrap();
+        assert_eq!(9, find_bigest_subnet(start_ip, 8, below_subnet_cidr));
+        assert_eq!(12, find_bigest_subnet(start_ip, 12, below_subnet_cidr));
+    }
 
     #[test]
     fn test_process_subnet_row_01() {
@@ -193,7 +214,7 @@ mod tests {
         let (next_ip, _vnet_previous_cidr, print_rows) = process_subnet_row(
             &result,
             1,
-            Ipv4::new("0.0.0.0/24").unwrap(),
+            Ipv4Addr::new(10, 0, 0, 0),
             Ipv4::new("0.0.0.0/24").unwrap(),
             28,
             Ipv4Addr::new(10, 17, 255, 255),
@@ -204,8 +225,8 @@ mod tests {
         );
         assert_eq!(
             next_ip.to_string(),
-            "10.0.1.0/28",
-            "result.data[0].subnet_cidr ={:?} \n {:?} \n",
+            "10.0.1.0",
+            "result.data[0].subnet_cidr ={:?} \nresult = {:?} \n",
             result.subnet_cidr,
             result,
         );

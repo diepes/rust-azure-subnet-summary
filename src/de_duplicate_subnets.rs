@@ -42,7 +42,7 @@ pub fn de_duplicate_subnets2(
 mod tests {
 
     use super::*;
-    use crate::{get_sorted_subnets, graph_read_subnet_data::read_subnet_cache};
+    use crate::{get_sorted_subnets_legacy as get_sorted_subnets, graph_read_subnet_data::read_subnet_cache};
 
     #[test]
     fn test_de_duplicate_subnets_one() {

@@ -1,9 +1,10 @@
+//! Graph data reading (legacy module - use azure::cache and azure::graph for new code)
+#![allow(dead_code)]
+
 use crate::cmd;
 use crate::config;
 use crate::subnet_struct::Subnet;
 use chrono;
-//use chrono::TimeZone;
-/// Runs az cli graph to read subnets
 use serde::{Deserialize, Serialize};
 
 /// fn read_subnet_cache()

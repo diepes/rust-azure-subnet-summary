@@ -1,11 +1,10 @@
-extern crate regex;
+//! Command execution (legacy module - use azure::cli for new code)
+#![allow(dead_code)]
+
 use regex::Regex;
 use std::error::Error;
 
-extern crate lazy_static;
 use lazy_static::lazy_static;
-
-// use serde_json::{Map, Value};
 
 use colored::Colorize;
 use std::process::Command;

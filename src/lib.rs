@@ -1,7 +1,28 @@
-// cargo watch -x 'fmt' -x 'run'  // 'run -- --some-arg'
+//! Azure Subnet Summary Library
+//!
+//! This library provides functionality to query and analyze Azure virtual network subnets.
+//!
+//! # Modules
+//! - [`models`] - Core data models (Ipv4, Subnet, Vnet)
+//! - [`azure`] - Azure CLI and Graph API interaction
+//! - [`processing`] - Business logic for subnet processing
+//! - [`output`] - Output formatting (CSV, terminal)
+//!
+//! # Example
+//! ```no_run
+//! use azure_subnet_summary::{get_sorted_subnets, check_for_duplicate_subnets};
+//!
+//! let data = get_sorted_subnets(None).expect("Failed to get subnets");
+//! check_for_duplicate_subnets(&data).expect("Found duplicates");
+//! ```
 
-//use crate::subnet_struct::Subnet;
-//use ipv4::{get_cidr_mask_ipv4, Ipv4};
+// New modular structure
+pub mod azure;
+pub mod models;
+pub mod output;
+pub mod processing;
+
+// Legacy modules (for backwards compatibility during migration)
 mod cmd;
 mod config;
 mod de_duplicate_subnets;
@@ -9,49 +30,66 @@ mod graph_read_subnet_data;
 mod ipv4;
 pub mod struct_vnet;
 mod subnet_struct;
-use std::collections::HashSet;
-
-// use struct_vnet::VnetList;
 pub mod subnet_add_row;
 pub mod subnet_print;
-mod write_banner;
 
+use std::collections::HashSet;
+
+// Re-export commonly used types from new modules
+pub use azure::Data;
+pub use models::{Ipv4, Subnet, Vnet, VnetList};
+pub use processing::{de_duplicate_subnets, get_vnets, print_vnets, SubnetPrintRow};
+pub use output::subnet_print as print_subnets;
+
+/// Get sorted subnet data from cache or Azure.
+///
+/// # Arguments
+/// * `cache_file` - Optional path to cache file. If None, uses default naming.
+///
+/// # Returns
+/// * `Ok(Data)` - Sorted subnet data
+/// * `Err` - If reading or parsing fails
 pub fn get_sorted_subnets(
     cache_file: Option<&str>,
-) -> Result<graph_read_subnet_data::Data, Box<dyn std::error::Error>> {
-    let mut data =
-        graph_read_subnet_data::read_subnet_cache(cache_file).expect("Error running az cli graph");
-    // Sort by subnet_cidr
+) -> Result<azure::Data, Box<dyn std::error::Error>> {
+    let mut data = azure::read_subnet_cache(cache_file)?;
     data.data.sort_by_key(|s| s.subnet_cidr);
     Ok(data)
 }
 
-// Remove get_vnets from lib.rs and re-export from struct_vnet
-pub use struct_vnet::get_vnets;
-// return error if duplicate subnets found
+/// Check for duplicate subnets in the data.
+///
+/// # Arguments
+/// * `data` - The subnet data to check
+///
+/// # Returns
+/// * `Ok(())` - No duplicates found
+/// * `Err` - If a duplicate is found
+#[must_use = "This function returns a Result that should be checked"]
 pub fn check_for_duplicate_subnets(
-    data: &graph_read_subnet_data::Data,
+    data: &azure::Data,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut seen = HashSet::new();
 
     for sub in data.data.iter() {
-        if !seen.insert((sub.subnet_cidr.clone(), sub.subscription_id.clone())) {
+        if !seen.insert((sub.subnet_cidr, sub.subscription_id.clone())) {
             return Err(format!("Duplicate found: {:?}", sub).into());
         }
     }
     Ok(())
 }
-pub use de_duplicate_subnets::de_duplicate_subnets2;
 
-fn _escape_csv_field(input: &str) -> String {
-    if input.contains(',') || input.contains('"') {
-        // If the string contains a comma or double quote, enclose it in double quotes
-        // and escape any double quotes within the field.
-        // also excel does not like spaces after comma between fields
-        let escaped = input.replace("\"", "\"\"");
-        format!("\"{}\"", escaped)
-    } else {
-        // If the string doesn't contain a comma or double quote, no need to enclose it.
-        input.to_string()
-    }
+// Legacy re-exports for backwards compatibility
+pub use de_duplicate_subnets::de_duplicate_subnets2;
+pub use struct_vnet::get_vnets as get_vnets_legacy;
+
+/// Legacy version of get_sorted_subnets that returns the old Data type.
+/// Use `get_sorted_subnets` for new code.
+#[doc(hidden)]
+pub fn get_sorted_subnets_legacy(
+    cache_file: Option<&str>,
+) -> Result<graph_read_subnet_data::Data, Box<dyn std::error::Error>> {
+    let mut data = graph_read_subnet_data::read_subnet_cache(cache_file)?;
+    data.data.sort_by_key(|s| s.subnet_cidr);
+    Ok(data)
 }

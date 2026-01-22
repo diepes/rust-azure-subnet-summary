@@ -49,7 +49,7 @@ pub async fn subnet_print(
         r#" "cnt",   "gap",     "subnet_cidr", "broadcast",      "subnet_name",     "subscription_name",           "vnet_cidr",           "vnet_name",               "location",    "nsg",       "dns",       "subscription_id""#
     );
     const SKIP_SUBNET_SMALLER_THAN: Ipv4Addr = Ipv4Addr::new(10, 17, 255, 255);
-    let mut next_ip = Ipv4::new("0.0.0.0/24")?;
+    let mut next_ip: Ipv4Addr = Ipv4Addr::new(10, 0, 0, 0);
     let mut vnet_previous_cidr = Ipv4::new("0.0.0.0/24")?;
     let mut output_rows = Vec::new();
     for (i, s) in data.data.iter().enumerate() {
@@ -103,9 +103,8 @@ pub async fn subnet_print(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::get_sorted_subnets;
+    use crate::get_sorted_subnets_legacy as get_sorted_subnets;
     use crate::graph_read_subnet_data::read_subnet_cache;
-    // Import de_duplicate_subnets if it is defined in graph_read_subnet_data or another module
     use crate::de_duplicate_subnets::de_duplicate_subnets2;
     use crate::subnet_add_row::process_subnet_row;
 
@@ -158,7 +157,7 @@ mod tests {
         let (next_ip, _vnet_previous_cidr, print_rows) = process_subnet_row(
             &result.data[0],
             1,
-            Ipv4::new("0.0.0.0/24").unwrap(),
+            Ipv4Addr::new(10, 0, 0, 0),
             Ipv4::new("0.0.0.0/24").unwrap(),
             28,
             Ipv4Addr::new(10, 17, 255, 255),
@@ -169,7 +168,7 @@ mod tests {
         );
         assert_eq!(
             next_ip.to_string(),
-            "10.0.1.0/28",
+            "10.0.1.0",
             "result.data[0].subnet_cidr ={:?} \n {:?} \n",
             result.data[0].subnet_cidr,
             result.data[0],
