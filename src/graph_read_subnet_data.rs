@@ -144,10 +144,9 @@ pub fn run_az_cli_graph() -> Result<Data, Box<dyn std::error::Error>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tokio;
 
-    #[tokio::test]
-    async fn test_read_subnet_cache() {
+    #[test]
+    fn test_read_subnet_cache() {
         // Test reading from cache file form path in tests folder
         let data = read_subnet_cache(Some("src/tests/test_data/subnet_test_cache_01.json"))
             .expect("Error reading subnet cache");
@@ -160,8 +159,8 @@ mod tests {
         assert!(data.count > 0, "Count should be greater than 0");
         log::info!("Data read from cache: {:?}", data);
     }
-    #[tokio::test]
-    async fn test_read_subnet_cache_04() {
+    #[test]
+    fn test_read_subnet_cache_04() {
         // Test reading from cache file form path in tests folder
         let test_cache = "src/tests/test_data/subnet_test_cache_04.json";
         let data = read_subnet_cache(Some(test_cache)).expect("Error reading subnet cache");

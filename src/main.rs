@@ -10,8 +10,7 @@ use azure_subnet_summary::{
 };
 use std::error::Error;
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> Result<(), Box<dyn Error>> {
     // Initialize logging
     log4rs::init_file("log4rs.yml", Default::default()).expect("Error initializing log4rs");
     dotenv::dotenv().ok();

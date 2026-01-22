@@ -3,8 +3,7 @@
 
 use regex::Regex;
 use std::error::Error;
-
-use lazy_static::lazy_static;
+use std::sync::OnceLock;
 
 use colored::Colorize;
 use std::process::Command;
@@ -105,13 +104,18 @@ pub fn run(cmd: &str) -> Result<String, Box<dyn Error>> {
 // }
 
 fn split_and_strip(input: &str) -> Vec<&str> {
-    RE.find_iter(input)
+    get_command_regex()
+        .find_iter(input)
         .map(|m| m.as_str().trim().trim_matches('\'').trim_matches('"'))
         .collect()
 }
-lazy_static! {
-    static ref RE: Regex =
-        Regex::new(r#"'([^']*)'\s*|\"([^\"]*)\"\s*|([^'\s]*)\s*"#).expect("Invalid Regex?");
+
+/// Get the compiled regex for command parsing, initializing it once.
+fn get_command_regex() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        Regex::new(r#"'([^']*)'\s*|"([^"]*)"\s*|([^'\s]*)\s*"#).expect("Invalid Regex")
+    })
 }
 
 #[cfg(test)]

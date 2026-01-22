@@ -2,6 +2,7 @@
 
 use super::{Ipv4, Subnet};
 use std::collections::HashMap;
+use std::fmt;
 
 /// Represents an Azure Virtual Network with its subnets.
 #[derive(Debug)]
@@ -68,5 +69,29 @@ impl<'a> VnetList<'a> {
 impl<'a> Default for VnetList<'a> {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl<'a> fmt::Display for Vnet<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let cidrs: Vec<String> = self.vnet_cidr.iter().map(|c| c.to_string()).collect();
+        write!(
+            f,
+            "{} [{}] ({} subnets, {})",
+            self.vnet_name,
+            cidrs.join(", "),
+            self.subnets.len(),
+            self.location
+        )
+    }
+}
+
+impl<'a> fmt::Display for VnetList<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "VnetList ({} VNets):", self.vnets.len())?;
+        for vnet in self.vnets.values() {
+            writeln!(f, "  - {vnet}")?;
+        }
+        Ok(())
     }
 }

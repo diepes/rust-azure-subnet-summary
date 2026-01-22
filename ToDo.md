@@ -165,22 +165,25 @@ A comprehensive review of the `azure-subnet-summary` Rust application with actio
 
 ### 🟡 Medium Priority
 
-- [ ] **Improve async usage**
-  - `subnet_print()` and `print_vnets()` are async but don't perform async operations
-  - Either make them synchronous or add actual async I/O
-  - The `#[tokio::main]` could be `#[tokio::main(flavor = "current_thread")]` if parallelism isn't needed
+- [x] **Improve async usage** ✅ COMPLETED
+  - Removed `async` from `subnet_print()` and `print_vnets()` (they didn't perform async operations)
+  - Removed `#[tokio::main]` from `main.rs` - now uses plain `fn main()`
+  - Removed `#[tokio::test]` from legacy tests - now use regular `#[test]`
+  - Removed `tokio` direct dependency from `Cargo.toml` (still available as transitive dependency)
 
-- [ ] **Replace `lazy_static` with `std::sync::OnceLock`** (Rust 1.70+)
-  - `cmd.rs` uses `lazy_static` for the regex
-  - Modern Rust prefers `OnceLock` or `LazyLock` (Rust 1.80+)
+- [x] **Replace `lazy_static` with `std::sync::OnceLock`** ✅ COMPLETED
+  - `cmd.rs` now uses `OnceLock` for the regex
+  - Removed `lazy_static` from `Cargo.toml` dependencies
 
-- [ ] **Use `derive_more` or implement `Display` consistently**
-  - `Ipv4` has a manual `Display` impl which is good
-  - Consider adding `Display` for `Subnet` and `Vnet` for debugging
+- [x] **Use `derive_more` or implement `Display` consistently** ✅ COMPLETED
+  - `Ipv4` already has a `Display` impl: `"{addr}/{mask}"`
+  - Added `Display` for `Subnet`: `"{vnet_name}/{subnet_name} ({cidr})"`
+  - Added `Display` for `Vnet`: `"{vnet_name} [{cidrs}] ({n} subnets, {location})"`
+  - Added `Display` for `VnetList`: Lists all VNets with count
 
-- [ ] **Replace `extern crate` with `use`**
-  - `cmd.rs` uses `extern crate regex` and `extern crate lazy_static`
-  - These are no longer needed in Rust 2018+ edition
+- [x] **Replace `extern crate` with `use`** ✅ COMPLETED
+  - `cmd.rs` now uses modern `use` imports
+  - No `extern crate` statements remain in the codebase
 
 ### 🟢 Low Priority
 

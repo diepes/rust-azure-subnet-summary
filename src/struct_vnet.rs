@@ -88,7 +88,7 @@ pub fn get_vnets(
     Ok(vnets)
 }
 
-pub async fn print_vnets(vnets: &VnetList<'_>) -> Result<(), Box<dyn std::error::Error>> {
+pub fn print_vnets(vnets: &VnetList<'_>) -> Result<(), Box<dyn std::error::Error>> {
     log::info!("VNETs: found {} VNETs", vnets.vnets.len());
     for ((_vnet_k, subs_k), vnet) in &vnets.vnets {
         println!(

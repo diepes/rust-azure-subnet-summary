@@ -36,7 +36,7 @@ pub fn f<T: ToString>(value: T, width: usize) -> String {
     }
 }
 
-pub async fn subnet_print(
+pub fn subnet_print(
     data: &graph_read_subnet_data::Data,
     gap_cidr_mask: u8,
 ) -> Result<(), Box<dyn Error>> {

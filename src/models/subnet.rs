@@ -2,6 +2,7 @@
 
 use super::Ipv4;
 use serde::{Deserialize, Serialize};
+use std::fmt;
 
 /// Represents an Azure subnet with its configuration and metadata.
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -53,5 +54,15 @@ impl Default for Subnet {
             src_index: 0,
             block_id: 0,
         }
+    }
+}
+
+impl fmt::Display for Subnet {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let cidr = self
+            .subnet_cidr
+            .map(|c| c.to_string())
+            .unwrap_or_else(|| "None".to_string());
+        write!(f, "{}/{} ({})", self.vnet_name, self.subnet_name, cidr)
     }
 }
