@@ -137,7 +137,7 @@ pub fn lo_mask(ip: Ipv4Addr) -> u8 {
 }
 
 /// IPv4 address with CIDR notation support.
-#[derive(Eq, Ord, Debug, Copy, Clone, Hash)]
+#[derive(Eq, PartialEq, Ord, PartialOrd, Debug, Copy, Clone, Hash)]
 pub struct Ipv4 {
     /// The IPv4 address.
     pub addr: Ipv4Addr,
@@ -163,7 +163,7 @@ impl<'de> Deserialize<'de> for Ipv4 {
         let s = String::deserialize(deserializer)?;
         let parts: Vec<&str> = s.split('/').collect();
         if parts.len() != 2 {
-            return Err(de::Error::custom(format!("invalid CIDR format: {}", s)));
+            return Err(de::Error::custom(format!("invalid CIDR format: {s}")));
         }
 
         let addr = Ipv4Addr::from_str(parts[0])
@@ -205,31 +205,19 @@ impl Ipv4 {
     /// Get the highest (broadcast) address in the subnet.
     pub fn hi(&self) -> Ipv4Addr {
         broadcast_addr(self.addr, self.mask)
-            .unwrap_or_else(|e| panic!("Error calculating broadcast address: {}", e))
+            .unwrap_or_else(|e| panic!("Error calculating broadcast address: {e}"))
     }
 
     /// Get the lowest (network) address in the subnet.
     pub fn lo(&self) -> Ipv4Addr {
         cut_addr(self.addr, self.mask)
-            .unwrap_or_else(|e| panic!("Error calculating minimum address for {}: {}", self, e))
+            .unwrap_or_else(|e| panic!("Error calculating minimum address for {self}: {e}"))
     }
 }
 
 impl std::fmt::Display for Ipv4 {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}/{}", self.addr, self.mask)
-    }
-}
-
-impl PartialEq for Ipv4 {
-    fn eq(&self, other: &Ipv4) -> bool {
-        self.addr == other.addr && self.mask == other.mask
-    }
-}
-
-impl PartialOrd for Ipv4 {
-    fn partial_cmp(&self, other: &Ipv4) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
     }
 }
 

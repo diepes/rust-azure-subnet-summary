@@ -43,8 +43,8 @@ pub fn run(cmd: &str) -> Result<String, Box<dyn Error>> {
     }
 
     let output = command.output().map_err(|e| {
-        log::error!("Command execution failed: {}", e);
-        format!("Failed to execute command: {}", e)
+        log::error!("Command execution failed: {e}");
+        format!("Failed to execute command: {e}")
     })?;
 
     if output.status.success() {
@@ -76,7 +76,7 @@ pub fn run(cmd: &str) -> Result<String, Box<dyn Error>> {
         return Err(format!("ERROR running: {stderr}").into());
     }
 
-    let stdout = String::from_utf8(output.stdout).map_err(|e| format!("Invalid UTF-8: {}", e))?;
+    let stdout = String::from_utf8(output.stdout).map_err(|e| format!("Invalid UTF-8: {e}"))?;
 
     Ok(stdout)
 }

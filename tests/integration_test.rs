@@ -10,7 +10,7 @@ use azure_subnet_summary::{
 #[test]
 fn test_full_workflow_with_cache() {
     // Read from test cache
-    let data = get_sorted_subnets(Some("tests/test_data/subnet_test_cache_04.json"))
+    let data = get_sorted_subnets(Some("src/tests/test_data/subnet_test_cache_04.json"))
         .expect("Failed to read subnet cache");
 
     assert_eq!(data.data.len(), 180, "Expected 180 subnets in test data");
@@ -37,7 +37,7 @@ fn test_full_workflow_with_cache() {
 
 #[test]
 fn test_small_cache_file() {
-    let data = get_sorted_subnets(Some("tests/test_data/subnet_test_cache_01.json"))
+    let data = get_sorted_subnets(Some("src/tests/test_data/subnet_test_cache_01.json"))
         .expect("Failed to read subnet cache");
 
     let data = de_duplicate_subnets(data, None).expect("Failed to de-duplicate");
@@ -48,7 +48,7 @@ fn test_small_cache_file() {
 
 #[test]
 fn test_sorted_order() {
-    let data = get_sorted_subnets(Some("tests/test_data/subnet_test_cache_04.json"))
+    let data = get_sorted_subnets(Some("src/tests/test_data/subnet_test_cache_04.json"))
         .expect("Failed to read subnet cache");
 
     // Verify subnets are sorted by CIDR

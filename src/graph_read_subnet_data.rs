@@ -4,7 +4,6 @@
 use crate::cmd;
 use crate::config;
 use crate::subnet_struct::Subnet;
-use chrono;
 use serde::{Deserialize, Serialize};
 
 /// fn read_subnet_cache()
@@ -16,12 +15,12 @@ pub fn read_subnet_cache(cache_file: Option<&str>) -> Result<Data, Box<dyn std::
         Some(file) => {
             // Panic if the provided cache file does not exist
             if !std::path::Path::new(file).exists() {
-                panic!("Cache file does not exist: {}", file);
+                panic!("Cache file does not exist: {file}");
             }
             log::info!("Using provided cache file: {}", file);
             file.to_string()
         }
-        None => format!("subnet_cache_{}.json", now.format("%Y-%m-%d").to_string()),
+        None => format!("subnet_cache_{}.json", now.format("%Y-%m-%d")),
     };
     let data_from_cache_or_cli: Data = match std::fs::read_to_string(&cache_file) {
         Ok(json) => {
@@ -35,7 +34,7 @@ pub fn read_subnet_cache(cache_file: Option<&str>) -> Result<Data, Box<dyn std::
             let json = serde_json::to_string(&data).expect("Error serializing json");
             log::warn!("Write data to Cache file: {}", cache_file);
             std::fs::write(&cache_file, json)
-                .expect(format!("Error writing cache file {cache_file}").as_str());
+                .unwrap_or_else(|_| panic!("Error writing cache file {cache_file}"));
             data
         }
     };
@@ -56,7 +55,7 @@ pub fn run_az_cli_graph() -> Result<Data, Box<dyn std::error::Error>> {
     let mut skip_token_param: String = "".to_string();
     let mut count_blocks_returned = 0;
     let mut src_index: usize = 0; // save index count of record returned from 0..
-    while skip_token_param != "--skip-token null".to_string() {
+    while skip_token_param != "--skip-token null" {
         let output = cmd::run(&format!(
             "az graph query --first 50 {skip_token_param} -q 'resources 
         | where type == \"microsoft.network/virtualnetworks\"
@@ -90,8 +89,7 @@ pub fn run_az_cli_graph() -> Result<Data, Box<dyn std::error::Error>> {
                 let json_path = e.path().to_string();
                 log::error!("OUTPUT START:\n\n{}\n\nOUTPUT END\n", output); //&output[output.len() - 400..]);
                 panic!(
-                    "Error parsing json block {}: ErrPath:{:?} e:{:?}",
-                    count_blocks_returned, json_path, e
+                    "Error parsing json block {count_blocks_returned}: ErrPath:{json_path:?} e:{e:?}"
                 );
             }
         };
@@ -113,7 +111,7 @@ pub fn run_az_cli_graph() -> Result<Data, Box<dyn std::error::Error>> {
                 s
             }));
         let count = json_parsed.count;
-        data.count = data.count + json_parsed.count;
+        data.count += json_parsed.count;
         if let Some(block_records) = json_parsed.total_records {
             data.total_records = Some(block_records);
         }

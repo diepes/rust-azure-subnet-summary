@@ -21,9 +21,9 @@ pub fn read_subnet_cache(cache_file: Option<&str>) -> Result<Data, Box<dyn Error
     let cache_file = match cache_file {
         Some(file) => {
             if !Path::new(file).exists() {
-                return Err(format!("Cache file does not exist: {}", file).into());
+                return Err(format!("Cache file does not exist: {file}").into());
             }
-            log::info!("Using provided cache file: {}", file);
+            log::info!("Using provided cache file: {file}");
             file.to_string()
         }
         None => format!("subnet_cache_{}.json", now.format("%Y-%m-%d")),
@@ -31,19 +31,19 @@ pub fn read_subnet_cache(cache_file: Option<&str>) -> Result<Data, Box<dyn Error
 
     let data = match std::fs::read_to_string(&cache_file) {
         Ok(json) => {
-            log::info!("Reading from cache file: {}", cache_file);
-            serde_json::from_str(&json).map_err(|e| format!("Error parsing cache JSON: {}", e))?
+            log::info!("Reading from cache file: {cache_file}");
+            serde_json::from_str(&json).map_err(|e| format!("Error parsing cache JSON: {e}"))?
         }
         Err(_) => {
-            log::warn!("Cache file not found: {}", cache_file);
+            log::warn!("Cache file not found: {cache_file}");
             let data = run_az_cli_graph()?;
             log::info!("Parsed JSON data received from Azure CLI");
 
             let json =
-                serde_json::to_string(&data).map_err(|e| format!("Error serializing JSON: {}", e))?;
-            log::warn!("Writing data to cache file: {}", cache_file);
+                serde_json::to_string(&data).map_err(|e| format!("Error serializing JSON: {e}"))?;
+            log::warn!("Writing data to cache file: {cache_file}");
             std::fs::write(&cache_file, json)
-                .map_err(|e| format!("Error writing cache file {}: {}", cache_file, e))?;
+                .map_err(|e| format!("Error writing cache file {cache_file}: {e}"))?;
             data
         }
     };

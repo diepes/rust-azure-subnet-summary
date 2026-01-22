@@ -30,9 +30,9 @@ pub fn de_duplicate_subnets2(
     });
     // dedup data.data, it has to be sorted first
     data.data
-        .sort_by_key(|s| (s.subnet_cidr.clone(), s.subscription_id.clone()));
+        .sort_by_key(|s| (s.subnet_cidr, s.subscription_id.clone()));
     data.data
-        .dedup_by_key(|s| (s.subnet_cidr.clone(), s.subscription_id.clone()));
+        .dedup_by_key(|s| (s.subnet_cidr, s.subscription_id.clone()));
 
     Ok(data)
 }
@@ -42,7 +42,9 @@ pub fn de_duplicate_subnets2(
 mod tests {
 
     use super::*;
-    use crate::{get_sorted_subnets_legacy as get_sorted_subnets, graph_read_subnet_data::read_subnet_cache};
+    use crate::{
+        get_sorted_subnets_legacy as get_sorted_subnets, graph_read_subnet_data::read_subnet_cache,
+    };
 
     #[test]
     fn test_de_duplicate_subnets_one() {

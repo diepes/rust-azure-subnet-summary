@@ -77,9 +77,7 @@ pub fn process_subnet_row(
     // Look for unused subnet gaps
     assert!(
         next_ip <= subnet_cidr.addr,
-        "next_ip[{}] > subnet_cidr[{}] should never happen.",
-        next_ip,
-        subnet_cidr
+        "next_ip[{next_ip}] > subnet_cidr[{subnet_cidr}] should never happen."
     );
 
     // Create gap subnets
@@ -178,7 +176,7 @@ fn format_vnet_cidr(cidrs: &[Ipv4]) -> String {
 fn extract_nsg_name(nsg: Option<&str>) -> String {
     nsg.unwrap_or("None")
         .split('/')
-        .last()
+        .next_back()
         .unwrap_or("None")
         .to_string()
 }
@@ -193,8 +191,7 @@ fn format_dns_servers(dns: Option<&[String]>) -> String {
 fn find_biggest_subnet(start_ip: Ipv4Addr, start_mask: u8, below_subnet_cidr: Ipv4) -> u8 {
     assert!(
         start_mask <= 32,
-        "start_mask[{}] > 32 should never happen.",
-        start_mask
+        "start_mask[{start_mask}] > 32 should never happen."
     );
 
     let mut next_mask = start_mask;
@@ -212,8 +209,7 @@ fn find_biggest_subnet(start_ip: Ipv4Addr, start_mask: u8, below_subnet_cidr: Ip
 
     assert!(
         next_mask <= 32,
-        "next_mask[{}] > 32 should never happen.",
-        next_mask
+        "next_mask[{next_mask}] > 32 should never happen."
     );
     next_mask
 }

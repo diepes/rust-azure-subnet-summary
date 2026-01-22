@@ -55,19 +55,19 @@ pub fn next_subnet_ipv4(ipv4: Ipv4, mask: Option<u8>) -> Result<Ipv4, Box<dyn Er
     if new_mask <= current_mask {
         // eq or larger subnet (smaller mask)
         let next_subnet = ip_after_subnet(ipv4.addr, new_mask)?;
-        return Ok(Ipv4 {
+        Ok(Ipv4 {
             addr: next_subnet,
             mask: new_mask,
-        });
+        })
     } else {
         //smaller subnet
         let current_broadcast = broadcast_addr(ipv4.addr, current_mask)?;
         let next_subnet = ip_after_subnet(current_broadcast, new_mask)?;
-        return Ok(Ipv4 {
+        Ok(Ipv4 {
             addr: next_subnet,
             mask: new_mask,
-        });
-    };
+        })
+    }
 }
 
 // Not accurate as original subnet mask not available.
@@ -114,7 +114,7 @@ pub fn lo_mask(ip: Ipv4Addr) -> u8 {
     assert!(trailing_zeros <= 32, "Trailing zeros exceed 32 bits");
     32 - trailing_zeros
 }
-#[derive(Eq, Ord, Debug, Copy, Clone, Hash)]
+#[derive(Eq, PartialEq, Ord, PartialOrd, Debug, Copy, Clone, Hash)]
 pub struct Ipv4 {
     pub addr: Ipv4Addr,
     pub mask: u8,
@@ -136,7 +136,7 @@ impl<'de> Deserialize<'de> for Ipv4 {
         let s = String::deserialize(deserializer)?;
         let parts: Vec<&str> = s.split('/').collect();
         if parts.len() != 2 {
-            return Err(de::Error::custom(format!("invalid CIDR format: {}", s)));
+            return Err(de::Error::custom(format!("invalid CIDR format: {s}")));
         }
 
         let addr = Ipv4Addr::from_str(parts[0])
@@ -156,7 +156,7 @@ impl Ipv4 {
         }
         let addr = parts[0]
             .parse()
-            .expect(&format!("Invalid address {}", parts[0]));
+            .unwrap_or_else(|_| panic!("Invalid address {}", parts[0]));
         let mask = parts[1].parse()?;
         if mask > MAX_LENGTH {
             return Err("Network length is too long".into());
@@ -172,26 +172,16 @@ impl Ipv4 {
     }
     pub fn hi(&self) -> Ipv4Addr {
         broadcast_addr(self.addr, self.mask)
-            .unwrap_or_else(|e| panic!("Error calculating broadcast address: {}", e))
+            .unwrap_or_else(|e| panic!("Error calculating broadcast address: {e}"))
     }
     pub fn lo(&self) -> Ipv4Addr {
         cut_addr(self.addr, self.mask)
-            .unwrap_or_else(|e| panic!("Error calculating minimum address for {}: {}", self, e))
+            .unwrap_or_else(|e| panic!("Error calculating minimum address for {self}: {e}"))
     }
 }
 impl std::fmt::Display for Ipv4 {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}/{}", self.addr, self.mask)
-    }
-}
-impl PartialEq for Ipv4 {
-    fn eq(&self, other: &Ipv4) -> bool {
-        self.addr == other.addr && self.mask == other.mask
-    }
-}
-impl PartialOrd for Ipv4 {
-    fn partial_cmp(&self, other: &Ipv4) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
     }
 }
 #[cfg(test)]

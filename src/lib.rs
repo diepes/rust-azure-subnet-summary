@@ -29,17 +29,17 @@ mod de_duplicate_subnets;
 mod graph_read_subnet_data;
 mod ipv4;
 pub mod struct_vnet;
-mod subnet_struct;
 pub mod subnet_add_row;
 pub mod subnet_print;
+mod subnet_struct;
 
 use std::collections::HashSet;
 
 // Re-export commonly used types from new modules
 pub use azure::Data;
 pub use models::{Ipv4, Subnet, Vnet, VnetList};
-pub use processing::{de_duplicate_subnets, get_vnets, print_vnets, SubnetPrintRow};
 pub use output::subnet_print as print_subnets;
+pub use processing::{de_duplicate_subnets, get_vnets, print_vnets, SubnetPrintRow};
 
 /// Get sorted subnet data from cache or Azure.
 ///
@@ -66,14 +66,12 @@ pub fn get_sorted_subnets(
 /// * `Ok(())` - No duplicates found
 /// * `Err` - If a duplicate is found
 #[must_use = "This function returns a Result that should be checked"]
-pub fn check_for_duplicate_subnets(
-    data: &azure::Data,
-) -> Result<(), Box<dyn std::error::Error>> {
+pub fn check_for_duplicate_subnets(data: &azure::Data) -> Result<(), Box<dyn std::error::Error>> {
     let mut seen = HashSet::new();
 
     for sub in data.data.iter() {
         if !seen.insert((sub.subnet_cidr, sub.subscription_id.clone())) {
-            return Err(format!("Duplicate found: {:?}", sub).into());
+            return Err(format!("Duplicate found: {sub:?}").into());
         }
     }
     Ok(())

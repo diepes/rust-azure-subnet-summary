@@ -26,13 +26,13 @@ pub struct SubnetPrintRow {
 
 pub fn f<T: ToString>(value: T, width: usize) -> String {
     let value_str = value.to_string();
-    let quoted = format!("\"{}\"", value_str); // Wrap value in quotes
+    let quoted = format!("\"{value_str}\""); // Wrap value in quotes
     let quoted_len = quoted.len(); // Length including quotes
     if quoted_len >= width {
         quoted // Return as-is if already wider than or equal to width
     } else {
         // Right-align the quoted string with spaces on the left
-        format!("{:>width$}", quoted, width = width)
+        format!("{quoted:>width$}")
     }
 }
 
@@ -103,9 +103,9 @@ pub async fn subnet_print(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::de_duplicate_subnets::de_duplicate_subnets2;
     use crate::get_sorted_subnets_legacy as get_sorted_subnets;
     use crate::graph_read_subnet_data::read_subnet_cache;
-    use crate::de_duplicate_subnets::de_duplicate_subnets2;
     use crate::subnet_add_row::process_subnet_row;
 
     #[test]

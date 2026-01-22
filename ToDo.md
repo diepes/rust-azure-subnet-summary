@@ -8,26 +8,29 @@ A comprehensive review of the `azure-subnet-summary` Rust application with actio
 
 ### 🔴 High Priority
 
-- [ ] **Extract Azure CLI interaction into a dedicated module**
-  - Currently, `graph_read_subnet_data.rs` mixes data parsing, caching logic, and CLI command execution
-  - Create `src/azure/` directory with:
+- [x] **Extract Azure CLI interaction into a dedicated module** ✅ COMPLETED
+  - ~~Currently, `graph_read_subnet_data.rs` mixes data parsing, caching logic, and CLI command execution~~
+  - Created `src/azure/` directory with:
     - `mod.rs` - Module exports
-    - `cli.rs` - Azure CLI command execution
-    - `query.rs` - Graph query building/templates
-    - `cache.rs` - Cache read/write operations
-  - This allows easier testing and mocking of Azure interactions
+    - `cli.rs` - Azure CLI command execution (using `OnceLock` instead of `lazy_static`)
+    - `graph.rs` - Query logic with `SUBNET_QUERY` constant extracted
+    - `cache.rs` - Cache read/write operations with proper error handling
 
-- [ ] **Separate data models from business logic**
-  - Move `Subnet`, `Ipv4`, `Vnet` structs to `src/models/` directory
-  - Keep serialization/deserialization with models
-  - Move processing logic (like `process_subnet_row`) to a `src/services/` or `src/processing/` module
+- [x] **Separate data models from business logic** ✅ COMPLETED
+  - Created `src/models/` directory with:
+    - `ipv4.rs` - IPv4 struct with CIDR support, serialization, and utility functions
+    - `subnet.rs` - Subnet struct with Azure metadata
+    - `vnet.rs` - Vnet and VnetList for VNet aggregation
+  - Processing logic moved to `src/processing/`:
+    - `gap_finder.rs` - Contains `process_subnet_row` and gap detection
+    - `dedup.rs` - De-duplication logic
+    - `vnet.rs` - VNet operations
 
-- [ ] **Extract output formatting from `subnet_print.rs`**
-  - Currently mixes CSV formatting, terminal output, and business logic
-  - Create separate:
-    - `src/output/csv.rs` - CSV formatting
-    - `src/output/terminal.rs` - Terminal/colored output
-    - `src/output/mod.rs` - Output trait and common utilities
+- [x] **Extract output formatting from `subnet_print.rs`** ✅ COMPLETED
+  - Created `src/output/` directory with:
+    - `csv.rs` - CSV output formatting with `subnet_print` function
+    - `terminal.rs` - Terminal formatting with `format_field` helper
+    - `mod.rs` - Module exports
 
 ### 🟡 Medium Priority
 

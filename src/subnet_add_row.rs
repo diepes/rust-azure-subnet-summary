@@ -3,8 +3,8 @@ use crate::subnet_print::SubnetPrintRow;
 use std::net::Ipv4Addr;
 
 // recieve previous ip and next subnet, add print rows for gap subnets and given subnet
-pub fn process_subnet_row<'a>(
-    s: &'a crate::subnet_struct::Subnet,
+pub fn process_subnet_row(
+    s: &crate::subnet_struct::Subnet,
     i: usize,
     mut next_ip: Ipv4Addr,        // next ip from previous run
     mut vnet_previous_cidr: Ipv4, // vnet cidr from previous run
@@ -12,12 +12,9 @@ pub fn process_subnet_row<'a>(
     _skip_subnet_smaller_than: Ipv4Addr,
 ) -> (Ipv4Addr, Ipv4, Vec<SubnetPrintRow>) {
     let mut rows = Vec::new();
-    let subnet_cidr: Ipv4;
     // if empty subnet_cidr return it.
-    match s.subnet_cidr {
-        Some(s_cidr) => {
-            subnet_cidr = s_cidr;
-        }
+    let subnet_cidr: Ipv4 = match s.subnet_cidr {
+        Some(s_cidr) => s_cidr,
         None => {
             log::warn!(
                 "Warning: subnet_cidr is None for subnet_name: {}",
@@ -58,14 +55,12 @@ pub fn process_subnet_row<'a>(
             });
             return (next_ip, vnet_previous_cidr, rows);
         }
-    }
+    };
 
     // Look for unused subnet gaps
     assert!(
         next_ip <= subnet_cidr.addr,
-        "next_ip[{}] > subnet_cidr[{}] should never happen.",
-        next_ip,
-        subnet_cidr
+        "next_ip[{next_ip}] > subnet_cidr[{subnet_cidr}] should never happen."
     );
     // create new subnets
     while next_ip < subnet_cidr.lo()
@@ -154,8 +149,7 @@ pub fn process_subnet_row<'a>(
 fn find_bigest_subnet(start_ip: Ipv4Addr, start_mask: u8, below_subnet_cidr: Ipv4) -> u8 {
     assert!(
         start_mask <= 32,
-        "start_mask[{}] > 32 should never happen.",
-        start_mask
+        "start_mask[{start_mask}] > 32 should never happen."
     );
     let mut next_mask = start_mask;
     let mut next_subnet: Ipv4;
@@ -172,8 +166,7 @@ fn find_bigest_subnet(start_ip: Ipv4Addr, start_mask: u8, below_subnet_cidr: Ipv
     }
     assert!(
         next_mask <= 32,
-        "next_mask[{}] > 32 should never happen.",
-        next_mask
+        "next_mask[{next_mask}] > 32 should never happen."
     );
     next_mask
 }
@@ -197,7 +190,7 @@ mod tests {
         let start_ip = Ipv4Addr::new(10, 0, 0, 0);
         let below_subnet_cidr = Ipv4::new("10.11.16.0/24").unwrap();
         assert_eq!(13, find_bigest_subnet(start_ip, 8, below_subnet_cidr));
-        // 
+        //
         let below_subnet_cidr = Ipv4::new("10.192.0.0/24").unwrap();
         assert_eq!(9, find_bigest_subnet(start_ip, 8, below_subnet_cidr));
         assert_eq!(12, find_bigest_subnet(start_ip, 12, below_subnet_cidr));

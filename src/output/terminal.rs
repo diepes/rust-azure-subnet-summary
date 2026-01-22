@@ -12,13 +12,13 @@
 /// A quoted, right-aligned string
 pub fn format_field<T: ToString>(value: T, width: usize) -> String {
     let value_str = value.to_string();
-    let quoted = format!("\"{}\"", value_str);
+    let quoted = format!("\"{value_str}\"");
     let quoted_len = quoted.len();
 
     if quoted_len >= width {
         quoted
     } else {
-        format!("{:>width$}", quoted, width = width)
+        format!("{quoted:>width$}")
     }
 }
 

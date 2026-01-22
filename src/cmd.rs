@@ -32,7 +32,7 @@ pub fn run(cmd: &str) -> Result<String, Box<dyn Error>> {
         Ok(out) => out,
         Err(e) => {
             log::error!("ERR {}", e);
-            panic!("ERR {}", e)
+            panic!("ERR {e}")
         }
     };
 

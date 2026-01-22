@@ -73,7 +73,10 @@ pub fn run_az_cli_graph() -> Result<Data, Box<dyn Error>> {
                 )
             })?;
 
-        let skip_token_new = json_parsed.skip_token.clone().unwrap_or_else(|| "null".to_string());
+        let skip_token_new = json_parsed
+            .skip_token
+            .clone()
+            .unwrap_or_else(|| "null".to_string());
         let skip_token_new = format!("--skip-token {skip_token_new}");
 
         if skip_token_new == skip_token_param {

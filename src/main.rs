@@ -5,8 +5,8 @@
 
 use azure_subnet_summary::{
     check_for_duplicate_subnets, get_sorted_subnets,
-    processing::{de_duplicate_subnets, get_vnets, print_vnets},
     output::subnet_print,
+    processing::{de_duplicate_subnets, get_vnets, print_vnets},
 };
 use std::error::Error;
 

@@ -38,6 +38,12 @@ pub struct VnetList<'a> {
     pub vnets: HashMap<(&'a StrVnet, &'a StrSubscription), Vnet<'a>>,
 }
 
+impl<'a> Default for VnetList<'a> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<'a> VnetList<'a> {
     pub fn new() -> VnetList<'a> {
         VnetList {
@@ -46,13 +52,11 @@ impl<'a> VnetList<'a> {
     }
     pub fn add_vnet(&mut self, subnet: &'a Subnet) {
         // Check if vnet exists, and panics on duplicate
-        if self
-            .vnets
-            .contains_key(&(&subnet.vnet_name, &subnet.subscription_name))
-        {}
+        self.vnets
+            .contains_key(&(&subnet.vnet_name, &subnet.subscription_name));
         self.vnets.insert(
             (&subnet.vnet_name, &subnet.subscription_name),
-            Vnet::new(&subnet),
+            Vnet::new(subnet),
         );
     }
     pub fn import_from_subnets(&mut self, subnets: &'a graph_read_subnet_data::Data) {
