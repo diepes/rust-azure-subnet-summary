@@ -72,6 +72,10 @@ pub fn process_subnet_row(
             addr: next_ip,
             mask: next_mask,
         };
+
+        // Check if gap is within the next subnet's vnet - if not, leave subscription info blank
+        let gap_in_vnet = s.vnet_cidr.iter().any(|vnet| vnet.contains(next_ip));
+
         // Add gap subnet row
         rows.push(SubnetPrintRow {
             j: 0, // Not a real subnet, so no index
@@ -80,18 +84,33 @@ pub fn process_subnet_row(
             broadcast: next_subnet.broadcast().unwrap().addr.to_string(),
             az_hosts: crate::ipv4::num_az_hosts(next_mask).unwrap() as usize,
             subnet_name: "None".to_string(),
-            subscription_name: s.subscription_name.clone(),
-            vnet_cidr: s
-                .vnet_cidr
-                .iter()
-                .map(|ip| ip.to_string())
-                .collect::<Vec<String>>()
-                .join(","),
-            vnet_name: s.vnet_name.clone(),
+            subscription_name: if gap_in_vnet {
+                s.subscription_name.clone()
+            } else {
+                "None".to_string()
+            },
+            vnet_cidr: if gap_in_vnet {
+                s.vnet_cidr
+                    .iter()
+                    .map(|ip| ip.to_string())
+                    .collect::<Vec<String>>()
+                    .join(",")
+            } else {
+                "None".to_string()
+            },
+            vnet_name: if gap_in_vnet {
+                s.vnet_name.clone()
+            } else {
+                "None".to_string()
+            },
             location: "None".to_string(),
             nsg: "Unused_nsg".to_string(),
             dns: "Unused_dns".to_string(),
-            subscription_id: s.subscription_id.clone(),
+            subscription_id: if gap_in_vnet {
+                s.subscription_id.clone()
+            } else {
+                "None".to_string()
+            },
             ip_configurations_count: 0,
         });
         let _vnet_broadcast_max = if s.vnet_cidr[0] == vnet_previous_cidr {
@@ -151,7 +170,12 @@ fn find_bigest_subnet(start_ip: Ipv4Addr, start_mask: u8, below_subnet_cidr: Ipv
         start_mask <= 32,
         "start_mask[{start_mask}] > 32 should never happen."
     );
-    let mut next_mask = start_mask;
+
+    // Calculate minimum valid mask based on IP alignment (trailing zeros)
+    let min_mask_for_alignment = crate::ipv4::lo_mask(start_ip);
+
+    // Start with the larger (more restrictive) of start_mask and alignment requirement
+    let mut next_mask = start_mask.max(min_mask_for_alignment);
     let mut next_subnet: Ipv4;
     loop {
         next_subnet = Ipv4 {
@@ -178,15 +202,19 @@ mod tests {
 
     #[test]
     fn test_find_bigest_subnet() {
+        // 10.0.0.0 is aligned to any mask
         let start_ip = Ipv4Addr::new(10, 0, 0, 0);
         let below_subnet_cidr = Ipv4::new("10.0.1.0/24").unwrap();
         assert_eq!(24, find_bigest_subnet(start_ip, 8, below_subnet_cidr));
         assert_eq!(28, find_bigest_subnet(start_ip, 28, below_subnet_cidr));
-        //
+
+        // 10.11.12.16 has 4 trailing zeros, so min mask = 28
+        // Even though we ask for start_mask=8, alignment constrains to /28
         let start_ip = Ipv4Addr::new(10, 11, 12, 16);
         let below_subnet_cidr = Ipv4::new("10.11.16.0/24").unwrap();
-        assert_eq!(20, find_bigest_subnet(start_ip, 8, below_subnet_cidr));
-        // test for small mask 8
+        assert_eq!(28, find_bigest_subnet(start_ip, 8, below_subnet_cidr));
+
+        // test for small mask 8 with aligned IP
         let start_ip = Ipv4Addr::new(10, 0, 0, 0);
         let below_subnet_cidr = Ipv4::new("10.11.16.0/24").unwrap();
         assert_eq!(13, find_bigest_subnet(start_ip, 8, below_subnet_cidr));

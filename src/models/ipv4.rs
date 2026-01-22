@@ -213,6 +213,11 @@ impl Ipv4 {
         cut_addr(self.addr, self.mask)
             .unwrap_or_else(|e| panic!("Error calculating minimum address for {self}: {e}"))
     }
+
+    /// Check if an IP address is contained within this subnet.
+    pub fn contains(&self, ip: Ipv4Addr) -> bool {
+        ip >= self.lo() && ip <= self.hi()
+    }
 }
 
 impl std::fmt::Display for Ipv4 {
@@ -399,5 +404,45 @@ mod tests {
     fn test_lo_mask() {
         let ip = Ipv4Addr::new(192, 168, 1, 1);
         assert_eq!(lo_mask(ip), 32);
+    }
+
+    #[test]
+    fn test_contains() {
+        let subnet = Ipv4::new("10.0.0.0/24").unwrap();
+
+        // IPs within the subnet
+        assert!(subnet.contains(Ipv4Addr::new(10, 0, 0, 0))); // network address
+        assert!(subnet.contains(Ipv4Addr::new(10, 0, 0, 1))); // first host
+        assert!(subnet.contains(Ipv4Addr::new(10, 0, 0, 254))); // last host
+        assert!(subnet.contains(Ipv4Addr::new(10, 0, 0, 255))); // broadcast
+
+        // IPs outside the subnet
+        assert!(!subnet.contains(Ipv4Addr::new(10, 0, 1, 0))); // next subnet
+        assert!(!subnet.contains(Ipv4Addr::new(9, 255, 255, 255))); // before
+        assert!(!subnet.contains(Ipv4Addr::new(192, 168, 1, 1))); // different range
+    }
+
+    #[test]
+    fn test_contains_multiple_vnets() {
+        // Test that checking multiple vnets works correctly
+        let vnet1 = Ipv4::new("10.0.0.0/16").unwrap();
+        let vnet2 = Ipv4::new("10.6.8.0/24").unwrap();
+        let vnets = vec![vnet1, vnet2];
+
+        // IP in first vnet
+        let ip1 = Ipv4Addr::new(10, 0, 5, 100);
+        assert!(vnets.iter().any(|vnet| vnet.contains(ip1)));
+
+        // IP in second vnet
+        let ip2 = Ipv4Addr::new(10, 6, 8, 50);
+        assert!(vnets.iter().any(|vnet| vnet.contains(ip2)));
+
+        // IP outside both vnets (between them)
+        let ip3 = Ipv4Addr::new(10, 6, 2, 80); // The bug case!
+        assert!(!vnets.iter().any(|vnet| vnet.contains(ip3)));
+
+        // IP completely outside
+        let ip4 = Ipv4Addr::new(192, 168, 1, 1);
+        assert!(!vnets.iter().any(|vnet| vnet.contains(ip4)));
     }
 }

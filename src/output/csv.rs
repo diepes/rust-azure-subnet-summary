@@ -23,7 +23,7 @@ pub fn subnet_print(data: &Data, gap_cidr_mask: u8) -> Result<(), Box<dyn Error>
 
     // Print CSV header
     println!(
-        r#" "cnt",   "gap",     "subnet_cidr", "broadcast",      "subnet_name",     "subscription_name",           "vnet_cidr",           "vnet_name",               "location",    "nsg",       "dns",       "subscription_id""#
+        r#" "cnt",   "gap",     "subnet_cidr",        "vms",      "broadcast",     "subnet_name",     "subscription_name",           "vnet_cidr",           "vnet_name",               "location",    "nsg",       "dns",       "subscription_id""#
     );
 
     const SKIP_SUBNET_SMALLER_THAN: Ipv4Addr = Ipv4Addr::new(10, 17, 255, 255);
@@ -72,7 +72,7 @@ fn print_csv_row(row: &SubnetPrintRow) {
                 hosts_used = row.ip_configurations_count,
                 hosts_max = row.az_hosts
             ),
-            12
+            13
         ),
         broadcast = format_field(format!("{}_br", row.broadcast), 19),
         subnet_name = format_field(&row.subnet_name, 24),

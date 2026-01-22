@@ -178,6 +178,10 @@ impl Ipv4 {
         cut_addr(self.addr, self.mask)
             .unwrap_or_else(|e| panic!("Error calculating minimum address for {self}: {e}"))
     }
+    /// Check if an IP address is contained within this subnet.
+    pub fn contains(&self, ip: Ipv4Addr) -> bool {
+        ip >= self.lo() && ip <= self.hi()
+    }
 }
 impl std::fmt::Display for Ipv4 {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {

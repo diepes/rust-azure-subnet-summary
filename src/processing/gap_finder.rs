@@ -88,6 +88,9 @@ pub fn process_subnet_row(
             mask: next_mask,
         };
 
+        // Check if gap is within the next subnet's vnet - if not, leave subscription info blank
+        let gap_in_vnet = s.vnet_cidr.iter().any(|vnet| vnet.contains(next_ip));
+
         rows.push(SubnetPrintRow {
             j: 0,
             gap: "-gap-".to_string(),
@@ -95,13 +98,29 @@ pub fn process_subnet_row(
             broadcast: next_subnet.broadcast().unwrap().addr.to_string(),
             az_hosts: num_az_hosts(next_mask).unwrap() as usize,
             subnet_name: "None".to_string(),
-            subscription_name: s.subscription_name.clone(),
-            vnet_cidr: format_vnet_cidr(&s.vnet_cidr),
-            vnet_name: s.vnet_name.clone(),
+            subscription_name: if gap_in_vnet {
+                s.subscription_name.clone()
+            } else {
+                "None".to_string()
+            },
+            vnet_cidr: if gap_in_vnet {
+                format_vnet_cidr(&s.vnet_cidr)
+            } else {
+                "None".to_string()
+            },
+            vnet_name: if gap_in_vnet {
+                s.vnet_name.clone()
+            } else {
+                "None".to_string()
+            },
             location: "None".to_string(),
             nsg: "Unused_nsg".to_string(),
             dns: "Unused_dns".to_string(),
-            subscription_id: s.subscription_id.clone(),
+            subscription_id: if gap_in_vnet {
+                s.subscription_id.clone()
+            } else {
+                "None".to_string()
+            },
             ip_configurations_count: 0,
         });
 
@@ -188,13 +207,23 @@ fn format_dns_servers(dns: Option<&[String]>) -> String {
 }
 
 /// Find the biggest subnet that fits before the target subnet.
+///
+/// The returned mask is constrained by:
+/// 1. The `start_mask` parameter (won't return a smaller mask)
+/// 2. The IP alignment - `start_ip` must be a valid network address for the mask
+/// 3. The subnet must not overlap with `below_subnet_cidr`
 fn find_biggest_subnet(start_ip: Ipv4Addr, start_mask: u8, below_subnet_cidr: Ipv4) -> u8 {
     assert!(
         start_mask <= 32,
         "start_mask[{start_mask}] > 32 should never happen."
     );
 
-    let mut next_mask = start_mask;
+    // Calculate minimum valid mask based on IP alignment (trailing zeros)
+    let min_mask_for_alignment = crate::models::lo_mask(start_ip);
+
+    // Start with the larger (more restrictive) of start_mask and alignment requirement
+    let mut next_mask = start_mask.max(min_mask_for_alignment);
+
     loop {
         let next_subnet = Ipv4 {
             addr: start_ip,
@@ -220,14 +249,23 @@ mod tests {
 
     #[test]
     fn test_find_biggest_subnet() {
+        // 10.0.0.0 is aligned to any mask (trailing zeros = 24 bits in last 3 octets)
         let start_ip = Ipv4Addr::new(10, 0, 0, 0);
         let below_subnet_cidr = Ipv4::new("10.0.1.0/24").unwrap();
         assert_eq!(24, find_biggest_subnet(start_ip, 8, below_subnet_cidr));
         assert_eq!(28, find_biggest_subnet(start_ip, 28, below_subnet_cidr));
 
+        // 10.11.12.16 has 4 trailing zeros, so min mask = 28
+        // Even though we ask for start_mask=8, alignment constrains to /28
         let start_ip = Ipv4Addr::new(10, 11, 12, 16);
         let below_subnet_cidr = Ipv4::new("10.11.16.0/24").unwrap();
-        assert_eq!(20, find_biggest_subnet(start_ip, 8, below_subnet_cidr));
+        assert_eq!(28, find_biggest_subnet(start_ip, 8, below_subnet_cidr));
+
+        // 10.11.12.0 has 10 trailing zeros (12 = 0b00001100, ends in 00), min mask = 22
+        // So it can be a valid /22 network address
+        let start_ip = Ipv4Addr::new(10, 11, 12, 0);
+        let below_subnet_cidr = Ipv4::new("10.11.16.0/24").unwrap();
+        assert_eq!(22, find_biggest_subnet(start_ip, 8, below_subnet_cidr));
 
         let start_ip = Ipv4Addr::new(10, 0, 0, 0);
         let below_subnet_cidr = Ipv4::new("10.11.16.0/24").unwrap();
@@ -238,6 +276,33 @@ mod tests {
         assert_eq!(12, find_biggest_subnet(start_ip, 12, below_subnet_cidr));
     }
 
+    #[test]
+    fn test_find_biggest_subnet_alignment() {
+        // Test the bug fix: 10.6.2.80 can only be /28 or smaller due to alignment
+        // 10.6.2.80 binary ends in 0101_0000, so trailing zeros = 4, lo_mask = 28
+        let start_ip = Ipv4Addr::new(10, 6, 2, 80);
+        let below_subnet_cidr = Ipv4::new("10.6.8.0/24").unwrap();
+
+        // Without the fix, this would return /21 which is invalid for 10.6.2.80
+        // With the fix, it should return /28 (constrained by IP alignment)
+        let mask = find_biggest_subnet(start_ip, 16, below_subnet_cidr);
+        assert_eq!(
+            28, mask,
+            "10.6.2.80 can only be /28 or smaller due to alignment"
+        );
+
+        // Verify the resulting subnet is valid
+        let gap_subnet = Ipv4::new("10.6.2.80/28").unwrap();
+        assert_eq!(
+            gap_subnet.lo(),
+            start_ip,
+            "Network address should match start_ip"
+        );
+        assert!(
+            gap_subnet.hi() < below_subnet_cidr.lo(),
+            "Gap should not overlap with next subnet"
+        );
+    }
     #[test]
     fn test_process_subnet_row_01() {
         let mut result: Subnet = Default::default();

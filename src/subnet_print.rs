@@ -46,7 +46,7 @@ pub fn subnet_print(
     );
     log::info!("# Got subnet count = {} == {}", data.count, data.data.len());
     println!(
-        r#" "cnt",   "gap",     "subnet_cidr", "broadcast",      "subnet_name",     "subscription_name",           "vnet_cidr",           "vnet_name",               "location",    "nsg",       "dns",       "subscription_id""#
+        r#" "cnt",   "gap",     "subnet_cidr",        "vms",      "broadcast",     "subnet_name",     "subscription_name",           "vnet_cidr",           "vnet_name",               "location",    "nsg",       "dns",       "subscription_id""#
     );
     const SKIP_SUBNET_SMALLER_THAN: Ipv4Addr = Ipv4Addr::new(10, 17, 255, 255);
     let mut next_ip: Ipv4Addr = Ipv4Addr::new(10, 0, 0, 0);
@@ -79,7 +79,7 @@ pub fn subnet_print(
                     hosts_used = row.ip_configurations_count,
                     hosts_max = row.az_hosts
                 ),
-                12
+                15
             ),
             broadcast = f(format!("{}_br", row.broadcast), 19),
             subnet_name = f(row.subnet_name, 24),
