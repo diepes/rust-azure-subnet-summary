@@ -9,7 +9,7 @@
             "subnet_name": "env-logs-crm-appgw-subnet",
             "subnet_cidr": null,
             "nsg": "/subscriptions/7789013b-1e8e-4444-eeee-abab809aeead/resourceGroups/env-vnet-rg/providers/Microsoft.Network/networkSecurityGroups/logs-crm-appgw-env-nsg",
-            "location": "australiaeast",
+            "location": "westeurope",
             "dns_servers": [
                 "10.31.72.5",
                 "10.44.65.11"

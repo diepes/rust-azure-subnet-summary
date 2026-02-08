@@ -10,7 +10,7 @@ fn default_subnet_names_to_ignore() -> Vec<&'static str> {
         "pkrsn8jufz9plf6",
         "pkrsnsnajtq3h3i",
         "pkrsnxocivqofa6",
-        "twggmcmg",
+        "orggmcmg",
         "restore-vm-subnet",
     ]
 }

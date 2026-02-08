@@ -77,7 +77,10 @@ pub fn process_subnet_row(
     // Look for unused subnet gaps
     assert!(
         next_ip <= subnet_cidr.addr,
-        "next_ip[{next_ip}] > subnet_cidr[{subnet_cidr}] should never happen."
+        "next_ip[{next_ip}] > subnet_cidr[{subnet_cidr}] should never happen.\n  Subscription: '{subscription_name}',  Subnet: '{subnet_name}', Vnet_CIDR: '{vnet_cidr}'",
+        subscription_name = s.subscription_name,
+        subnet_name = s.subnet_name,
+        vnet_cidr = format_vnet_cidr(&s.vnet_cidr),
     );
 
     // Create gap subnets

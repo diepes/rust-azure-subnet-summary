@@ -4,6 +4,7 @@
 
 use crate::azure::Data;
 use crate::models::VnetList;
+use crate::processing::VnetInfo;
 use std::error::Error;
 
 /// Build a VnetList from subnet data.
@@ -33,8 +34,14 @@ pub fn get_vnets(data: &Data) -> Result<VnetList, Box<dyn Error>> {
 ///
 /// # Arguments
 /// * `vnets` - The VnetList to print
-pub fn print_vnets(vnets: &VnetList<'_>) -> Result<(), Box<dyn Error>> {
-    log::info!("VNETs: found {} VNETs", vnets.vnets.len());
+/// * `excluded_vnets` - Optional list of excluded VNets to display
+pub fn print_vnets(vnets: &VnetList<'_>, excluded_vnets: Option<&[VnetInfo]>) -> Result<(), Box<dyn Error>> {
+    let excluded_count = excluded_vnets.map(|v| v.len()).unwrap_or(0);
+    log::info!(
+        "VNETs: found {} VNETs ({} excluded)",
+        vnets.vnets.len() + excluded_count,
+        excluded_count
+    );
 
     for ((_vnet_k, subs_k), vnet) in &vnets.vnets {
         println!(
@@ -48,6 +55,27 @@ pub fn print_vnets(vnets: &VnetList<'_>) -> Result<(), Box<dyn Error>> {
                 .collect::<Vec<String>>()
                 .join(", ")
         );
+    }
+
+    // Print excluded VNets
+    if let Some(excluded) = excluded_vnets {
+        if !excluded.is_empty() {
+            log::warn!("Excluded {} VNets due to overlapping CIDRs:", excluded.len());
+            for vnet in excluded {
+                println!(
+                    "VNET: '{vnet_name}' '{subs}' - {cidrs} \x1b[31m[EXCLUDED - {subnet_count} subnet(s)]\x1b[0m",
+                    vnet_name = vnet.vnet_name,
+                    subs = vnet.subscription_name,
+                    cidrs = vnet
+                        .vnet_cidr
+                        .iter()
+                        .map(|cidr| cidr.to_string())
+                        .collect::<Vec<String>>()
+                        .join(", "),
+                    subnet_count = vnet.subnet_count
+                );
+            }
+        }
     }
 
     Ok(())
