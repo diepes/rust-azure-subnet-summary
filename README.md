@@ -4,9 +4,9 @@ rust calls ```az graph query``` to get all the subnets then outputs a csv of sub
 
 ## Create Subnets summary
 
-* Run rust code, filtering out warn and info log messages.
+* Run rust code - it generates a CSV file automatically with the current date.
 
-      cargo run | grep -v " INFO \| WARN " > subnets-$( date -I).csv
+      cargo run
 
 ## Code flow
 

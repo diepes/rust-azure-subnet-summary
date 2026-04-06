@@ -10,6 +10,6 @@ mod cli;
 mod graph;
 
 // Re-export public types and functions
-pub use cache::read_subnet_cache;
+pub use cache::{read_subnet_cache, read_subnet_cache_with_status, CacheResult};
 pub use cli::run;
 pub use graph::{run_az_cli_graph, Data};

@@ -100,7 +100,11 @@ pub fn log_overlapping_vnets(conflicts: &[OverlapConflict]) {
     );
 
     for conflict in conflicts {
-        log::warn!("  CIDR {} is used by {} VNets:", conflict.cidr, conflict.vnets.len());
+        log::warn!(
+            "  CIDR {} is used by {} VNets:",
+            conflict.cidr,
+            conflict.vnets.len()
+        );
         for vnet in &conflict.vnets {
             log::warn!(
                 "    - VNet: '{}', Subscription: '{}' ({}), Location: {}, Subnets: {}",
@@ -122,10 +126,7 @@ pub fn log_overlapping_vnets(conflicts: &[OverlapConflict]) {
 ///
 /// # Returns
 /// A list of VnetInfo for VNets that would be excluded
-pub fn get_excluded_vnets(
-    data: &Data,
-    excluded_cidrs: Option<&[&str]>,
-) -> Vec<VnetInfo> {
+pub fn get_excluded_vnets(data: &Data, excluded_cidrs: Option<&[&str]>) -> Vec<VnetInfo> {
     let default_excludes = default_vnet_cidrs_to_exclude();
     let excluded_cidrs = excluded_cidrs.unwrap_or(&default_excludes);
 
@@ -141,7 +142,9 @@ pub fn get_excluded_vnets(
     for subnet in &data.data {
         // Check if this subnet's VNet should be excluded
         let should_exclude = subnet.vnet_cidr.iter().any(|vnet_cidr| {
-            excluded.iter().any(|excluded_cidr| vnet_cidr == excluded_cidr)
+            excluded
+                .iter()
+                .any(|excluded_cidr| vnet_cidr == excluded_cidr)
         });
 
         if should_exclude {
@@ -190,7 +193,9 @@ pub fn filter_excluded_vnet_cidrs(
     // Filter out subnets where any VNet CIDR matches an excluded CIDR
     data.data.retain(|subnet| {
         let should_exclude = subnet.vnet_cidr.iter().any(|vnet_cidr| {
-            excluded.iter().any(|excluded_cidr| vnet_cidr == excluded_cidr)
+            excluded
+                .iter()
+                .any(|excluded_cidr| vnet_cidr == excluded_cidr)
         });
 
         if should_exclude {

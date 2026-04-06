@@ -31,7 +31,7 @@ pub fn read_subnet_cache(cache_file: Option<&str>) -> Result<Data, Box<dyn std::
             log::warn!("Cache file not found: {}", cache_file);
             let data = run_az_cli_graph()?;
             log::info!("parse json data received from azure cli");
-            let json = serde_json::to_string(&data).expect("Error serializing json");
+            let json = serde_json::to_string_pretty(&data).expect("Error serializing json");
             log::warn!("Write data to Cache file: {}", cache_file);
             std::fs::write(&cache_file, json)
                 .unwrap_or_else(|_| panic!("Error writing cache file {cache_file}"));

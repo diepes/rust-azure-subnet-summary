@@ -35,7 +35,10 @@ pub fn get_vnets(data: &Data) -> Result<VnetList, Box<dyn Error>> {
 /// # Arguments
 /// * `vnets` - The VnetList to print
 /// * `excluded_vnets` - Optional list of excluded VNets to display
-pub fn print_vnets(vnets: &VnetList<'_>, excluded_vnets: Option<&[VnetInfo]>) -> Result<(), Box<dyn Error>> {
+pub fn print_vnets(
+    vnets: &VnetList<'_>,
+    excluded_vnets: Option<&[VnetInfo]>,
+) -> Result<(), Box<dyn Error>> {
     let excluded_count = excluded_vnets.map(|v| v.len()).unwrap_or(0);
     log::info!(
         "VNETs: found {} VNETs ({} excluded)",
@@ -60,7 +63,10 @@ pub fn print_vnets(vnets: &VnetList<'_>, excluded_vnets: Option<&[VnetInfo]>) ->
     // Print excluded VNets
     if let Some(excluded) = excluded_vnets {
         if !excluded.is_empty() {
-            log::warn!("Excluded {} VNets due to overlapping CIDRs:", excluded.len());
+            log::warn!(
+                "Excluded {} VNets due to overlapping CIDRs:",
+                excluded.len()
+            );
             for vnet in excluded {
                 println!(
                     "VNET: '{vnet_name}' '{subs}' - {cidrs} \x1b[31m[EXCLUDED - {subnet_count} subnet(s)]\x1b[0m",

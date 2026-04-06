@@ -3,28 +3,42 @@
 use crate::azure::Data;
 use crate::models::Ipv4;
 use crate::processing::{process_subnet_row, SubnetPrintRow};
-use colored::Colorize;
+use chrono::Local;
 use std::error::Error;
+use std::fs::File;
+use std::io::{BufWriter, Write};
 use std::net::Ipv4Addr;
 
 use super::terminal::format_field;
 
-/// Print subnet data as CSV to stdout.
+/// Write subnet data as CSV to a file.
 ///
 /// # Arguments
-/// * `data` - The subnet data to print
+/// * `data` - The subnet data to write
 /// * `gap_cidr_mask` - The default CIDR mask for gap subnets
-pub fn subnet_print(data: &Data, gap_cidr_mask: u8) -> Result<(), Box<dyn Error>> {
+///
+/// # Returns
+/// The path to the generated CSV file
+pub fn subnet_print(data: &Data, gap_cidr_mask: u8) -> Result<String, Box<dyn Error>> {
     log::info!(
         "#Start subnet_print() add gap subnets with mask /{}",
         gap_cidr_mask
     );
     log::info!("# Got subnet count = {} == {}", data.count, data.data.len());
 
-    // Print CSV header
-    println!(
-        r#" "cnt",   "gap",     "subnet_cidr",        "vms",      "broadcast",     "subnet_name",     "subscription_name",           "vnet_cidr",           "vnet_name",               "location",    "nsg",       "dns",       "subscription_id""#
-    );
+    // Generate filename with current date
+    let date_str = Local::now().format("%Y-%m-%d").to_string();
+    let filename = format!("subnets-{}.csv", date_str);
+
+    // Open file for writing
+    let file = File::create(&filename)?;
+    let mut writer = BufWriter::new(file);
+
+    // Write CSV header
+    writeln!(
+        writer,
+        r#""cnt","gap","subnet_cidr","vms","broadcast","subnet_name","subscription_name","vnet_cidr","vnet_name","location","nsg","dns","subscription_id""#
+    )?;
 
     const SKIP_SUBNET_SMALLER_THAN: Ipv4Addr = Ipv4Addr::new(10, 17, 255, 255);
     let mut next_ip: Ipv4Addr = Ipv4Addr::new(10, 0, 0, 0);
@@ -45,23 +59,27 @@ pub fn subnet_print(data: &Data, gap_cidr_mask: u8) -> Result<(), Box<dyn Error>
         output_rows.extend(rows);
     }
 
-    // Print the subnets as CSV
-    for row in output_rows {
-        print_csv_row(&row);
+    // Write the subnets as CSV
+    for row in &output_rows {
+        write_csv_row(&mut writer, row)?;
     }
 
-    println!(
-        "#{}# End main() Skipped subnet smaller than {:?}",
-        "NOTE".on_red(),
+    writer.flush()?;
+
+    log::info!(
+        "Wrote {} rows to '{}' (skipped subnets smaller than {:?})",
+        output_rows.len(),
+        filename,
         SKIP_SUBNET_SMALLER_THAN
     );
 
-    Ok(())
+    Ok(filename)
 }
 
-/// Print a single CSV row.
-fn print_csv_row(row: &SubnetPrintRow) {
-    println!(
+/// Write a single CSV row to the writer.
+fn write_csv_row<W: Write>(writer: &mut W, row: &SubnetPrintRow) -> Result<(), Box<dyn Error>> {
+    writeln!(
+        writer,
         r#"{j},{gap},{subnet_cidr},{host_cnt},{broadcast},{subnet_name},{subscription_name},{vnet_cidr},{vnet_name},{location},{nsg},{dns},{subscription_id}"#,
         j = format_field(row.j, 6),
         gap = format_field(&row.gap, 8),
@@ -83,7 +101,8 @@ fn print_csv_row(row: &SubnetPrintRow) {
         nsg = format_field(&row.nsg, 13),
         dns = format_field(&row.dns, 13),
         subscription_id = format_field(&row.subscription_id, 39),
-    );
+    )?;
+    Ok(())
 }
 
 #[cfg(test)]

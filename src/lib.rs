@@ -36,7 +36,7 @@ mod subnet_struct;
 use std::collections::HashSet;
 
 // Re-export commonly used types from new modules
-pub use azure::Data;
+pub use azure::{CacheResult, Data};
 pub use models::{Ipv4, Subnet, Vnet, VnetList};
 pub use output::subnet_print as print_subnets;
 pub use processing::{
@@ -44,6 +44,22 @@ pub use processing::{
     find_overlapping_vnets, get_excluded_vnets, get_vnets, log_overlapping_vnets, print_vnets,
     SubnetPrintRow, VnetInfo,
 };
+
+/// Get sorted subnet data from cache or Azure, with cache status info.
+///
+/// # Arguments
+/// * `cache_file` - Optional path to cache file. If None, uses default naming.
+///
+/// # Returns
+/// * `Ok(CacheResult)` - Sorted subnet data with cache status
+/// * `Err` - If reading or parsing fails
+pub fn get_sorted_subnets_with_status(
+    cache_file: Option<&str>,
+) -> Result<azure::CacheResult, Box<dyn std::error::Error>> {
+    let mut result = azure::read_subnet_cache_with_status(cache_file)?;
+    result.data.data.sort_by_key(|s| s.subnet_cidr);
+    Ok(result)
+}
 
 /// Get sorted subnet data from cache or Azure.
 ///
