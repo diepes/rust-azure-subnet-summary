@@ -1,8 +1,7 @@
 //! CSV output formatting for subnet data.
 
 use crate::azure::Data;
-use crate::models::Ipv4;
-use crate::processing::{process_subnet_row, SubnetPrintRow};
+use crate::processing::{process_subnet_row, PrevVnetContext, SubnetPrintRow};
 use chrono::Local;
 use std::error::Error;
 use std::fs::File;
@@ -42,20 +41,20 @@ pub fn subnet_print(data: &Data, gap_cidr_mask: u8) -> Result<String, Box<dyn Er
 
     const SKIP_SUBNET_SMALLER_THAN: Ipv4Addr = Ipv4Addr::new(10, 17, 255, 255);
     let mut next_ip: Ipv4Addr = Ipv4Addr::new(10, 0, 0, 0);
-    let mut vnet_previous_cidr = Ipv4::new("0.0.0.0/24")?;
+    let mut prev_vnet_ctx = PrevVnetContext::default();
     let mut output_rows = Vec::new();
 
     for (i, s) in data.data.iter().enumerate() {
-        let (new_next_ip, new_vnet_previous_cidr, rows) = process_subnet_row(
+        let (new_next_ip, new_prev_vnet_ctx, rows) = process_subnet_row(
             s,
             i,
             next_ip,
-            vnet_previous_cidr,
+            prev_vnet_ctx,
             gap_cidr_mask,
             SKIP_SUBNET_SMALLER_THAN,
         );
         next_ip = new_next_ip;
-        vnet_previous_cidr = new_vnet_previous_cidr;
+        prev_vnet_ctx = new_prev_vnet_ctx;
         output_rows.extend(rows);
     }
 
@@ -139,11 +138,11 @@ mod tests {
         assert_eq!(result.data[151].subnet_name, "z-ilt-lab5-snet-adds-01");
 
         // Test process_subnet_row
-        let (next_ip, _vnet_previous_cidr, print_rows) = process_subnet_row(
+        let (next_ip, _prev_vnet_ctx, print_rows) = process_subnet_row(
             &result.data[0],
             1,
             Ipv4Addr::new(10, 0, 0, 0),
-            Ipv4::new("0.0.0.0/24").unwrap(),
+            PrevVnetContext::default(),
             28,
             Ipv4Addr::new(10, 17, 255, 255),
         );

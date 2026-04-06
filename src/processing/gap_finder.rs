@@ -5,6 +5,26 @@
 use crate::models::{next_subnet_ipv4, num_az_hosts, Ipv4, Subnet};
 use std::net::Ipv4Addr;
 
+/// Context from the previous subnet's VNet, carried forward to identify gaps within VNets.
+#[derive(Debug, Clone)]
+pub struct PrevVnetContext {
+    pub vnet_cidr: Vec<Ipv4>,
+    pub vnet_name: String,
+    pub subscription_name: String,
+    pub subscription_id: String,
+}
+
+impl Default for PrevVnetContext {
+    fn default() -> Self {
+        Self {
+            vnet_cidr: vec![],
+            vnet_name: String::new(),
+            subscription_name: String::new(),
+            subscription_id: String::new(),
+        }
+    }
+}
+
 /// Represents a row of subnet data for output.
 #[derive(Debug)]
 pub struct SubnetPrintRow {
@@ -44,21 +64,21 @@ pub struct SubnetPrintRow {
 /// * `s` - The subnet to process
 /// * `i` - The index of this subnet
 /// * `next_ip` - The expected next IP address
-/// * `vnet_previous_cidr` - The previous VNet's CIDR
+/// * `prev_vnet_ctx` - Context from the previous VNet
 /// * `default_cidr_mask` - Default mask size for gap subnets
 /// * `_skip_subnet_smaller_than` - Skip subnets smaller than this (unused)
 ///
 /// # Returns
-/// A tuple of (next_ip, vnet_cidr, rows)
+/// A tuple of (next_ip, prev_vnet_ctx, rows)
 #[allow(unused_variables)]
 pub fn process_subnet_row(
     s: &Subnet,
     i: usize,
     mut next_ip: Ipv4Addr,
-    mut vnet_previous_cidr: Ipv4,
+    prev_vnet_ctx: PrevVnetContext,
     default_cidr_mask: u8,
     _skip_subnet_smaller_than: Ipv4Addr,
-) -> (Ipv4Addr, Ipv4, Vec<SubnetPrintRow>) {
+) -> (Ipv4Addr, PrevVnetContext, Vec<SubnetPrintRow>) {
     let mut rows = Vec::new();
 
     // Handle empty subnet_cidr
@@ -70,7 +90,7 @@ pub fn process_subnet_row(
                 s.subnet_name
             );
             rows.push(create_row_from_subnet(s, i, "None", "none", "none", 0));
-            return (next_ip, vnet_previous_cidr, rows);
+            return (next_ip, prev_vnet_ctx, rows);
         }
     };
 
@@ -91,46 +111,66 @@ pub fn process_subnet_row(
             mask: next_mask,
         };
 
-        // Check if gap is within the next subnet's vnet - if not, leave subscription info blank
-        let gap_in_vnet = s.vnet_cidr.iter().any(|vnet| vnet.contains(next_ip));
+        // Check if gap is within the current or previous subnet's vnet
+        let gap_in_current_vnet = s.vnet_cidr.iter().any(|vnet| vnet.contains(next_ip));
+        let gap_in_prev_vnet = prev_vnet_ctx
+            .vnet_cidr
+            .iter()
+            .any(|vnet| vnet.contains(next_ip));
+
+        let (gap_label, gap_vnet_cidr, gap_vnet_name, gap_sub_name, gap_sub_id) =
+            if gap_in_current_vnet {
+                (
+                    "-vnet_gap-",
+                    format_vnet_cidr(&s.vnet_cidr),
+                    s.vnet_name.clone(),
+                    s.subscription_name.clone(),
+                    s.subscription_id.clone(),
+                )
+            } else if gap_in_prev_vnet {
+                (
+                    "-vnet_gap-",
+                    format_vnet_cidr(&prev_vnet_ctx.vnet_cidr),
+                    prev_vnet_ctx.vnet_name.clone(),
+                    prev_vnet_ctx.subscription_name.clone(),
+                    prev_vnet_ctx.subscription_id.clone(),
+                )
+            } else {
+                (
+                    "-gap-",
+                    "None".to_string(),
+                    "None".to_string(),
+                    "None".to_string(),
+                    "None".to_string(),
+                )
+            };
 
         rows.push(SubnetPrintRow {
             j: 0,
-            gap: "-gap-".to_string(),
+            gap: gap_label.to_string(),
             subnet_cidr: next_subnet.to_string(),
             broadcast: next_subnet.broadcast().unwrap().addr.to_string(),
             az_hosts: num_az_hosts(next_mask).unwrap() as usize,
             subnet_name: "None".to_string(),
-            subscription_name: if gap_in_vnet {
-                s.subscription_name.clone()
-            } else {
-                "None".to_string()
-            },
-            vnet_cidr: if gap_in_vnet {
-                format_vnet_cidr(&s.vnet_cidr)
-            } else {
-                "None".to_string()
-            },
-            vnet_name: if gap_in_vnet {
-                s.vnet_name.clone()
-            } else {
-                "None".to_string()
-            },
+            subscription_name: gap_sub_name,
+            vnet_cidr: gap_vnet_cidr,
+            vnet_name: gap_vnet_name,
             location: "None".to_string(),
             nsg: "Unused_nsg".to_string(),
             dns: "Unused_dns".to_string(),
-            subscription_id: if gap_in_vnet {
-                s.subscription_id.clone()
-            } else {
-                "None".to_string()
-            },
+            subscription_id: gap_sub_id,
             ip_configurations_count: 0,
         });
 
         next_ip = next_subnet_ipv4(next_subnet, None).unwrap().lo();
     }
 
-    vnet_previous_cidr = s.vnet_cidr[0];
+    let new_prev_vnet_ctx = PrevVnetContext {
+        vnet_cidr: s.vnet_cidr.clone(),
+        vnet_name: s.vnet_name.clone(),
+        subscription_name: s.subscription_name.clone(),
+        subscription_id: s.subscription_id.clone(),
+    };
 
     // Add the actual subnet row
     rows.push(SubnetPrintRow {
@@ -155,7 +195,7 @@ pub fn process_subnet_row(
     });
 
     next_ip = next_subnet_ipv4(subnet_cidr, None).unwrap().lo();
-    (next_ip, vnet_previous_cidr, rows)
+    (next_ip, new_prev_vnet_ctx, rows)
 }
 
 /// Create a row for a subnet with no CIDR.
@@ -314,11 +354,11 @@ mod tests {
         result.subnet_name = "jenkinsarm-snet".to_string();
         result.subnet_cidr = Some(Ipv4::new("10.0.0.0/24").unwrap());
 
-        let (next_ip, _vnet_previous_cidr, print_rows) = process_subnet_row(
+        let (next_ip, _prev_vnet_ctx, print_rows) = process_subnet_row(
             &result,
             1,
             Ipv4Addr::new(10, 0, 0, 0),
-            Ipv4::new("0.0.0.0/24").unwrap(),
+            PrevVnetContext::default(),
             28,
             Ipv4Addr::new(10, 17, 255, 255),
         );
