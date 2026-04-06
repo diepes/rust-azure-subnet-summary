@@ -103,7 +103,7 @@ pub fn process_subnet_row(
         let (gap_label, gap_vnet_cidr, gap_vnet_name, gap_sub_name, gap_sub_id) =
             if gap_in_current_vnet {
                 (
-                    "-vnet_gap-",
+                    "-vgap-",
                     s.vnet_cidr
                         .iter()
                         .map(|ip| ip.to_string())
@@ -115,7 +115,7 @@ pub fn process_subnet_row(
                 )
             } else if gap_in_prev_vnet {
                 (
-                    "-vnet_gap-",
+                    "-vgap-",
                     prev_vnet_ctx
                         .vnet_cidr
                         .iter()

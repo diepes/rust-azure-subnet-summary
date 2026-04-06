@@ -36,7 +36,7 @@ pub fn subnet_print(data: &Data, gap_cidr_mask: u8) -> Result<String, Box<dyn Er
     // Write CSV header
     writeln!(
         writer,
-        r#""cnt","gap","subnet_cidr","vms","broadcast","subnet_name","subscription_name","vnet_cidr","vnet_name","location","nsg","dns","subscription_id""#
+        r#" "cnt", "gap"  , "subnet_cidr"    ,"vms"        ,  "broadcast"      , "subnet_name"          ,  "subscription_name",     "vnet_cidr"        ,      "vnet_name","location","nsg","dns","subscription_id""#
     )?;
 
     const SKIP_SUBNET_SMALLER_THAN: Ipv4Addr = Ipv4Addr::new(10, 17, 255, 255);

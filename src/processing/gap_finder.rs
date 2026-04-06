@@ -121,7 +121,7 @@ pub fn process_subnet_row(
         let (gap_label, gap_vnet_cidr, gap_vnet_name, gap_sub_name, gap_sub_id) =
             if gap_in_current_vnet {
                 (
-                    "-vnet_gap-",
+                    "-vgap-",
                     format_vnet_cidr(&s.vnet_cidr),
                     s.vnet_name.clone(),
                     s.subscription_name.clone(),
@@ -129,7 +129,7 @@ pub fn process_subnet_row(
                 )
             } else if gap_in_prev_vnet {
                 (
-                    "-vnet_gap-",
+                    "-vgap-",
                     format_vnet_cidr(&prev_vnet_ctx.vnet_cidr),
                     prev_vnet_ctx.vnet_name.clone(),
                     prev_vnet_ctx.subscription_name.clone(),
