@@ -32,7 +32,7 @@ jobs:
             artifact: azure-subnet-summary.exe
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
@@ -54,7 +54,7 @@ jobs:
           7z a ../../../azure-subnet-summary-${{ matrix.target }}.zip ${{ matrix.artifact }}
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: azure-subnet-summary-${{ matrix.target }}
           path: azure-subnet-summary-${{ matrix.target }}.*
@@ -64,7 +64,7 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: artifacts
           merge-multiple: true
