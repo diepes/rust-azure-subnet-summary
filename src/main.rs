@@ -7,8 +7,8 @@ use azure_subnet_summary::{
     check_for_duplicate_subnets, get_sorted_subnets_with_status,
     output::subnet_print,
     processing::{
-        de_duplicate_subnets, filter_excluded_vnet_cidrs, find_overlapping_vnets,
-        get_excluded_vnets, get_vnets, log_overlapping_vnets, print_vnets,
+        de_duplicate_subnets, filter_excluded_vnet_cidrs, filter_overlapping_vnets,
+        find_overlapping_vnets, get_excluded_vnets, get_vnets, log_overlapping_vnets, print_vnets,
     },
 };
 use std::error::Error;
@@ -45,6 +45,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Filter out common "local-use" VNet CIDRs (e.g., 10.0.0.0/16)
     // that are duplicated across subscriptions and not globally routable
     let data = filter_excluded_vnet_cidrs(data, None)?;
+
+    // Filter any remaining overlapping VNets (keeps the VNet with the most subnets per CIDR)
+    // This must happen before gap-finding, which assumes subnets are non-overlapping
+    let data = filter_overlapping_vnets(data, true)?;
 
     let data = de_duplicate_subnets(data, None)?;
     check_for_duplicate_subnets(&data)?;
