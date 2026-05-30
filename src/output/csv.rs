@@ -63,39 +63,84 @@ pub fn subnet_print(data: &Data, gap_cidr_mask: u8) -> Result<String, Box<dyn Er
         output_rows.extend(rows);
     }
 
-    // Append DUP_EXCL_VNET rows for subnets from excluded VNets
+    // Insert DUP_EXCL_VNET rows directly after their winner VNet's last row.
+    // Collect groups keyed by winner VNet name, preserving encounter order.
+    let mut winner_order: Vec<String> = Vec::new();
+    let mut dup_groups: std::collections::HashMap<String, Vec<SubnetPrintRow>> =
+        std::collections::HashMap::new();
+
     for s in data.data.iter().filter(|s| s.excluded_by.is_some()) {
-        let winner = s.excluded_by.as_deref().unwrap_or("?");
-        let subnet_cidr_str = s.subnet_cidr.map(|c| c.to_string()).unwrap_or_else(|| "None".to_string());
-        let broadcast_str = s.subnet_cidr
+        let winner = s.excluded_by.as_deref().unwrap_or("?").to_string();
+        let subnet_cidr_str = s
+            .subnet_cidr
+            .map(|c| c.to_string())
+            .unwrap_or_else(|| "None".to_string());
+        let broadcast_str = s
+            .subnet_cidr
             .and_then(|c| c.broadcast().ok().map(|b| b.addr.to_string()))
             .unwrap_or_else(|| "None".to_string());
-        let az_hosts = s.subnet_cidr
+        let az_hosts = s
+            .subnet_cidr
             .and_then(|c| crate::models::num_az_hosts(c.mask).ok())
             .unwrap_or(0) as usize;
-        output_rows.push(SubnetPrintRow {
+        let row = SubnetPrintRow {
             j: 0,
             gap: "DUP_EXCL_VNET".to_string(),
             subnet_cidr: subnet_cidr_str,
             broadcast: broadcast_str,
             az_hosts,
-            subnet_name: format!("{} [DUP of {}]", s.subnet_name, winner),
+            subnet_name: format!("{} [DUP of VNET {}]", s.subnet_name, winner),
             subscription_name: s.subscription_name.clone(),
-            vnet_cidr: s.vnet_cidr.iter().map(|c| c.to_string()).collect::<Vec<_>>().join(","),
+            vnet_cidr: s
+                .vnet_cidr
+                .iter()
+                .map(|c| c.to_string())
+                .collect::<Vec<_>>()
+                .join(","),
             vnet_name: s.vnet_name.clone(),
             location: s.location.clone(),
-            nsg: s.nsg.as_deref()
+            nsg: s
+                .nsg
+                .as_deref()
                 .unwrap_or("None")
                 .split('/')
                 .next_back()
                 .unwrap_or("None")
                 .to_string(),
-            dns: s.dns_servers.as_deref()
+            dns: s
+                .dns_servers
+                .as_deref()
                 .map(|d| d.join(","))
                 .unwrap_or_else(|| "None".to_string()),
             subscription_id: s.subscription_id.clone(),
             ip_configurations_count: s.ip_configurations_count.unwrap_or(0),
-        });
+        };
+        if !dup_groups.contains_key(&winner) {
+            winner_order.push(winner.clone());
+        }
+        dup_groups.entry(winner).or_default().push(row);
+    }
+
+    // Build (insertion_index, rows) pairs — insert after the last row of each winner VNet.
+    // Process from the highest index downward so earlier insertions don't shift later ones.
+    let mut insertions: Vec<(usize, Vec<SubnetPrintRow>)> = winner_order
+        .into_iter()
+        .map(|winner_vnet| {
+            let pos = output_rows
+                .iter()
+                .rposition(|r| r.vnet_name == winner_vnet)
+                .map(|i| i + 1)
+                .unwrap_or(output_rows.len()); // fallback: append at end
+            let rows = dup_groups.remove(&winner_vnet).unwrap_or_default();
+            (pos, rows)
+        })
+        .collect();
+
+    insertions.sort_by(|a, b| b.0.cmp(&a.0));
+    for (pos, rows) in insertions {
+        let tail = output_rows.split_off(pos);
+        output_rows.extend(rows);
+        output_rows.extend(tail);
     }
 
     // Write the subnets as CSV
@@ -151,6 +196,9 @@ mod tests {
     use crate::get_sorted_subnets;
     use crate::processing::de_duplicate_subnets;
 
+    // Serialize tests that write to the date-based CSV filename to avoid race conditions.
+    static CSV_FILE_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
     #[test]
     fn test_subnet_print_04() {
         let cache_file = Some("src/tests/test_data/subnet_test_cache_04.json");
@@ -194,6 +242,7 @@ mod tests {
 
     #[test]
     fn excluded_subnet_skipped_in_gap_finder_and_appears_as_dup_in_csv() {
+        let _guard = CSV_FILE_LOCK.lock().unwrap();
         use crate::azure::Data;
         use crate::models::{Ipv4, Subnet};
 
@@ -230,5 +279,54 @@ mod tests {
         // Excluded subnet must appear as DUP_EXCL_VNET referencing the winner
         assert!(contents.contains("DUP_EXCL_VNET"), "CSV must contain DUP_EXCL_VNET row");
         assert!(contents.contains("winner-vnet"), "DUP row must reference the winning VNet");
+    }
+
+    #[test]
+    fn dup_rows_appear_directly_after_winner_vnet_not_at_end() {
+        let _guard = CSV_FILE_LOCK.lock().unwrap();
+        use crate::azure::Data;
+        use crate::models::{Ipv4, Subnet};
+
+        fn make_subnet(vnet_name: &str, sub_name: &str, vnet_cidr: &str, subnet_cidr: &str, excluded_by: Option<&str>) -> Subnet {
+            let mut s: Subnet = Default::default();
+            s.vnet_name = vnet_name.to_string();
+            s.subscription_name = sub_name.to_string();
+            s.subscription_id = "sub-id".to_string();
+            s.vnet_cidr = vec![Ipv4::new(vnet_cidr).unwrap()];
+            s.subnet_cidr = Some(Ipv4::new(subnet_cidr).unwrap());
+            s.subnet_name = "snet".to_string();
+            s.excluded_by = excluded_by.map(|s| s.to_string());
+            s
+        }
+
+        // winner-vnet: 10.0.0.0/16 with subnet 10.0.0.0/24
+        // later-vnet:  10.1.0.0/16 with subnet 10.1.0.0/24 (comes AFTER winner in IP space)
+        // loser-vnet:  excluded, DUP of winner-vnet
+        //
+        // Expected order: winner row → DUP row → later-vnet row
+        // Current (broken) order: winner row → later-vnet row → DUP row
+        let subnets = vec![
+            make_subnet("winner-vnet", "Prod", "10.0.0.0/16", "10.0.0.0/24", None),
+            make_subnet("later-vnet",  "Prod", "10.1.0.0/16", "10.1.0.0/24", None),
+            make_subnet("loser-vnet",  "Dev",  "10.0.0.0/16", "10.0.0.0/24", Some("winner-vnet")),
+        ];
+        let data = Data {
+            count: subnets.len() as i32,
+            skip_token: None,
+            total_records: None,
+            data: subnets,
+        };
+
+        let path = subnet_print(&data, 28).expect("must not panic");
+        let contents = std::fs::read_to_string(&path).expect("can read");
+        let _ = std::fs::remove_file(&path);
+
+        let dup_pos = contents.find("DUP_EXCL_VNET").expect("DUP_EXCL_VNET must exist");
+        let later_pos = contents.find("later-vnet").expect("later-vnet must exist");
+
+        assert!(
+            dup_pos < later_pos,
+            "DUP row must appear directly after winner-vnet rows, not at the end of the file.\nDUP at byte {dup_pos}, later-vnet at byte {later_pos}"
+        );
     }
 }
