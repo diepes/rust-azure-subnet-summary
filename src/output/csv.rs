@@ -157,10 +157,13 @@ pub fn subnet_print(data: &Data, gap_cidr_mask: u8) -> Result<String, Box<dyn Er
         SKIP_SUBNET_SMALLER_THAN
     );
 
+    // Also write the duplicates markdown report
+    let md_filename = format!("subnets-{}-duplicates.md", date_str);
+    super::dup_report::write_duplicates_md(data, &md_filename)?;
+
     Ok(filename)
 }
 
-/// Write a single CSV row to the writer.
 fn write_csv_row<W: Write>(writer: &mut W, row: &SubnetPrintRow) -> Result<(), Box<dyn Error>> {
     writeln!(
         writer,
@@ -328,5 +331,36 @@ mod tests {
             dup_pos < later_pos,
             "DUP row must appear directly after winner-vnet rows, not at the end of the file.\nDUP at byte {dup_pos}, later-vnet at byte {later_pos}"
         );
+    }
+
+    #[test]
+    fn subnet_print_also_produces_duplicates_md() {
+        let _guard = CSV_FILE_LOCK.lock().unwrap();
+        use crate::azure::Data;
+        use crate::models::{Ipv4, Subnet};
+
+        fn make_subnet(vnet_name: &str, vnet_cidr: &str, subnet_cidr: &str, excluded_by: Option<&str>) -> Subnet {
+            let mut s: Subnet = Default::default();
+            s.vnet_name = vnet_name.to_string();
+            s.subscription_name = "Sub".to_string();
+            s.subscription_id = "sub-id".to_string();
+            s.vnet_cidr = vec![Ipv4::new(vnet_cidr).unwrap()];
+            s.subnet_cidr = Some(Ipv4::new(subnet_cidr).unwrap());
+            s.subnet_name = "snet".to_string();
+            s.excluded_by = excluded_by.map(|s| s.to_string());
+            s
+        }
+
+        let subnets = vec![
+            make_subnet("winner-vnet", "10.0.0.0/16", "10.0.0.0/24", None),
+            make_subnet("excl-vnet",   "10.0.0.0/16", "10.0.0.0/24", Some("winner-vnet")),
+        ];
+        let data = Data { count: 2, skip_token: None, total_records: None, data: subnets };
+
+        let csv_path = subnet_print(&data, 28).expect("must not panic");
+        let md_path = csv_path.replace(".csv", "-duplicates.md");
+        let _ = std::fs::remove_file(&csv_path);
+        assert!(std::fs::metadata(&md_path).is_ok(), "duplicates.md must be created alongside CSV");
+        let _ = std::fs::remove_file(&md_path);
     }
 }

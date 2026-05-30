@@ -15,6 +15,7 @@ Cargo.lock
 *.pdb
 subnet_cache*.json
 subnet.err.txt
+/subnets-*
 .vscode
 *.csv
 .DS_Store
