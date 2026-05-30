@@ -346,6 +346,68 @@ mod tests {
             "Gap should not overlap with next subnet"
         );
     }
+    // Helper to build a minimal Subnet for gap tests.
+    fn make_subnet(cidr: &str, vnet_cidr: &str, vnet_name: &str, subnet_name: &str) -> Subnet {
+        let mut s: Subnet = Default::default();
+        s.vnet_name = vnet_name.to_string();
+        s.vnet_cidr = vec![Ipv4::new(vnet_cidr).unwrap()];
+        s.subnet_name = subnet_name.to_string();
+        s.subnet_cidr = Some(Ipv4::new(cidr).unwrap());
+        s
+    }
+
+    const SKIP: Ipv4Addr = Ipv4Addr::new(10, 17, 255, 255);
+
+    /// With mask=4 a five-/16 gap collapses to 2 rows; mask=16 produces 5.
+    /// This is the primary regression guard for the DEFAULT_CIDR_MASK=4 change.
+    #[test]
+    fn large_gap_with_mask_4_produces_fewer_rows_than_mask_16() {
+        let s = make_subnet("10.5.0.0/24", "10.5.0.0/16", "vnet-b", "snet-b");
+        let start = Ipv4Addr::new(10, 0, 0, 0);
+
+        let (_, _, rows_4) =
+            process_subnet_row(&s, 0, start, PrevVnetContext::default(), 4, SKIP);
+        let (_, _, rows_16) =
+            process_subnet_row(&s, 0, start, PrevVnetContext::default(), 16, SKIP);
+
+        let gaps_4: Vec<_> = rows_4.iter().filter(|r| r.j == 0).collect();
+        let gaps_16: Vec<_> = rows_16.iter().filter(|r| r.j == 0).collect();
+
+        assert_eq!(gaps_16.len(), 5, "mask=16: one /16 row per class-B");
+        assert_eq!(gaps_4.len(), 2, "mask=4: 10.0.0.0/14 + 10.4.0.0/16");
+        assert_eq!(gaps_4[0].subnet_cidr, "10.0.0.0/14");
+        assert_eq!(gaps_4[1].subnet_cidr, "10.4.0.0/16");
+    }
+
+    /// Gap blocks that start inside a VNet must not cross the VNet's broadcast.
+    /// Alignment naturally enforces this; this test guards against regression.
+    #[test]
+    fn gap_inside_vnet_stays_within_vnet_boundary() {
+        // First subnet in vnet-a is at 10.0.64.0/24; gap fills 10.0.0.0..10.0.63.255.
+        let s = make_subnet("10.0.64.0/24", "10.0.0.0/16", "vnet-a", "snet-a");
+        let vnet_hi = Ipv4::new("10.0.0.0/16").unwrap().hi();
+
+        let (_, _, rows) = process_subnet_row(
+            &s,
+            0,
+            Ipv4Addr::new(10, 0, 0, 0),
+            PrevVnetContext::default(),
+            4,
+            SKIP,
+        );
+
+        for row in rows.iter().filter(|r| r.j == 0) {
+            let gap = Ipv4::new(&row.subnet_cidr).unwrap();
+            assert!(
+                gap.hi() <= vnet_hi,
+                "Gap {} crosses VNet boundary (hi={}, vnet_hi={})",
+                row.subnet_cidr,
+                gap.hi(),
+                vnet_hi,
+            );
+        }
+    }
+
     #[test]
     fn test_process_subnet_row_01() {
         let mut result: Subnet = Default::default();

@@ -40,8 +40,8 @@ pub use azure::{CacheResult, Data};
 pub use models::{Ipv4, Subnet, Vnet, VnetList};
 pub use output::subnet_print as print_subnets;
 pub use processing::{
-    de_duplicate_subnets, filter_excluded_vnet_cidrs, filter_overlapping_vnets,
-    find_overlapping_vnets, get_excluded_vnets, get_vnets, log_overlapping_vnets, print_vnets,
+    de_duplicate_subnets, filter_overlapping_vnets,
+    find_overlapping_vnets, get_vnets, log_overlapping_vnets, print_vnets,
     SubnetPrintRow, VnetInfo,
 };
 

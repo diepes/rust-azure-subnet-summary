@@ -19,40 +19,44 @@ pub struct VnetInfo {
     pub subnet_count: usize,
 }
 
-/// Represents an overlapping VNet CIDR conflict.
+/// Represents a group of VNets whose CIDRs overlap (directly or transitively).
 #[derive(Debug)]
 pub struct OverlapConflict {
-    pub cidr: Ipv4,
     pub vnets: Vec<VnetInfo>,
 }
 
-/// Default VNet CIDRs to exclude (commonly used for local/isolated networks).
-pub fn default_vnet_cidrs_to_exclude() -> Vec<&'static str> {
-    vec![
-        "10.0.0.0/16", // Common default for dev/test VNets
-        "10.1.0.0/16", // Another common default
-    ]
+/// Returns true if any CIDR in `a` overlaps with any CIDR in `b`.
+///
+/// Two ranges overlap when: A.lo() <= B.hi() && B.lo() <= A.hi()
+fn cidrs_overlap(a: &[Ipv4], b: &[Ipv4]) -> bool {
+    for ca in a {
+        for cb in b {
+            if ca.lo() <= cb.hi() && cb.lo() <= ca.hi() {
+                return true;
+            }
+        }
+    }
+    false
 }
 
 /// Find overlapping VNet CIDRs across different VNets.
+///
+/// Two VNets overlap when their CIDR ranges intersect: A.lo() <= B.hi() && B.lo() <= A.hi().
+/// Transitively overlapping VNets are grouped into a single conflict group.
 ///
 /// # Arguments
 /// * `data` - The subnet data to analyze
 ///
 /// # Returns
-/// A list of overlap conflicts found
+/// A list of conflict groups; each group contains 2+ VNets whose CIDRs overlap.
 pub fn find_overlapping_vnets(data: &Data) -> Vec<OverlapConflict> {
-    // Build a map of VNet CIDR -> list of VNets using that CIDR
-    let mut cidr_to_vnets: HashMap<Ipv4, Vec<VnetInfo>> = HashMap::new();
-
-    // Track unique VNets (by name + subscription)
+    // Build unique VNet list
     let mut seen_vnets: HashMap<(String, String), VnetInfo> = HashMap::new();
 
     for subnet in &data.data {
         let key = (subnet.vnet_name.clone(), subnet.subscription_id.clone());
-
         seen_vnets
-            .entry(key.clone())
+            .entry(key)
             .and_modify(|info| info.subnet_count += 1)
             .or_insert_with(|| VnetInfo {
                 vnet_name: subnet.vnet_name.clone(),
@@ -64,25 +68,57 @@ pub fn find_overlapping_vnets(data: &Data) -> Vec<OverlapConflict> {
             });
     }
 
-    // Group by VNet CIDR
-    for vnet_info in seen_vnets.values() {
-        for cidr in &vnet_info.vnet_cidr {
-            cidr_to_vnets
-                .entry(*cidr)
-                .or_default()
-                .push(vnet_info.clone());
+    let vnets: Vec<VnetInfo> = seen_vnets.into_values().collect();
+    let n = vnets.len();
+
+    // Union-Find for connected components
+    let mut parent: Vec<usize> = (0..n).collect();
+
+    fn find(parent: &mut Vec<usize>, i: usize) -> usize {
+        if parent[i] != i {
+            parent[i] = find(parent, parent[i]);
+        }
+        parent[i]
+    }
+
+    fn union(parent: &mut Vec<usize>, i: usize, j: usize) {
+        let pi = find(parent, i);
+        let pj = find(parent, j);
+        if pi != pj {
+            parent[pi] = pj;
         }
     }
 
-    // Find CIDRs that are used by multiple VNets
-    let mut conflicts: Vec<OverlapConflict> = cidr_to_vnets
-        .into_iter()
-        .filter(|(_, vnets)| vnets.len() > 1)
-        .map(|(cidr, vnets)| OverlapConflict { cidr, vnets })
+    // Check every pair for range overlap
+    for i in 0..n {
+        for j in (i + 1)..n {
+            if cidrs_overlap(&vnets[i].vnet_cidr, &vnets[j].vnet_cidr) {
+                union(&mut parent, i, j);
+            }
+        }
+    }
+
+    // Group VNets by their root representative
+    let mut groups: HashMap<usize, Vec<VnetInfo>> = HashMap::new();
+    for i in 0..n {
+        let root = find(&mut parent, i);
+        groups.entry(root).or_default().push(vnets[i].clone());
+    }
+
+    // Only return groups with more than one VNet (actual conflicts)
+    let mut conflicts: Vec<OverlapConflict> = groups
+        .into_values()
+        .filter(|g| g.len() > 1)
+        .map(|vnets| OverlapConflict { vnets })
         .collect();
 
-    // Sort by CIDR for consistent output
-    conflicts.sort_by_key(|c| c.cidr);
+    // Sort by the lowest CIDR in each group for consistent output
+    conflicts.sort_by_key(|c| {
+        c.vnets
+            .iter()
+            .flat_map(|v| v.vnet_cidr.iter().copied())
+            .min()
+    });
 
     conflicts
 }
@@ -100,9 +136,16 @@ pub fn log_overlapping_vnets(conflicts: &[OverlapConflict]) {
     );
 
     for conflict in conflicts {
+        let cidr_list: Vec<String> = conflict
+            .vnets
+            .iter()
+            .flat_map(|v| v.vnet_cidr.iter().map(|c| c.to_string()))
+            .collect::<std::collections::HashSet<_>>()
+            .into_iter()
+            .collect();
         log::warn!(
-            "  CIDR {} is used by {} VNets:",
-            conflict.cidr,
+            "  Conflict group (CIDRs: {}) has {} VNets:",
+            cidr_list.join(", "),
             conflict.vnets.len()
         );
         for vnet in &conflict.vnets {
@@ -118,121 +161,31 @@ pub fn log_overlapping_vnets(conflicts: &[OverlapConflict]) {
     }
 }
 
-/// Get VNets that would be excluded based on their CIDRs.
+
+
+/// Returns true if the subscription name indicates a production environment.
 ///
-/// # Arguments
-/// * `data` - The subnet data to analyze
-/// * `excluded_cidrs` - Optional list of VNet CIDRs to exclude. If None, uses defaults.
-///
-/// # Returns
-/// A list of VnetInfo for VNets that would be excluded
-pub fn get_excluded_vnets(data: &Data, excluded_cidrs: Option<&[&str]>) -> Vec<VnetInfo> {
-    let default_excludes = default_vnet_cidrs_to_exclude();
-    let excluded_cidrs = excluded_cidrs.unwrap_or(&default_excludes);
-
-    // Parse excluded CIDRs
-    let excluded: Vec<Ipv4> = excluded_cidrs
-        .iter()
-        .filter_map(|s| Ipv4::new(s).ok())
-        .collect();
-
-    // Track unique VNets (by name + subscription)
-    let mut seen_vnets: HashMap<(String, String), VnetInfo> = HashMap::new();
-
-    for subnet in &data.data {
-        // Check if this subnet's VNet should be excluded
-        let should_exclude = subnet.vnet_cidr.iter().any(|vnet_cidr| {
-            excluded
-                .iter()
-                .any(|excluded_cidr| vnet_cidr == excluded_cidr)
-        });
-
-        if should_exclude {
-            let key = (subnet.vnet_name.clone(), subnet.subscription_id.clone());
-
-            seen_vnets
-                .entry(key)
-                .and_modify(|info| info.subnet_count += 1)
-                .or_insert_with(|| VnetInfo {
-                    vnet_name: subnet.vnet_name.clone(),
-                    vnet_cidr: subnet.vnet_cidr.clone(),
-                    subscription_id: subnet.subscription_id.clone(),
-                    subscription_name: subnet.subscription_name.clone(),
-                    location: subnet.location.clone(),
-                    subnet_count: 1,
-                });
-        }
-    }
-
-    seen_vnets.into_values().collect()
+/// Matches case-insensitively on the substring "prod".
+fn is_production(subscription_name: &str) -> bool {
+    subscription_name.to_lowercase().contains("prod")
 }
 
-/// Filter out subnets belonging to VNets with excluded CIDRs.
+/// Filter overlapping VNets, keeping only one VNet per conflict group.
+///
+/// Selection priority within a conflict group:
+/// 1. Production subscription (subscription name contains "prod", case-insensitive)
+/// 2. Most subnets (indicates more active use)
+/// 3. Alphabetical by subscription name
+///
+/// Excluded subnets are NOT removed — they remain in `data` with
+/// `excluded_by` set to the winner's VNet name.
 ///
 /// # Arguments
-/// * `data` - The subnet data to filter
-/// * `excluded_cidrs` - Optional list of VNet CIDRs to exclude. If None, uses defaults.
+/// * `data` - The subnet data to process
+/// * `log_removals` - Whether to log which VNets are being excluded
 ///
 /// # Returns
-/// * `Ok(Data)` - Filtered data
-pub fn filter_excluded_vnet_cidrs(
-    mut data: Data,
-    excluded_cidrs: Option<&[&str]>,
-) -> Result<Data, Box<dyn Error>> {
-    let default_excludes = default_vnet_cidrs_to_exclude();
-    let excluded_cidrs = excluded_cidrs.unwrap_or(&default_excludes);
-
-    // Parse excluded CIDRs
-    let excluded: Vec<Ipv4> = excluded_cidrs
-        .iter()
-        .filter_map(|s| Ipv4::new(s).ok())
-        .collect();
-
-    let original_count = data.data.len();
-
-    // Filter out subnets where any VNet CIDR matches an excluded CIDR
-    data.data.retain(|subnet| {
-        let should_exclude = subnet.vnet_cidr.iter().any(|vnet_cidr| {
-            excluded
-                .iter()
-                .any(|excluded_cidr| vnet_cidr == excluded_cidr)
-        });
-
-        if should_exclude {
-            log::debug!(
-                "Excluding subnet '{}' from VNet '{}' (CIDR matches exclusion list)",
-                subnet.subnet_name,
-                subnet.vnet_name
-            );
-        }
-
-        !should_exclude
-    });
-
-    let filtered_count = original_count - data.data.len();
-    if filtered_count > 0 {
-        log::info!(
-            "Filtered out {} subnets belonging to excluded VNet CIDRs: {:?}",
-            filtered_count,
-            excluded_cidrs
-        );
-    }
-
-    Ok(data)
-}
-
-/// Filter overlapping VNets, keeping only one VNet per conflicting CIDR.
-///
-/// When multiple VNets use the same CIDR, keeps the one with:
-/// 1. Most subnets (indicates more active use)
-/// 2. If tied, keeps the first one alphabetically by subscription name
-///
-/// # Arguments
-/// * `data` - The subnet data to filter
-/// * `log_removals` - Whether to log which VNets are being removed
-///
-/// # Returns
-/// * `Ok(Data)` - Filtered data with only one VNet per conflicting CIDR
+/// * `Ok(Data)` - Data with excluded subnets marked via `excluded_by`
 pub fn filter_overlapping_vnets(
     mut data: Data,
     log_removals: bool,
@@ -243,49 +196,54 @@ pub fn filter_overlapping_vnets(
         return Ok(data);
     }
 
-    // For each conflict, determine which VNets to remove
-    let mut vnets_to_remove: Vec<(String, String)> = Vec::new(); // (vnet_name, subscription_id)
+    // For each conflict group, select winner and collect losers
+    let mut exclusions: Vec<(String, String, String)> = Vec::new(); // (vnet_name, subscription_id, winner_vnet_name)
 
     for conflict in &conflicts {
-        // Sort VNets: prefer more subnets, then alphabetically by subscription name
         let mut sorted_vnets = conflict.vnets.clone();
         sorted_vnets.sort_by(|a, b| {
-            b.subnet_count
-                .cmp(&a.subnet_count)
+            // Production subscription wins first
+            is_production(&b.subscription_name)
+                .cmp(&is_production(&a.subscription_name))
+                // Then most subnets
+                .then_with(|| b.subnet_count.cmp(&a.subnet_count))
+                // Then alphabetical by subscription name
                 .then_with(|| a.subscription_name.cmp(&b.subscription_name))
         });
 
-        // Keep the first one, mark others for removal
         let keeper = &sorted_vnets[0];
         for vnet in sorted_vnets.iter().skip(1) {
             if log_removals {
                 log::warn!(
-                    "Removing VNet '{}' (subscription: '{}') - overlaps with kept VNet '{}' (subscription: '{}') on CIDR {}",
+                    "Excluding VNet '{}' (subscription: '{}') — overlaps with kept VNet '{}' (subscription: '{}')",
                     vnet.vnet_name,
                     vnet.subscription_name,
                     keeper.vnet_name,
                     keeper.subscription_name,
-                    conflict.cidr
                 );
             }
-            vnets_to_remove.push((vnet.vnet_name.clone(), vnet.subscription_id.clone()));
+            exclusions.push((
+                vnet.vnet_name.clone(),
+                vnet.subscription_id.clone(),
+                keeper.vnet_name.clone(),
+            ));
         }
     }
 
-    // Filter out subnets from removed VNets
-    let original_count = data.data.len();
-    data.data.retain(|subnet| {
-        !vnets_to_remove
-            .iter()
-            .any(|(name, sub_id)| &subnet.vnet_name == name && &subnet.subscription_id == sub_id)
-    });
+    // Mark excluded subnets with the winner's VNet name
+    let excluded_count = exclusions.len();
+    for subnet in &mut data.data {
+        if let Some((_, _, winner_name)) = exclusions.iter().find(|(name, sub_id, _)| {
+            &subnet.vnet_name == name && &subnet.subscription_id == sub_id
+        }) {
+            subnet.excluded_by = Some(winner_name.clone());
+        }
+    }
 
-    let filtered_count = original_count - data.data.len();
-    if filtered_count > 0 {
+    if excluded_count > 0 {
         log::info!(
-            "Filtered out {} subnets from {} overlapping VNets",
-            filtered_count,
-            vnets_to_remove.len()
+            "Marked subnets from {} overlapping VNets as excluded",
+            excluded_count
         );
     }
 
@@ -296,6 +254,128 @@ pub fn filter_overlapping_vnets(
 mod tests {
     use super::*;
     use crate::azure::read_subnet_cache;
+    use crate::azure::Data;
+    use crate::models::{Ipv4, Subnet};
+
+    fn make_subnet(vnet_name: &str, subscription_name: &str, vnet_cidr: &str, subnet_cidr: &str) -> Subnet {
+        Subnet {
+            vnet_name: vnet_name.to_string(),
+            vnet_cidr: vec![Ipv4::new(vnet_cidr).unwrap()],
+            subnet_name: format!("{}-snet", vnet_name),
+            subnet_cidr: Some(Ipv4::new(subnet_cidr).unwrap()),
+            subscription_name: subscription_name.to_string(),
+            subscription_id: format!("sub-{}", subscription_name.to_lowercase().replace(' ', "-")),
+            location: "eastus".to_string(),
+            ..Default::default()
+        }
+    }
+
+    fn make_data(subnets: Vec<Subnet>) -> Data {
+        let count = subnets.len() as i32;
+        Data { data: subnets, count, ..Default::default() }
+    }
+
+    #[test]
+    fn containment_overlap_is_detected() {
+        // 10.0.0.0/8 contains 10.1.0.0/16 — they overlap even though CIDRs differ
+        let data = make_data(vec![
+            make_subnet("big-vnet",   "Dev Sub",  "10.0.0.0/8",  "10.0.1.0/24"),
+            make_subnet("small-vnet", "Test Sub", "10.1.0.0/16", "10.1.1.0/24"),
+        ]);
+
+        let conflicts = find_overlapping_vnets(&data);
+
+        assert_eq!(conflicts.len(), 1, "should detect one conflict group");
+        assert_eq!(conflicts[0].vnets.len(), 2, "both VNets should be in the group");
+    }
+
+    #[test]
+    fn non_overlapping_cidrs_form_no_conflict() {
+        let data = make_data(vec![
+            make_subnet("vnet-a", "Sub A", "10.0.0.0/16", "10.0.1.0/24"),
+            make_subnet("vnet-b", "Sub B", "10.2.0.0/16", "10.2.1.0/24"),
+        ]);
+
+        let conflicts = find_overlapping_vnets(&data);
+
+        assert!(conflicts.is_empty(), "disjoint CIDRs should produce no conflicts");
+    }
+
+    #[test]
+    fn transitive_overlap_forms_one_group() {
+        // A (10.0.0.0/16) overlaps B (10.0.0.0/8),
+        // B (10.0.0.0/8) overlaps C (10.5.0.0/16),
+        // A and C do not directly overlap — but all three are one group
+        let data = make_data(vec![
+            make_subnet("vnet-a", "Sub A", "10.0.0.0/16", "10.0.1.0/24"),
+            make_subnet("vnet-b", "Sub B", "10.0.0.0/8",  "10.0.2.0/24"),
+            make_subnet("vnet-c", "Sub C", "10.5.0.0/16", "10.5.1.0/24"),
+        ]);
+
+        let conflicts = find_overlapping_vnets(&data);
+
+        assert_eq!(conflicts.len(), 1, "transitively connected VNets form one group");
+        assert_eq!(conflicts[0].vnets.len(), 3, "all three VNets should be in the group");
+    }
+
+    #[test]
+    fn production_sub_wins_over_non_production_with_fewer_subnets() {
+        // prod-vnet has 1 subnet but is in a production subscription → should win
+        // "Zzz Production" sorts LAST alphabetically, so without prod-wins logic it would lose
+        let data = make_data(vec![
+            make_subnet("dev-vnet",  "AAA Sandbox",    "10.1.0.0/16", "10.1.1.0/24"),
+            make_subnet("dev-vnet2", "BBB Sandbox",    "10.1.0.0/16", "10.1.2.0/24"),
+            make_subnet("prod-vnet", "Zzz Production", "10.1.0.0/16", "10.1.3.0/24"),
+        ]);
+
+        let result = filter_overlapping_vnets(data, false).unwrap();
+
+        let kept: Vec<&str> = result.data.iter()
+            .filter(|s| s.excluded_by.is_none())
+            .map(|s| s.vnet_name.as_str())
+            .collect();
+        assert!(kept.contains(&"prod-vnet"), "production VNet should win even though it sorts last");
+        assert!(!kept.contains(&"dev-vnet"),  "non-prod VNet should be excluded");
+        assert!(!kept.contains(&"dev-vnet2"), "non-prod VNet should be excluded");
+    }
+
+    #[test]
+    fn excluded_subnets_have_excluded_by_set_to_winner_vnet_name() {
+        let data = make_data(vec![
+            make_subnet("loser-vnet",  "Sandbox",            "10.1.0.0/16", "10.1.1.0/24"),
+            make_subnet("winner-vnet", "Coretex Production", "10.1.0.0/16", "10.1.2.0/24"),
+        ]);
+
+        let result = filter_overlapping_vnets(data, false).unwrap();
+
+        let loser_subnet = result.data.iter().find(|s| s.vnet_name == "loser-vnet").unwrap();
+        assert_eq!(
+            loser_subnet.excluded_by,
+            Some("winner-vnet".to_string()),
+            "excluded subnet should reference winner VNet"
+        );
+        let winner_subnet = result.data.iter().find(|s| s.vnet_name == "winner-vnet").unwrap();
+        assert_eq!(winner_subnet.excluded_by, None, "winner subnet should not be excluded");
+    }
+
+    #[test]
+    fn most_subnets_wins_when_no_production_involved() {
+        let data = make_data(vec![
+            make_subnet("small-vnet", "Dev Sub",  "10.1.0.0/16", "10.1.1.0/24"),
+            // big-vnet has 2 subnets (2 rows with same vnet)
+            make_subnet("big-vnet",   "Test Sub", "10.1.0.0/16", "10.1.2.0/24"),
+            make_subnet("big-vnet",   "Test Sub", "10.1.0.0/16", "10.1.3.0/24"),
+        ]);
+
+        let result = filter_overlapping_vnets(data, false).unwrap();
+
+        let kept: Vec<&str> = result.data.iter()
+            .filter(|s| s.excluded_by.is_none())
+            .map(|s| s.vnet_name.as_str())
+            .collect();
+        assert!(kept.contains(&"big-vnet"),   "vnet with more subnets should be kept");
+        assert!(!kept.contains(&"small-vnet"), "vnet with fewer subnets should be excluded");
+    }
 
     #[test]
     fn test_find_overlapping_vnets() {
@@ -308,14 +388,4 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_filter_excluded_vnet_cidrs() {
-        let data = read_subnet_cache(Some("subnet_cache_2026-02-09.json"));
-        if let Ok(data) = data {
-            let original_count = data.data.len();
-            let filtered = filter_excluded_vnet_cidrs(data, None).unwrap();
-            // Should have fewer subnets after filtering 10.0.0.0/16
-            assert!(filtered.data.len() <= original_count);
-        }
-    }
 }

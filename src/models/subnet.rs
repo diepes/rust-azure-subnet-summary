@@ -35,6 +35,40 @@ pub struct Subnet {
     /// Block ID from paginated graph query results.
     #[serde(default)]
     pub block_id: usize,
+    /// Name of the VNet that "won" overlap resolution, if this subnet was excluded.
+    /// None means this subnet is active (not excluded).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub excluded_by: Option<String>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn excluded_by_defaults_to_none_on_deserialize() {
+        // JSON without excluded_by field — simulates existing cache files
+        let json = r#"{
+            "vnet_name": "my-vnet",
+            "vnet_cidr": ["10.0.0.0/16"],
+            "subnet_name": "my-subnet",
+            "subnet_cidr": "10.0.1.0/24",
+            "location": "eastus",
+            "subscription_id": "sub-001",
+            "subscription_name": "Test Sub"
+        }"#;
+        let subnet: Subnet = serde_json::from_str(json).expect("deserialize failed");
+        assert_eq!(subnet.excluded_by, None);
+    }
+
+    #[test]
+    fn excluded_by_round_trips_through_json() {
+        let mut subnet = Subnet::default();
+        subnet.excluded_by = Some("winner-vnet".to_string());
+        let json = serde_json::to_string(&subnet).unwrap();
+        let back: Subnet = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.excluded_by, Some("winner-vnet".to_string()));
+    }
 }
 
 impl Default for Subnet {
@@ -53,6 +87,7 @@ impl Default for Subnet {
             gap: Some("blank".to_string()),
             src_index: 0,
             block_id: 0,
+            excluded_by: None,
         }
     }
 }

@@ -45,6 +45,11 @@ pub fn subnet_print(data: &Data, gap_cidr_mask: u8) -> Result<String, Box<dyn Er
     let mut output_rows = Vec::new();
 
     for (i, s) in data.data.iter().enumerate() {
+        // Excluded subnets are not part of the gap-finding pass,
+        // but they are emitted at the end as DUP_EXCL_VNET rows.
+        if s.excluded_by.is_some() {
+            continue;
+        }
         let (new_next_ip, new_prev_vnet_ctx, rows) = process_subnet_row(
             s,
             i,
@@ -56,6 +61,41 @@ pub fn subnet_print(data: &Data, gap_cidr_mask: u8) -> Result<String, Box<dyn Er
         next_ip = new_next_ip;
         prev_vnet_ctx = new_prev_vnet_ctx;
         output_rows.extend(rows);
+    }
+
+    // Append DUP_EXCL_VNET rows for subnets from excluded VNets
+    for s in data.data.iter().filter(|s| s.excluded_by.is_some()) {
+        let winner = s.excluded_by.as_deref().unwrap_or("?");
+        let subnet_cidr_str = s.subnet_cidr.map(|c| c.to_string()).unwrap_or_else(|| "None".to_string());
+        let broadcast_str = s.subnet_cidr
+            .and_then(|c| c.broadcast().ok().map(|b| b.addr.to_string()))
+            .unwrap_or_else(|| "None".to_string());
+        let az_hosts = s.subnet_cidr
+            .and_then(|c| crate::models::num_az_hosts(c.mask).ok())
+            .unwrap_or(0) as usize;
+        output_rows.push(SubnetPrintRow {
+            j: 0,
+            gap: "DUP_EXCL_VNET".to_string(),
+            subnet_cidr: subnet_cidr_str,
+            broadcast: broadcast_str,
+            az_hosts,
+            subnet_name: format!("{} [DUP of {}]", s.subnet_name, winner),
+            subscription_name: s.subscription_name.clone(),
+            vnet_cidr: s.vnet_cidr.iter().map(|c| c.to_string()).collect::<Vec<_>>().join(","),
+            vnet_name: s.vnet_name.clone(),
+            location: s.location.clone(),
+            nsg: s.nsg.as_deref()
+                .unwrap_or("None")
+                .split('/')
+                .next_back()
+                .unwrap_or("None")
+                .to_string(),
+            dns: s.dns_servers.as_deref()
+                .map(|d| d.join(","))
+                .unwrap_or_else(|| "None".to_string()),
+            subscription_id: s.subscription_id.clone(),
+            ip_configurations_count: s.ip_configurations_count.unwrap_or(0),
+        });
     }
 
     // Write the subnets as CSV
@@ -150,5 +190,45 @@ mod tests {
         assert_eq!(result.data[0].subnet_name, "jenkinsarm-snet");
         assert_eq!(next_ip.to_string(), "10.0.1.0");
         assert_eq!(print_rows.len(), 1);
+    }
+
+    #[test]
+    fn excluded_subnet_skipped_in_gap_finder_and_appears_as_dup_in_csv() {
+        use crate::azure::Data;
+        use crate::models::{Ipv4, Subnet};
+
+        fn make_subnet(vnet_name: &str, sub_name: &str, vnet_cidr: &str, subnet_cidr: &str, excluded_by: Option<&str>) -> Subnet {
+            let mut s: Subnet = Default::default();
+            s.vnet_name = vnet_name.to_string();
+            s.subscription_name = sub_name.to_string();
+            s.subscription_id = "sub-id".to_string();
+            s.vnet_cidr = vec![Ipv4::new(vnet_cidr).unwrap()];
+            s.subnet_cidr = Some(Ipv4::new(subnet_cidr).unwrap());
+            s.subnet_name = "my-subnet".to_string();
+            s.excluded_by = excluded_by.map(|s| s.to_string());
+            s
+        }
+
+        // winner processes 10.11.4.0/22 → next_ip becomes 10.11.8.0
+        // loser (same IP range) excluded — without skip this panics
+        let subnets = vec![
+            make_subnet("winner-vnet", "Coretex Production", "10.11.0.0/16", "10.11.4.0/22", None),
+            make_subnet("loser-vnet",  "Sandbox",            "10.11.0.0/16", "10.11.4.0/22", Some("winner-vnet")),
+        ];
+        let data = Data {
+            count: subnets.len() as i32,
+            skip_token: None,
+            total_records: None,
+            data: subnets,
+        };
+
+        // Must not panic (gap finder skips excluded subnet)
+        let path = subnet_print(&data, 28).expect("subnet_print must not panic");
+        let contents = std::fs::read_to_string(&path).expect("can read CSV");
+        let _ = std::fs::remove_file(&path);
+
+        // Excluded subnet must appear as DUP_EXCL_VNET referencing the winner
+        assert!(contents.contains("DUP_EXCL_VNET"), "CSV must contain DUP_EXCL_VNET row");
+        assert!(contents.contains("winner-vnet"), "DUP row must reference the winning VNet");
     }
 }

@@ -15,7 +15,7 @@ mod vnet;
 pub use dedup::de_duplicate_subnets;
 pub use gap_finder::{process_subnet_row, PrevVnetContext, SubnetPrintRow};
 pub use overlap::{
-    filter_excluded_vnet_cidrs, filter_overlapping_vnets, find_overlapping_vnets,
-    get_excluded_vnets, log_overlapping_vnets, OverlapConflict, VnetInfo,
+    filter_overlapping_vnets, find_overlapping_vnets,
+    log_overlapping_vnets, OverlapConflict, VnetInfo,
 };
 pub use vnet::{get_vnets, print_vnets};
