@@ -1,0 +1,34 @@
+{
+  "count": 3,
+  "data": [
+    {
+      "subscription_id": "cccc-3333",
+      "subscription_name": "Dev Sub",
+      "vnet_name": "broken-vnet",
+      "vnet_cidr": ["10.2.0.0/16"],
+      "peering_name": "broken-to-spoke",
+      "peering_state": "Initiated",
+      "remote_vnet_id": "/subscriptions/bbbb-2222/resourceGroups/rg/providers/Microsoft.Network/virtualNetworks/spoke-vnet"
+    },
+    {
+      "subscription_id": "aaaa-1111",
+      "subscription_name": "Prod Sub",
+      "vnet_name": "hub-vnet",
+      "vnet_cidr": ["10.0.0.0/16"],
+      "peering_name": "hub-to-spoke",
+      "peering_state": "Connected",
+      "remote_vnet_id": "/subscriptions/bbbb-2222/resourceGroups/rg/providers/Microsoft.Network/virtualNetworks/spoke-vnet"
+    },
+    {
+      "subscription_id": "bbbb-2222",
+      "subscription_name": "Dev Sub",
+      "vnet_name": "spoke-vnet",
+      "vnet_cidr": ["10.1.0.0/16"],
+      "peering_name": "spoke-to-hub",
+      "peering_state": "Connected",
+      "remote_vnet_id": "/subscriptions/aaaa-1111/resourceGroups/rg/providers/Microsoft.Network/virtualNetworks/hub-vnet"
+    }
+  ],
+  "skip_token": null,
+  "total_records": 3
+}

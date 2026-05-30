@@ -4,8 +4,9 @@
 //! identifies gaps in IP address allocation, and outputs a CSV summary.
 
 use azure_subnet_summary::{
+    azure::{read_peering_cache_with_status, PeeringCacheResult},
     check_for_duplicate_subnets, get_sorted_subnets_with_status,
-    output::subnet_print,
+    output::{subnet_print, write_duplicates_md, write_peering_diagram},
     processing::{
         de_duplicate_subnets, filter_overlapping_vnets,
         find_overlapping_vnets, get_vnets, log_overlapping_vnets, print_vnets,
@@ -62,6 +63,24 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Output subnet summary
     let csv_file = subnet_print(&data, args.gap_mask)?;
+
+    // Output duplicate VNet report
+    let date_str = chrono::Local::now().format("%Y-%m-%d").to_string();
+    let dup_file = format!("subnets-{date_str}-duplicates.md");
+    write_duplicates_md(&data, &dup_file)?;
+    log::info!("Duplicates report written to '{dup_file}'");
+
+    // Output peering diagram
+    let PeeringCacheResult { data: peering_data, from_cache: peering_from_cache, cache_file: peering_cache_file } =
+        read_peering_cache_with_status(None)?;
+    let peering_source = if peering_from_cache {
+        format!("existing cache '{peering_cache_file}'")
+    } else {
+        format!("Azure (new cache written to '{peering_cache_file}')")
+    };
+    let peering_file = format!("subnets-{date_str}-peering.md");
+    write_peering_diagram(&peering_data.data, &data, &peering_file)?;
+    log::info!("Peering diagram written to '{peering_file}' from {peering_source}");
 
     // Output VNet summary
     let vnets = get_vnets(&data)?;

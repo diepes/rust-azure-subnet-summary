@@ -175,11 +175,14 @@ pub fn process_subnet_row(
     // Add the actual subnet row
     rows.push(SubnetPrintRow {
         j: i + 1,
-        gap: s
-            .gap
-            .as_ref()
-            .unwrap_or(&format!("Sub{}", s.src_index))
-            .to_string(),
+        gap: if s.subnet_name == "GatewaySubnet" {
+            "GATEWAY".to_string()
+        } else {
+            s.gap
+                .as_ref()
+                .unwrap_or(&format!("Sub{}", s.src_index))
+                .to_string()
+        },
         subnet_cidr: subnet_cidr.to_string(),
         broadcast: subnet_cidr.broadcast().unwrap().addr.to_string(),
         az_hosts: num_az_hosts(subnet_cidr.mask).unwrap() as usize,
@@ -406,6 +409,21 @@ mod tests {
                 vnet_hi,
             );
         }
+    }
+
+    #[test]
+    fn gateway_subnet_gets_gateway_gap_marker() {
+        let s = make_subnet("10.0.0.0/27", "10.0.0.0/16", "hub-vnet", "GatewaySubnet");
+        let (_, _, rows) = process_subnet_row(
+            &s,
+            0,
+            Ipv4Addr::new(10, 0, 0, 0),
+            PrevVnetContext::default(),
+            28,
+            SKIP,
+        );
+        let subnet_row = rows.iter().find(|r| r.j != 0).expect("should have a subnet row");
+        assert_eq!(subnet_row.gap, "GATEWAY", "GatewaySubnet must have gap = GATEWAY");
     }
 
     #[test]

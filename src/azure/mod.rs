@@ -8,8 +8,12 @@
 mod cache;
 mod cli;
 mod graph;
+mod peering_cache;
+mod peering_graph;
 
 // Re-export public types and functions
 pub use cache::{read_subnet_cache, read_subnet_cache_with_status, CacheResult};
 pub use cli::run;
 pub use graph::{run_az_cli_graph, Data};
+pub use peering_cache::{read_peering_cache, read_peering_cache_with_status, PeeringCacheResult};
+pub use peering_graph::{PeeringData, PeeringEdge};
