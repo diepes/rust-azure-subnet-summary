@@ -48,7 +48,33 @@ Priority order for selecting the kept VNet within a conflict group:
 A VNet that lost conflict resolution. Its subnets are not used in gap calculation. They are emitted in the CSV as `DUP_EXCL_VNET` rows and shown in terminal output in red, grouped with their conflict group.
 
 ### DUP_EXCL_VNET row
-A CSV row for a subnet belonging to an excluded VNet. `gap` column = `"DUP_EXCL_VNET"`. `subnet_name` = `"{original_subnet_name} [DUP of {winner_vnet_name}]"`. All other fields are populated normally.
+A CSV row for a subnet belonging to an excluded VNet. `gap` column = `"DUP_EXCL_VNET"`. `subnet_name` = `"{original_subnet_name} [DUP of VNET {winner_vnet_name}]"`. All other fields are populated normally.
+
+---
+
+## VNet Peering
+
+### Peering Edge
+A directed connection from one VNet to a remote VNet. Azure requires both sides to be configured; a pair of Peering Edges (A→B and B→A) forms one logical connection. Each edge records its `peering_state` (`Connected`, `Disconnected`, `Initiated`) and a `remote_vnet_id` (ARM resource ID encoding the remote subscription and VNet name).
+_Avoid_: peering, link, connection
+
+### Subscription Island
+A maximal set of VNets where every member can reach every other member via one or more Peering Edges. A VNet with no Peering Edges is an island of size one (standalone). Because VNets with overlapping CIDRs cannot be peered, each Conflict Group is always its own isolated Subscription Island.
+_Avoid_: network island, VNet cluster, connected component
+
+### Gateway VNet
+A VNet that contains a subnet named exactly `GatewaySubnet`. That subnet hosts an Azure VPN Gateway or ExpressRoute Gateway, giving the VNet external connectivity to on-premises networks. Identified from existing subnet query data without any additional query. Shown with a distinct external node in the peering diagram.
+_Avoid_: hub VNet (hub is a topology role, not a fixed property), gateway hub
+
+### GATEWAY row
+A CSV row for the `GatewaySubnet` subnet inside a Gateway VNet. `gap` column = `"GATEWAY"`. All other fields are populated normally from the query result. Signals to downstream consumers that this VNet has external connectivity.
+
+### Peering Diagram
+A Mermaid diagram file (`subnets-YYYY-MM-DD-peering.md`) showing all VNets as labelled nodes. Each node label uses the format `SubscriptionName/VNetName` with the CIDR on a second line. VNets are grouped into `subgraph` blocks by Subscription Island. Gateway VNets have an additional external node attached to represent on-premises connectivity. Standalone VNets (no peerings) appear as single-node subgraphs.
+
+Edge rendering rules:
+- **Both sides `Connected`** → single bidirectional arrow (`A <--> B`)
+- **Asymmetric or broken** (one side `Disconnected` or `Initiated`) → single directed arrow from the connected side with a stop/cross at the remote end (`A --x B`), styled red via `linkStyle`
 
 ---
 
