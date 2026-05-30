@@ -15,7 +15,7 @@ pub struct Vnet<'a> {
 }
 
 impl<'a> Vnet<'a> {
-    pub fn new(subnet: &Subnet) -> Vnet {
+    pub fn new(subnet: &Subnet) -> Vnet<'_> {
         Vnet {
             vnet_name: &subnet.vnet_name,
             vnet_cidr: &subnet.vnet_cidr,
@@ -68,7 +68,7 @@ impl<'a> VnetList<'a> {
 
 pub fn get_vnets(
     data: &crate::graph_read_subnet_data::Data,
-) -> Result<VnetList, Box<dyn std::error::Error>> {
+) -> Result<VnetList<'_>, Box<dyn std::error::Error>> {
     let mut vnets = VnetList::new();
     for subnet in data.data.iter() {
         // Check if vnet exists, and panics on duplicate

@@ -23,7 +23,7 @@ pub struct Vnet<'a> {
 
 impl<'a> Vnet<'a> {
     /// Create a new VNet from a subnet.
-    pub fn new(subnet: &Subnet) -> Vnet {
+    pub fn new(subnet: &Subnet) -> Vnet<'_> {
         Vnet {
             vnet_name: &subnet.vnet_name,
             vnet_cidr: &subnet.vnet_cidr,

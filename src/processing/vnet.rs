@@ -14,7 +14,7 @@ use std::error::Error;
 ///
 /// # Returns
 /// * `Ok(VnetList)` - Aggregated VNet data
-pub fn get_vnets(data: &Data) -> Result<VnetList, Box<dyn Error>> {
+pub fn get_vnets(data: &Data) -> Result<VnetList<'_>, Box<dyn Error>> {
     let mut vnets = VnetList::new();
 
     for subnet in data.data.iter() {
