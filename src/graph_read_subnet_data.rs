@@ -20,7 +20,7 @@ pub fn read_subnet_cache(cache_file: Option<&str>) -> Result<Data, Box<dyn std::
             log::info!("Using provided cache file: {}", file);
             file.to_string()
         }
-        None => format!("subnet_cache_{}.json", now.format("%Y-%m-%d")),
+        None => format!("net_{}_cache_subnet.json", now.format("%Y-%m-%d")),
     };
     let data_from_cache_or_cli: Data = match std::fs::read_to_string(&cache_file) {
         Ok(json) => {

@@ -39,7 +39,7 @@ pub fn read_subnet_cache_with_status(
             log::info!("Using provided cache file: {file}");
             file.to_string()
         }
-        None => format!("subnet_cache_{}.json", now.format("%Y-%m-%d")),
+        None => format!("net_{}_cache_subnet.json", now.format("%Y-%m-%d")),
     };
 
     let (data, from_cache) = match std::fs::read_to_string(&cache_file_path) {

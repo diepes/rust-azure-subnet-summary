@@ -156,14 +156,49 @@ pub(super) fn build_topology(
     }
 
     // --- 4. Populate vWAN hub topology ---
-    // Build spoke_to_hub and collect hub metadata.
+    // Primary source: extract hub name from HV_<hub-name>_<uuid> remote VNet IDs in
+    // peering edges. This works even when the vWAN Resource Graph query returns nothing
+    // (the hubvirtualnetworkconnections resource type is not always indexed in ARG).
+    // vwan rows are used as an enrichment source for hub_address_prefix / virtual_wan_name.
+    let uuid_suffix = regex::Regex::new(
+        r"_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+    )
+    .expect("static regex");
+
     let mut vwan_spoke_to_hub: HashMap<String, String> = HashMap::new();
     let mut hub_map: std::collections::BTreeMap<String, VWanHub> =
         std::collections::BTreeMap::new();
+
+    // Step 4a — derive from HV_ peering edges (always available)
+    for edge in edges {
+        let remote = edge.remote_vnet_name().to_string();
+        if remote.starts_with("HV_") && edge.is_connected() {
+            let stripped = &remote[3..]; // drop "HV_" prefix
+            let hub_name = uuid_suffix.replace(stripped, "").to_string();
+            if hub_name.is_empty() {
+                continue;
+            }
+            vwan_spoke_to_hub
+                .entry(edge.vnet_name.clone())
+                .or_insert_with(|| hub_name.clone());
+            let hub = hub_map
+                .entry(hub_name.clone())
+                .or_insert_with(|| VWanHub {
+                    hub_name: hub_name.clone(),
+                    hub_address_prefix: String::new(),
+                    virtual_wan_name: String::new(),
+                    spoke_vnets: Vec::new(),
+                });
+            if !hub.spoke_vnets.contains(&edge.vnet_name) {
+                hub.spoke_vnets.push(edge.vnet_name.clone());
+            }
+        }
+    }
+
+    // Step 4b — enrich hub metadata from vWAN cache rows (adds CIDR + vWAN name).
+    // The ARG query returns one row per hub (not per spoke), so only hub-level
+    // fields are available here; spoke connections come from step 4a (HV_ edges).
     for row in vwan {
-        vwan_spoke_to_hub
-            .entry(row.spoke_vnet_name.clone())
-            .or_insert_with(|| row.hub_name.clone());
         let hub = hub_map
             .entry(row.hub_name.clone())
             .or_insert_with(|| VWanHub {
@@ -172,10 +207,14 @@ pub(super) fn build_topology(
                 virtual_wan_name: row.virtual_wan_name.clone(),
                 spoke_vnets: Vec::new(),
             });
-        if !hub.spoke_vnets.contains(&row.spoke_vnet_name) {
-            hub.spoke_vnets.push(row.spoke_vnet_name.clone());
+        if hub.hub_address_prefix.is_empty() && !row.hub_address_prefix.is_empty() {
+            hub.hub_address_prefix = row.hub_address_prefix.clone();
+        }
+        if hub.virtual_wan_name.is_empty() && !row.virtual_wan_name.is_empty() {
+            hub.virtual_wan_name = row.virtual_wan_name.clone();
         }
     }
+
     for hub in hub_map.values_mut() {
         hub.spoke_vnets.sort();
     }

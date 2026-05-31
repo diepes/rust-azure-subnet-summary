@@ -28,7 +28,7 @@ pub fn subnet_print(data: &Data, gap_cidr_mask: u8) -> Result<String, Box<dyn Er
 
     // Generate filename with current date
     let date_str = Local::now().format("%Y-%m-%d").to_string();
-    let filename = format!("subnets-{}.csv", date_str);
+    let filename = format!("net_{}_subnets.csv", date_str);
 
     // Open file for writing
     let file = File::create(&filename)?;
@@ -159,7 +159,7 @@ pub fn subnet_print(data: &Data, gap_cidr_mask: u8) -> Result<String, Box<dyn Er
     );
 
     // Also write the duplicates markdown report
-    let md_filename = format!("subnets-{}-duplicates.md", date_str);
+    let md_filename = format!("net_{}_duplicates.md", date_str);
     super::dup_report::write_duplicates_md(data, &md_filename)?;
 
     Ok(filename)
@@ -412,7 +412,7 @@ mod tests {
         };
 
         let csv_path = subnet_print(&data, 28).expect("must not panic");
-        let md_path = csv_path.replace(".csv", "-duplicates.md");
+        let md_path = csv_path.replace("_subnets.csv", "_duplicates.md");
         let _ = std::fs::remove_file(&csv_path);
         assert!(
             std::fs::metadata(&md_path).is_ok(),

@@ -144,7 +144,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Output duplicate VNet report
     let date_str = chrono::Local::now().format("%Y-%m-%d").to_string();
-    let dup_file = format!("subnets-{date_str}-duplicates.md");
+    let dup_file = format!("net_{date_str}_duplicates.md");
     write_duplicates_md(&data, &dup_file)?;
     log::info!("Duplicates report written to '{dup_file}'");
 
@@ -183,7 +183,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 
     if diagram_types.contains("md") {
-        let peering_file = format!("subnets-{date_str}-peering.md");
+        let peering_file = format!("net_{date_str}_peering.md");
         write_peering_diagram(
             &peering_data.data,
             &data,
@@ -195,7 +195,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 
     if diagram_types.contains("dot") || diagram_types.contains("svg") {
-        let peering_dot_file = format!("subnets-{date_str}-peering.dot");
+        let peering_dot_file = format!("net_{date_str}_peering.dot");
         write_peering_dot(
             &peering_data.data,
             &data,
@@ -206,7 +206,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         log::info!("Peering DOT diagram written to '{peering_dot_file}'");
 
         if diagram_types.contains("svg") {
-            let peering_svg_file = format!("subnets-{date_str}-peering.svg");
+            let peering_svg_file = format!("net_{date_str}_peering.svg");
             render_svg_via_docker(&peering_dot_file, &peering_svg_file);
         }
     }

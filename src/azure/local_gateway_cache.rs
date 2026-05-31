@@ -27,7 +27,7 @@ pub fn read_local_gateway_cache_with_status(
             log::info!("Using provided local gateway cache file: {file}");
             file.to_string()
         }
-        None => format!("local_gateway_cache_{}.json", now.format("%Y-%m-%d")),
+        None => format!("net_{}_cache_local-gateway.json", now.format("%Y-%m-%d")),
     };
 
     let (data, from_cache) = match std::fs::read_to_string(&cache_file_path) {

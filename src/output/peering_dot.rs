@@ -1,11 +1,11 @@
 //! Graphviz DOT peering diagram generator.
 //!
-//! Writes a `subnets-YYYY-MM-DD-peering.dot` file using the `fdp` force-directed
+//! Writes a `net_YYYY-MM-DD_peering.dot` file using the `fdp` force-directed
 //! layout, which handles dense network topology graphs well.
 //!
 //! Render with:
 //! ```sh
-//! dot -Kfdp -Tsvg subnets-2026-05-31-peering.dot -o peering.svg
+//! dot -Kfdp -Tsvg net_2026-05-31_peering.dot -o peering.svg
 //! # or open in VSCode with the "Graphviz Preview" extension
 //! ```
 
@@ -430,8 +430,6 @@ mod tests {
             hub_name: "prod-hub".into(),
             hub_address_prefix: "10.100.0.0/23".into(),
             virtual_wan_name: "prod-vwan".into(),
-            spoke_vnet_name: "spoke-vnet".into(),
-            remote_vnet_id: arm_id("x", "spoke-vnet"),
             ..Default::default()
         };
         let f = "/tmp/test-dot-vwan-hub.dot";
@@ -470,8 +468,6 @@ mod tests {
             hub_name: "prod-hub".into(),
             hub_address_prefix: "10.100.0.0/23".into(),
             virtual_wan_name: "prod-vwan".into(),
-            spoke_vnet_name: "spoke-vnet".into(),
-            remote_vnet_id: arm_id("x", "spoke-vnet"),
             ..Default::default()
         };
         let f = "/tmp/test-dot-vwan-edge.dot";

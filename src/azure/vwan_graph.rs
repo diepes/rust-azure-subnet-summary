@@ -1,44 +1,35 @@
-//! Azure Resource Graph query for Virtual WAN topology.
+//! Azure Resource Graph query for Virtual WAN hub metadata.
 //!
-//! Queries `microsoft.network/virtualhubs/hubvirtualnetworkconnections` and joins
-//! with `microsoft.network/virtualhubs` to get one row per (hub, spoke VNet) pair.
+//! Queries `microsoft.network/virtualhubs` — one row per hub — for names,
+//! address prefixes, and vWAN associations. Spoke connections are derived
+//! separately from `HV_*` peering edges in the peering cache.
 
 use super::cli;
 use crate::config;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 
-/// KQL: one row per (vWAN Hub, spoke VNet) connection.
+/// KQL: one row per vWAN Hub (hub metadata only; spoke connections come from peering cache).
 ///
-/// Joins hub connections → hub details → subscription names.
+/// `hubvirtualnetworkconnections` is a child resource not indexed in ARG — query
+/// the parent `virtualhubs` instead to get hub name, CIDR, and vWAN name.
 const VWAN_QUERY: &str = r#"resources
-    | where type == "microsoft.network/virtualhubs/hubvirtualnetworkconnections"
-    | extend hub_name = tostring(split(id, "/")[8])
-    | extend spoke_vnet_name = tostring(split(tolower(tostring(properties.remoteVirtualNetwork.id)), "/")[8])
-    | extend remote_vnet_id = tolower(tostring(properties.remoteVirtualNetwork.id))
-    | project subscription_id = subscriptionId
-             ,hub_name
-             ,spoke_vnet_name
-             ,remote_vnet_id
-             ,provisioning_state = tostring(properties.provisioningState)
-    | join kind=leftouter (
-        resources
-        | where type == "microsoft.network/virtualhubs"
-        | extend virtual_wan_name = tostring(split(tolower(tostring(properties.virtualWan.id)), "/")[8])
-        | project hub_name = name
-                 ,hub_address_prefix = tostring(properties.addressPrefix)
-                 ,virtual_wan_name
-    ) on hub_name
+    | where type == "microsoft.network/virtualhubs"
+    | extend virtual_wan_name = tostring(split(tolower(tostring(properties.virtualWan.id)), "/")[8])
     | join kind=leftouter (
         resourcecontainers
         | where type == "microsoft.resources/subscriptions"
         | project subscription_id = subscriptionId, subscription_name = name
-    ) on subscription_id
-    | project subscription_id, subscription_name, hub_name, hub_address_prefix
-             ,virtual_wan_name, spoke_vnet_name, remote_vnet_id, provisioning_state
-    | sort by hub_name asc, spoke_vnet_name asc"#;
+    ) on $left.subscriptionId == $right.subscription_id
+    | project subscription_id = subscriptionId
+             ,subscription_name
+             ,hub_name = name
+             ,hub_address_prefix = tostring(properties.addressPrefix)
+             ,virtual_wan_name
+             ,location
+    | sort by hub_name asc"#;
 
-/// One row from the vWAN query: a hub-to-spoke VNet connection.
+/// One row from the vWAN query: metadata for a single Virtual Hub.
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct VWanRow {
     pub subscription_id: String,
@@ -52,13 +43,9 @@ pub struct VWanRow {
     /// Name of the parent Virtual WAN resource.
     #[serde(default)]
     pub virtual_wan_name: String,
-    /// Name of the spoke VNet connected to this hub.
-    pub spoke_vnet_name: String,
-    /// Full ARM resource ID of the spoke VNet.
-    pub remote_vnet_id: String,
-    /// Provisioning state of the connection (e.g. `Succeeded`).
+    /// Azure region where the hub is deployed.
     #[serde(default)]
-    pub provisioning_state: String,
+    pub location: String,
 }
 
 /// Response wrapper for the vWAN query.

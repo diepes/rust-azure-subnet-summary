@@ -26,7 +26,7 @@ pub fn read_vwan_cache_with_status(
             log::info!("Using provided vWAN cache file: {file}");
             file.to_string()
         }
-        None => format!("vwan_cache_{}.json", now.format("%Y-%m-%d")),
+        None => format!("net_{}_cache_vwan.json", now.format("%Y-%m-%d")),
     };
 
     let (data, from_cache) = match std::fs::read_to_string(&cache_file_path) {

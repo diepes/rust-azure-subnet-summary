@@ -41,8 +41,8 @@ pub fn write_duplicates_md(data: &Data, filename: &str) -> Result<(), Box<dyn Er
     };
 
     let date_part = filename
-        .trim_start_matches("subnets-")
-        .trim_end_matches("-duplicates.md");
+        .trim_start_matches("net_")
+        .trim_end_matches("_duplicates.md");
 
     let file = File::create(filename)?;
     let mut w = BufWriter::new(file);

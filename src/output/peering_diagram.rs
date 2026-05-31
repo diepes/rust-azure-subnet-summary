@@ -1,6 +1,6 @@
 //! Mermaid peering diagram generator.
 //!
-//! Writes a `subnets-YYYY-MM-DD-peering.md` file containing a Mermaid `graph TD`
+//! Writes a `net_YYYY-MM-DD_peering.md` file containing a Mermaid `graph TD`
 //! showing VNet peering topology grouped into Subscription Islands.
 //!
 //! Uses the ELK renderer (`%%{init}%%` directive) for better auto-layout of
