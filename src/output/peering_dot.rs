@@ -45,9 +45,15 @@ pub fn write_peering_dot(
     writeln!(w, "// Azure VNet Peering Diagram — generated {date}")?;
     writeln!(w, "// Render: dot -Kfdp -Tsvg {filename} -o peering.svg")?;
     writeln!(w, "digraph azure_vnet_peering {{")?;
+    // fdp layout tuning:
+    //   K=2.5        — spring constant; higher value spreads nodes further apart
+    //   overlap=prism — Prism overlap-removal gives cleaner results than Voronoi (false)
+    //   splines=curved — edges curve around nodes/clusters instead of cutting through
+    //   concentrate=true — merges parallel edges (hub-spoke fan-in collapses to fewer lines)
+    //   esep="+3"    — extra clearance between routed edge paths
     writeln!(
         w,
-        "    graph [layout=fdp overlap=false splines=true fontname=\"Helvetica\"]"
+        "    graph [layout=fdp K=2.5 overlap=scale splines=curved concentrate=true esep=\"+3\" fontname=\"Helvetica\"]"
     )?;
     writeln!(
         w,

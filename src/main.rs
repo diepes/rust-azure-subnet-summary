@@ -76,11 +76,11 @@ fn exit_description(status: &std::process::ExitStatus) -> String {
     "unknown failure".to_string()
 }
 
-/// Layout engines to try in order.  `sfdp` is the scalable force-directed
-/// layout and handles large graphs with nested clusters more robustly than
-/// `fdp`.  We keep `fdp` as a fallback so small graphs still use the classic
-/// spring layout.
-const DOT_ENGINES: &[&str] = &["sfdp", "fdp"];
+/// Layout engines to try in order.  `fdp` gives the best visual layout —
+/// hub nodes naturally sit in the middle of the VNets they connect — so it
+/// is tried first.  `sfdp` (the scalable variant) is the fallback for cases
+/// where `fdp` crashes on very large or complex graphs.
+const DOT_ENGINES: &[&str] = &["fdp", "sfdp"];
 
 fn render_svg_via_docker(dot_file: &str, svg_file: &str) {
     // ── Try local `dot` with each engine in order ──────────────────────────
@@ -120,7 +120,7 @@ fn render_svg_via_docker(dot_file: &str, svg_file: &str) {
         return;
     }
 
-    // ── Fall back to Docker ────────────────────────────────────────────────
+    // ── Fall back to Docker — try each engine in order ────────────────────
     let cwd = match std::env::current_dir() {
         Ok(p) => p.display().to_string(),
         Err(e) => {
@@ -130,40 +130,44 @@ fn render_svg_via_docker(dot_file: &str, svg_file: &str) {
             return;
         }
     };
-    let engine = DOT_ENGINES[0];
-    let manual_cmd = format!(
-        "docker run --rm -v \"{cwd}:/data\" -w /data {DOCKER_IMAGE} dot -K{engine} -Tsvg {dot_file} -o {svg_file}"
-    );
-    log::info!("Local dot not available — trying Docker: {manual_cmd}");
+    log::info!("Local dot not available — trying Docker ({DOCKER_IMAGE})");
 
-    let result = std::process::Command::new("docker")
-        .args([
-            "run", "--rm", "-v", &format!("{cwd}:/data"), "-w", "/data",
-            DOCKER_IMAGE, "dot", &format!("-K{engine}"), "-Tsvg", dot_file, "-o", svg_file,
-        ])
-        .output();
+    for engine in DOT_ENGINES {
+        let manual_cmd = format!(
+            "docker run --rm -v \"{cwd}:/data\" -w /data {DOCKER_IMAGE} dot -K{engine} -Tsvg {dot_file} -o {svg_file}"
+        );
 
-    match result {
-        Ok(out) if out.status.success() => {
-            log::info!("SVG written to '{svg_file}' (via Docker -{engine})");
-        }
-        Ok(out) => {
-            let stderr = String::from_utf8_lossy(&out.stderr);
-            let why = exit_description(&out.status);
-            let msg = format!(
-                "Docker dot {why}: {stderr}\nRun manually:\n  {manual_cmd}"
-            );
-            log::warn!("{msg}");
-            eprintln!("WARN: {msg}");
-        }
-        Err(e) => {
-            let msg = format!(
-                "Could not launch docker ({e}). Install graphviz or Docker, then run:\n  {manual_cmd}"
-            );
-            log::warn!("{msg}");
-            eprintln!("WARN: {msg}");
+        let result = std::process::Command::new("docker")
+            .args([
+                "run", "--rm", "-v", &format!("{cwd}:/data"), "-w", "/data",
+                DOCKER_IMAGE, "dot", &format!("-K{engine}"), "-Tsvg", dot_file, "-o", svg_file,
+            ])
+            .output();
+
+        match result {
+            Ok(out) if out.status.success() => {
+                log::info!("SVG written to '{svg_file}' (via Docker -{engine})");
+                return;
+            }
+            Ok(out) => {
+                let stderr = String::from_utf8_lossy(&out.stderr);
+                let why = exit_description(&out.status);
+                let msg = format!("Docker dot -{engine} {why}: {stderr}\nRun manually:\n  {manual_cmd}");
+                log::warn!("{msg}");
+                eprintln!("WARN: {msg}");
+                // try next engine
+            }
+            Err(e) => {
+                let msg = format!(
+                    "Could not launch docker ({e}). Install graphviz or Docker, then run:\n  {manual_cmd}"
+                );
+                log::warn!("{msg}");
+                eprintln!("WARN: {msg}");
+                return; // docker itself not found — no point retrying
+            }
         }
     }
+    eprintln!("ERROR: Docker dot could not render '{dot_file}' (all engines failed)");
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -262,22 +266,22 @@ fn main() -> Result<(), Box<dyn Error>> {
         log::info!("Peering diagram written to '{peering_file}' from {peering_source}");
     }
 
-    if diagram_types.contains("dot") || diagram_types.contains("svg") {
-        let peering_dot_file = format!("net_{date_str}_peering.dot");
+    // Generate DOT file (needed for both dot and svg outputs).
+    // Store the file name so we can render SVG after all other output.
+    let peering_dot_file = if diagram_types.contains("dot") || diagram_types.contains("svg") {
+        let f = format!("net_{date_str}_peering.dot");
         write_peering_dot(
             &peering_data.data,
             &data,
             &local_gw_data.data,
             &vwan_data.data,
-            &peering_dot_file,
+            &f,
         )?;
-        log::info!("Peering DOT diagram written to '{peering_dot_file}'");
-
-        if diagram_types.contains("svg") {
-            let peering_svg_file = format!("net_{date_str}_peering.svg");
-            render_svg_via_docker(&peering_dot_file, &peering_svg_file);
-        }
-    }
+        log::info!("Peering DOT diagram written to '{f}'");
+        Some(f)
+    } else {
+        None
+    };
 
     // Output VNet summary
     let vnets = get_vnets(&data)?;
@@ -285,6 +289,15 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Final summary
     log::info!("Complete: Generated '{}' from {}", csv_file, cache_source);
+
+    // SVG rendering runs last so any dot error appears at the bottom of the
+    // terminal output rather than being buried by the VNet list above.
+    if let Some(ref dot_file) = peering_dot_file {
+        if diagram_types.contains("svg") {
+            let peering_svg_file = format!("net_{date_str}_peering.svg");
+            render_svg_via_docker(dot_file, &peering_svg_file);
+        }
+    }
 
     Ok(())
 }
