@@ -4,7 +4,10 @@
 //! identifies gaps in IP address allocation, and outputs a CSV summary.
 
 use azure_subnet_summary::{
-    azure::{read_peering_cache_with_status, PeeringCacheResult},
+    azure::{
+        read_local_gateway_cache_with_status, read_peering_cache_with_status,
+        LocalGatewayCacheResult, PeeringCacheResult,
+    },
     check_for_duplicate_subnets, get_sorted_subnets_with_status,
     output::{subnet_print, write_duplicates_md, write_peering_diagram, write_peering_dot},
     processing::{
@@ -157,15 +160,31 @@ fn main() -> Result<(), Box<dyn Error>> {
         format!("Azure (new cache written to '{peering_cache_file}')")
     };
 
+    let LocalGatewayCacheResult {
+        data: local_gw_data,
+        from_cache: lgw_from_cache,
+        cache_file: lgw_cache_file,
+    } = read_local_gateway_cache_with_status(None)?;
+    if lgw_from_cache {
+        log::info!("Local gateway data read from cache '{lgw_cache_file}'");
+    } else {
+        log::info!("Local gateway data fetched from Azure (cache '{lgw_cache_file}')");
+    }
+
     if diagram_types.contains("md") {
         let peering_file = format!("subnets-{date_str}-peering.md");
-        write_peering_diagram(&peering_data.data, &data, &peering_file)?;
+        write_peering_diagram(&peering_data.data, &data, &local_gw_data.data, &peering_file)?;
         log::info!("Peering diagram written to '{peering_file}' from {peering_source}");
     }
 
     if diagram_types.contains("dot") || diagram_types.contains("svg") {
         let peering_dot_file = format!("subnets-{date_str}-peering.dot");
-        write_peering_dot(&peering_data.data, &data, &peering_dot_file)?;
+        write_peering_dot(
+            &peering_data.data,
+            &data,
+            &local_gw_data.data,
+            &peering_dot_file,
+        )?;
         log::info!("Peering DOT diagram written to '{peering_dot_file}'");
 
         if diagram_types.contains("svg") {

@@ -3,7 +3,7 @@
 //! Parses raw `PeeringEdge` + subnet `Data` into a `PeeringTopology` that both
 //! the Mermaid and Graphviz DOT writers consume.
 
-use crate::azure::{Data, PeeringEdge};
+use crate::azure::{Data, LocalGatewayRow, PeeringEdge};
 use std::collections::{HashMap, HashSet, VecDeque};
 
 // ─── public types ────────────────────────────────────────────────────────────
@@ -17,6 +17,10 @@ pub(super) struct VNetMeta {
     /// `true` when this VNet has no subnet records — it was only seen as a remote
     /// target in a peering edge or as a peering source without subnet data.
     pub missing: bool,
+    /// Names of on-premises Local Network Gateways connected to this VNet (empty if none).
+    pub on_prem_names: Vec<String>,
+    /// Deduplicated on-premises CIDRs from all connected Local Network Gateways.
+    pub on_prem_cidrs: Vec<String>,
 }
 
 /// A resolved broken directed edge `(from, to)`.
@@ -46,7 +50,11 @@ pub(super) struct PeeringTopology {
 // ─── builder ─────────────────────────────────────────────────────────────────
 
 /// Build a `PeeringTopology` from raw Azure data.
-pub(super) fn build_topology(edges: &[PeeringEdge], subnets: &Data) -> PeeringTopology {
+pub(super) fn build_topology(
+    edges: &[PeeringEdge],
+    subnets: &Data,
+    local_gateways: &[LocalGatewayRow],
+) -> PeeringTopology {
     // --- 1. VNet metadata from subnet data ---
     let mut vnet_meta: HashMap<String, VNetMeta> = HashMap::new();
     for s in &subnets.data {
@@ -57,6 +65,8 @@ pub(super) fn build_topology(edges: &[PeeringEdge], subnets: &Data) -> PeeringTo
                 vnet_cidr: s.vnet_cidr.iter().map(|c| c.to_string()).collect(),
                 has_gateway: false,
                 missing: false,
+                on_prem_names: Vec::new(),
+                on_prem_cidrs: Vec::new(),
             });
         if s.subnet_name == "GatewaySubnet" {
             entry.has_gateway = true;
@@ -71,7 +81,11 @@ pub(super) fn build_topology(edges: &[PeeringEdge], subnets: &Data) -> PeeringTo
                 subscription_name: edge.subscription_name.clone(),
                 vnet_cidr: edge.vnet_cidr.clone(),
                 has_gateway: false,
-                missing: true,
+                // VNet exists — it reported its own peering configuration.
+                // Only the *remote* target may be a phantom reference.
+                missing: false,
+                on_prem_names: Vec::new(),
+                on_prem_cidrs: Vec::new(),
             });
         let remote = edge.remote_vnet_name().to_string();
         if !remote.is_empty() {
@@ -81,11 +95,29 @@ pub(super) fn build_topology(edges: &[PeeringEdge], subnets: &Data) -> PeeringTo
                 vnet_cidr: Vec::new(),
                 has_gateway: false,
                 missing: true,
+                on_prem_names: Vec::new(),
+                on_prem_cidrs: Vec::new(),
             });
         }
     }
 
-    // --- 3. Categorise edges ---
+    // --- 3. Populate on-premises info from Local Network Gateways ---
+    for row in local_gateways {
+        if let Some(meta) = vnet_meta.get_mut(&row.vnet_name) {
+            if !row.local_gw_name.is_empty()
+                && !meta.on_prem_names.contains(&row.local_gw_name)
+            {
+                meta.on_prem_names.push(row.local_gw_name.clone());
+            }
+            for cidr in &row.address_prefixes {
+                if !cidr.is_empty() && !meta.on_prem_cidrs.contains(cidr) {
+                    meta.on_prem_cidrs.push(cidr.clone());
+                }
+            }
+        }
+    }
+
+    // --- 4. Categorise edges ---
     let mut connection_counts: HashMap<(String, String), usize> = HashMap::new();
     for edge in edges.iter().filter(|e| e.is_connected()) {
         let remote = edge.remote_vnet_name().to_string();
@@ -126,7 +158,7 @@ pub(super) fn build_topology(edges: &[PeeringEdge], subnets: &Data) -> PeeringTo
         broken_edges.push(BrokenEdge { from, to });
     }
 
-    // --- 4. Connected components via BFS over bidir pairs ---
+    // --- 5. Connected components via BFS over bidir pairs ---
     let mut adjacency: HashMap<String, Vec<String>> = HashMap::new();
     for (a, b) in &bidir_pairs {
         adjacency.entry(a.clone()).or_default().push(b.clone());

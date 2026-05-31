@@ -8,6 +8,8 @@
 mod cache;
 mod cli;
 mod graph;
+mod local_gateway;
+mod local_gateway_cache;
 mod peering_cache;
 mod peering_graph;
 
@@ -15,5 +17,9 @@ mod peering_graph;
 pub use cache::{read_subnet_cache, read_subnet_cache_with_status, CacheResult};
 pub use cli::run;
 pub use graph::{run_az_cli_graph, Data};
+pub use local_gateway::{LocalGatewayData, LocalGatewayRow};
+pub use local_gateway_cache::{
+    read_local_gateway_cache, read_local_gateway_cache_with_status, LocalGatewayCacheResult,
+};
 pub use peering_cache::{read_peering_cache, read_peering_cache_with_status, PeeringCacheResult};
 pub use peering_graph::{PeeringData, PeeringEdge};
