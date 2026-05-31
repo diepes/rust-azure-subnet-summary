@@ -50,8 +50,7 @@ impl PeeringEdge {
     pub fn remote_vnet_name(&self) -> &str {
         self.remote_vnet_id
             .split('/')
-            .filter(|s| !s.is_empty())
-            .last()
+            .rfind(|s| !s.is_empty())
             .unwrap_or("")
     }
 
@@ -166,8 +165,14 @@ mod tests {
 
     #[test]
     fn is_connected_true_only_for_connected_state() {
-        let connected = PeeringEdge { peering_state: "Connected".to_string(), ..Default::default() };
-        let initiated = PeeringEdge { peering_state: "Initiated".to_string(), ..Default::default() };
+        let connected = PeeringEdge {
+            peering_state: "Connected".to_string(),
+            ..Default::default()
+        };
+        let initiated = PeeringEdge {
+            peering_state: "Initiated".to_string(),
+            ..Default::default()
+        };
         assert!(connected.is_connected());
         assert!(!initiated.is_connected());
     }

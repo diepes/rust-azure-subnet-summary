@@ -67,9 +67,8 @@ mod tests {
 
     #[test]
     fn read_peering_cache_returns_expected_edges() {
-        let data =
-            read_peering_cache(Some("src/tests/test_data/peering_test_cache_01.json"))
-                .expect("Error reading peering cache");
+        let data = read_peering_cache(Some("src/tests/test_data/peering_test_cache_01.json"))
+            .expect("Error reading peering cache");
         assert_eq!(data.count, 3, "Expected 3 peering edges");
         assert_eq!(data.data[0].vnet_name, "broken-vnet");
         assert_eq!(data.data[0].peering_state, "Initiated");

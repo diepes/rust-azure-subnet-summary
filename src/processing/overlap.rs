@@ -100,9 +100,9 @@ pub fn find_overlapping_vnets(data: &Data) -> Vec<OverlapConflict> {
 
     // Group VNets by their root representative
     let mut groups: HashMap<usize, Vec<VnetInfo>> = HashMap::new();
-    for i in 0..n {
+    for (i, vnet) in vnets.iter().enumerate().take(n) {
         let root = find(&mut parent, i);
-        groups.entry(root).or_default().push(vnets[i].clone());
+        groups.entry(root).or_default().push(vnet.clone());
     }
 
     // Only return groups with more than one VNet (actual conflicts)
@@ -160,8 +160,6 @@ pub fn log_overlapping_vnets(conflicts: &[OverlapConflict]) {
         }
     }
 }
-
-
 
 /// Returns true if the subscription name indicates a production environment.
 ///
@@ -257,7 +255,12 @@ mod tests {
     use crate::azure::Data;
     use crate::models::{Ipv4, Subnet};
 
-    fn make_subnet(vnet_name: &str, subscription_name: &str, vnet_cidr: &str, subnet_cidr: &str) -> Subnet {
+    fn make_subnet(
+        vnet_name: &str,
+        subscription_name: &str,
+        vnet_cidr: &str,
+        subnet_cidr: &str,
+    ) -> Subnet {
         Subnet {
             vnet_name: vnet_name.to_string(),
             vnet_cidr: vec![Ipv4::new(vnet_cidr).unwrap()],
@@ -272,21 +275,29 @@ mod tests {
 
     fn make_data(subnets: Vec<Subnet>) -> Data {
         let count = subnets.len() as i32;
-        Data { data: subnets, count, ..Default::default() }
+        Data {
+            data: subnets,
+            count,
+            ..Default::default()
+        }
     }
 
     #[test]
     fn containment_overlap_is_detected() {
         // 10.0.0.0/8 contains 10.1.0.0/16 — they overlap even though CIDRs differ
         let data = make_data(vec![
-            make_subnet("big-vnet",   "Dev Sub",  "10.0.0.0/8",  "10.0.1.0/24"),
+            make_subnet("big-vnet", "Dev Sub", "10.0.0.0/8", "10.0.1.0/24"),
             make_subnet("small-vnet", "Test Sub", "10.1.0.0/16", "10.1.1.0/24"),
         ]);
 
         let conflicts = find_overlapping_vnets(&data);
 
         assert_eq!(conflicts.len(), 1, "should detect one conflict group");
-        assert_eq!(conflicts[0].vnets.len(), 2, "both VNets should be in the group");
+        assert_eq!(
+            conflicts[0].vnets.len(),
+            2,
+            "both VNets should be in the group"
+        );
     }
 
     #[test]
@@ -298,7 +309,10 @@ mod tests {
 
         let conflicts = find_overlapping_vnets(&data);
 
-        assert!(conflicts.is_empty(), "disjoint CIDRs should produce no conflicts");
+        assert!(
+            conflicts.is_empty(),
+            "disjoint CIDRs should produce no conflicts"
+        );
     }
 
     #[test]
@@ -308,14 +322,22 @@ mod tests {
         // A and C do not directly overlap — but all three are one group
         let data = make_data(vec![
             make_subnet("vnet-a", "Sub A", "10.0.0.0/16", "10.0.1.0/24"),
-            make_subnet("vnet-b", "Sub B", "10.0.0.0/8",  "10.0.2.0/24"),
+            make_subnet("vnet-b", "Sub B", "10.0.0.0/8", "10.0.2.0/24"),
             make_subnet("vnet-c", "Sub C", "10.5.0.0/16", "10.5.1.0/24"),
         ]);
 
         let conflicts = find_overlapping_vnets(&data);
 
-        assert_eq!(conflicts.len(), 1, "transitively connected VNets form one group");
-        assert_eq!(conflicts[0].vnets.len(), 3, "all three VNets should be in the group");
+        assert_eq!(
+            conflicts.len(),
+            1,
+            "transitively connected VNets form one group"
+        );
+        assert_eq!(
+            conflicts[0].vnets.len(),
+            3,
+            "all three VNets should be in the group"
+        );
     }
 
     #[test]
@@ -323,58 +345,93 @@ mod tests {
         // prod-vnet has 1 subnet but is in a production subscription → should win
         // "Zzz Production" sorts LAST alphabetically, so without prod-wins logic it would lose
         let data = make_data(vec![
-            make_subnet("dev-vnet",  "AAA Sandbox",    "10.1.0.0/16", "10.1.1.0/24"),
-            make_subnet("dev-vnet2", "BBB Sandbox",    "10.1.0.0/16", "10.1.2.0/24"),
+            make_subnet("dev-vnet", "AAA Sandbox", "10.1.0.0/16", "10.1.1.0/24"),
+            make_subnet("dev-vnet2", "BBB Sandbox", "10.1.0.0/16", "10.1.2.0/24"),
             make_subnet("prod-vnet", "Zzz Production", "10.1.0.0/16", "10.1.3.0/24"),
         ]);
 
         let result = filter_overlapping_vnets(data, false).unwrap();
 
-        let kept: Vec<&str> = result.data.iter()
+        let kept: Vec<&str> = result
+            .data
+            .iter()
             .filter(|s| s.excluded_by.is_none())
             .map(|s| s.vnet_name.as_str())
             .collect();
-        assert!(kept.contains(&"prod-vnet"), "production VNet should win even though it sorts last");
-        assert!(!kept.contains(&"dev-vnet"),  "non-prod VNet should be excluded");
-        assert!(!kept.contains(&"dev-vnet2"), "non-prod VNet should be excluded");
+        assert!(
+            kept.contains(&"prod-vnet"),
+            "production VNet should win even though it sorts last"
+        );
+        assert!(
+            !kept.contains(&"dev-vnet"),
+            "non-prod VNet should be excluded"
+        );
+        assert!(
+            !kept.contains(&"dev-vnet2"),
+            "non-prod VNet should be excluded"
+        );
     }
 
     #[test]
     fn excluded_subnets_have_excluded_by_set_to_winner_vnet_name() {
         let data = make_data(vec![
-            make_subnet("loser-vnet",  "Sandbox",            "10.1.0.0/16", "10.1.1.0/24"),
-            make_subnet("winner-vnet", "Coretex Production", "10.1.0.0/16", "10.1.2.0/24"),
+            make_subnet("loser-vnet", "Sandbox", "10.1.0.0/16", "10.1.1.0/24"),
+            make_subnet(
+                "winner-vnet",
+                "Coretex Production",
+                "10.1.0.0/16",
+                "10.1.2.0/24",
+            ),
         ]);
 
         let result = filter_overlapping_vnets(data, false).unwrap();
 
-        let loser_subnet = result.data.iter().find(|s| s.vnet_name == "loser-vnet").unwrap();
+        let loser_subnet = result
+            .data
+            .iter()
+            .find(|s| s.vnet_name == "loser-vnet")
+            .unwrap();
         assert_eq!(
             loser_subnet.excluded_by,
             Some("winner-vnet".to_string()),
             "excluded subnet should reference winner VNet"
         );
-        let winner_subnet = result.data.iter().find(|s| s.vnet_name == "winner-vnet").unwrap();
-        assert_eq!(winner_subnet.excluded_by, None, "winner subnet should not be excluded");
+        let winner_subnet = result
+            .data
+            .iter()
+            .find(|s| s.vnet_name == "winner-vnet")
+            .unwrap();
+        assert_eq!(
+            winner_subnet.excluded_by, None,
+            "winner subnet should not be excluded"
+        );
     }
 
     #[test]
     fn most_subnets_wins_when_no_production_involved() {
         let data = make_data(vec![
-            make_subnet("small-vnet", "Dev Sub",  "10.1.0.0/16", "10.1.1.0/24"),
+            make_subnet("small-vnet", "Dev Sub", "10.1.0.0/16", "10.1.1.0/24"),
             // big-vnet has 2 subnets (2 rows with same vnet)
-            make_subnet("big-vnet",   "Test Sub", "10.1.0.0/16", "10.1.2.0/24"),
-            make_subnet("big-vnet",   "Test Sub", "10.1.0.0/16", "10.1.3.0/24"),
+            make_subnet("big-vnet", "Test Sub", "10.1.0.0/16", "10.1.2.0/24"),
+            make_subnet("big-vnet", "Test Sub", "10.1.0.0/16", "10.1.3.0/24"),
         ]);
 
         let result = filter_overlapping_vnets(data, false).unwrap();
 
-        let kept: Vec<&str> = result.data.iter()
+        let kept: Vec<&str> = result
+            .data
+            .iter()
             .filter(|s| s.excluded_by.is_none())
             .map(|s| s.vnet_name.as_str())
             .collect();
-        assert!(kept.contains(&"big-vnet"),   "vnet with more subnets should be kept");
-        assert!(!kept.contains(&"small-vnet"), "vnet with fewer subnets should be excluded");
+        assert!(
+            kept.contains(&"big-vnet"),
+            "vnet with more subnets should be kept"
+        );
+        assert!(
+            !kept.contains(&"small-vnet"),
+            "vnet with fewer subnets should be excluded"
+        );
     }
 
     #[test]
@@ -387,5 +444,4 @@ mod tests {
             assert!(!conflicts.is_empty() || conflicts.is_empty()); // Always true, just to avoid unused warning
         }
     }
-
 }

@@ -3,6 +3,7 @@
 use crate::azure::Data;
 use crate::processing::{process_subnet_row, PrevVnetContext, SubnetPrintRow};
 use chrono::Local;
+use std::cmp::Reverse;
 use std::error::Error;
 use std::fs::File;
 use std::io::{BufWriter, Write};
@@ -136,7 +137,7 @@ pub fn subnet_print(data: &Data, gap_cidr_mask: u8) -> Result<String, Box<dyn Er
         })
         .collect();
 
-    insertions.sort_by(|a, b| b.0.cmp(&a.0));
+    insertions.sort_by_key(|b| Reverse(b.0));
     for (pos, rows) in insertions {
         let tail = output_rows.split_off(pos);
         output_rows.extend(rows);
@@ -249,7 +250,13 @@ mod tests {
         use crate::azure::Data;
         use crate::models::{Ipv4, Subnet};
 
-        fn make_subnet(vnet_name: &str, sub_name: &str, vnet_cidr: &str, subnet_cidr: &str, excluded_by: Option<&str>) -> Subnet {
+        fn make_subnet(
+            vnet_name: &str,
+            sub_name: &str,
+            vnet_cidr: &str,
+            subnet_cidr: &str,
+            excluded_by: Option<&str>,
+        ) -> Subnet {
             let mut s: Subnet = Default::default();
             s.vnet_name = vnet_name.to_string();
             s.subscription_name = sub_name.to_string();
@@ -264,8 +271,20 @@ mod tests {
         // winner processes 10.11.4.0/22 → next_ip becomes 10.11.8.0
         // loser (same IP range) excluded — without skip this panics
         let subnets = vec![
-            make_subnet("winner-vnet", "Coretex Production", "10.11.0.0/16", "10.11.4.0/22", None),
-            make_subnet("loser-vnet",  "Sandbox",            "10.11.0.0/16", "10.11.4.0/22", Some("winner-vnet")),
+            make_subnet(
+                "winner-vnet",
+                "Coretex Production",
+                "10.11.0.0/16",
+                "10.11.4.0/22",
+                None,
+            ),
+            make_subnet(
+                "loser-vnet",
+                "Sandbox",
+                "10.11.0.0/16",
+                "10.11.4.0/22",
+                Some("winner-vnet"),
+            ),
         ];
         let data = Data {
             count: subnets.len() as i32,
@@ -280,8 +299,14 @@ mod tests {
         let _ = std::fs::remove_file(&path);
 
         // Excluded subnet must appear as DUP_EXCL_VNET referencing the winner
-        assert!(contents.contains("DUP_EXCL_VNET"), "CSV must contain DUP_EXCL_VNET row");
-        assert!(contents.contains("winner-vnet"), "DUP row must reference the winning VNet");
+        assert!(
+            contents.contains("DUP_EXCL_VNET"),
+            "CSV must contain DUP_EXCL_VNET row"
+        );
+        assert!(
+            contents.contains("winner-vnet"),
+            "DUP row must reference the winning VNet"
+        );
     }
 
     #[test]
@@ -290,7 +315,13 @@ mod tests {
         use crate::azure::Data;
         use crate::models::{Ipv4, Subnet};
 
-        fn make_subnet(vnet_name: &str, sub_name: &str, vnet_cidr: &str, subnet_cidr: &str, excluded_by: Option<&str>) -> Subnet {
+        fn make_subnet(
+            vnet_name: &str,
+            sub_name: &str,
+            vnet_cidr: &str,
+            subnet_cidr: &str,
+            excluded_by: Option<&str>,
+        ) -> Subnet {
             let mut s: Subnet = Default::default();
             s.vnet_name = vnet_name.to_string();
             s.subscription_name = sub_name.to_string();
@@ -310,8 +341,14 @@ mod tests {
         // Current (broken) order: winner row → later-vnet row → DUP row
         let subnets = vec![
             make_subnet("winner-vnet", "Prod", "10.0.0.0/16", "10.0.0.0/24", None),
-            make_subnet("later-vnet",  "Prod", "10.1.0.0/16", "10.1.0.0/24", None),
-            make_subnet("loser-vnet",  "Dev",  "10.0.0.0/16", "10.0.0.0/24", Some("winner-vnet")),
+            make_subnet("later-vnet", "Prod", "10.1.0.0/16", "10.1.0.0/24", None),
+            make_subnet(
+                "loser-vnet",
+                "Dev",
+                "10.0.0.0/16",
+                "10.0.0.0/24",
+                Some("winner-vnet"),
+            ),
         ];
         let data = Data {
             count: subnets.len() as i32,
@@ -324,7 +361,9 @@ mod tests {
         let contents = std::fs::read_to_string(&path).expect("can read");
         let _ = std::fs::remove_file(&path);
 
-        let dup_pos = contents.find("DUP_EXCL_VNET").expect("DUP_EXCL_VNET must exist");
+        let dup_pos = contents
+            .find("DUP_EXCL_VNET")
+            .expect("DUP_EXCL_VNET must exist");
         let later_pos = contents.find("later-vnet").expect("later-vnet must exist");
 
         assert!(
@@ -339,7 +378,12 @@ mod tests {
         use crate::azure::Data;
         use crate::models::{Ipv4, Subnet};
 
-        fn make_subnet(vnet_name: &str, vnet_cidr: &str, subnet_cidr: &str, excluded_by: Option<&str>) -> Subnet {
+        fn make_subnet(
+            vnet_name: &str,
+            vnet_cidr: &str,
+            subnet_cidr: &str,
+            excluded_by: Option<&str>,
+        ) -> Subnet {
             let mut s: Subnet = Default::default();
             s.vnet_name = vnet_name.to_string();
             s.subscription_name = "Sub".to_string();
@@ -353,14 +397,27 @@ mod tests {
 
         let subnets = vec![
             make_subnet("winner-vnet", "10.0.0.0/16", "10.0.0.0/24", None),
-            make_subnet("excl-vnet",   "10.0.0.0/16", "10.0.0.0/24", Some("winner-vnet")),
+            make_subnet(
+                "excl-vnet",
+                "10.0.0.0/16",
+                "10.0.0.0/24",
+                Some("winner-vnet"),
+            ),
         ];
-        let data = Data { count: 2, skip_token: None, total_records: None, data: subnets };
+        let data = Data {
+            count: 2,
+            skip_token: None,
+            total_records: None,
+            data: subnets,
+        };
 
         let csv_path = subnet_print(&data, 28).expect("must not panic");
         let md_path = csv_path.replace(".csv", "-duplicates.md");
         let _ = std::fs::remove_file(&csv_path);
-        assert!(std::fs::metadata(&md_path).is_ok(), "duplicates.md must be created alongside CSV");
+        assert!(
+            std::fs::metadata(&md_path).is_ok(),
+            "duplicates.md must be created alongside CSV"
+        );
         let _ = std::fs::remove_file(&md_path);
     }
 }

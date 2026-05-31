@@ -30,7 +30,11 @@ pub fn write_duplicates_md(data: &Data, filename: &str) -> Result<(), Box<dyn Er
             .iter()
             .find(|s| s.excluded_by.is_none() && s.vnet_name == vnet_name)
             .map(|s| {
-                let cidr = s.vnet_cidr.first().map(|c| c.to_string()).unwrap_or_default();
+                let cidr = s
+                    .vnet_cidr
+                    .first()
+                    .map(|c| c.to_string())
+                    .unwrap_or_default();
                 (cidr, s.subscription_name.clone())
             })
             .unwrap_or_default()
@@ -52,7 +56,10 @@ pub fn write_duplicates_md(data: &Data, filename: &str) -> Result<(), Box<dyn Er
 
     for winner_vnet in &winner_order {
         let (winner_cidr, winner_sub) = winner_info(winner_vnet);
-        writeln!(w, "\n## Winner VNET: `{winner_vnet}` ({winner_cidr}) — {winner_sub}")?;
+        writeln!(
+            w,
+            "\n## Winner VNET: `{winner_vnet}` ({winner_cidr}) — {winner_sub}"
+        )?;
 
         let excl_map = &groups[winner_vnet];
         let mut excl_names: Vec<&String> = excl_map.keys().collect();
@@ -70,7 +77,10 @@ pub fn write_duplicates_md(data: &Data, filename: &str) -> Result<(), Box<dyn Er
                 .map(|s| s.subscription_name.as_str())
                 .unwrap_or("");
 
-            writeln!(w, "\n### Duplicate VNET: `{excl_vnet}` ({excl_cidr}) — {excl_sub}")?;
+            writeln!(
+                w,
+                "\n### Duplicate VNET: `{excl_vnet}` ({excl_cidr}) — {excl_sub}"
+            )?;
             writeln!(w, "| Subnet | CIDR |")?;
             writeln!(w, "|--------|------|")?;
             for s in subnets.iter() {
@@ -111,10 +121,38 @@ mod tests {
     #[test]
     fn duplicates_md_contains_winner_and_excluded_vnet_sections() {
         let subnets = vec![
-            make_subnet("winner-vnet", "Prod Sub", "10.0.0.0/16", "10.0.0.0/24", "web-snet", None),
-            make_subnet("winner-vnet", "Prod Sub", "10.0.0.0/16", "10.0.1.0/24", "app-snet", None),
-            make_subnet("excl-vnet", "Dev Sub", "10.0.0.0/16", "10.0.0.0/24", "dup-web", Some("winner-vnet")),
-            make_subnet("excl-vnet", "Dev Sub", "10.0.0.0/16", "10.0.1.0/24", "dup-app", Some("winner-vnet")),
+            make_subnet(
+                "winner-vnet",
+                "Prod Sub",
+                "10.0.0.0/16",
+                "10.0.0.0/24",
+                "web-snet",
+                None,
+            ),
+            make_subnet(
+                "winner-vnet",
+                "Prod Sub",
+                "10.0.0.0/16",
+                "10.0.1.0/24",
+                "app-snet",
+                None,
+            ),
+            make_subnet(
+                "excl-vnet",
+                "Dev Sub",
+                "10.0.0.0/16",
+                "10.0.0.0/24",
+                "dup-web",
+                Some("winner-vnet"),
+            ),
+            make_subnet(
+                "excl-vnet",
+                "Dev Sub",
+                "10.0.0.0/16",
+                "10.0.1.0/24",
+                "dup-app",
+                Some("winner-vnet"),
+            ),
         ];
         let data = crate::azure::Data {
             count: subnets.len() as i32,
@@ -129,19 +167,33 @@ mod tests {
         let _ = std::fs::remove_file(filename);
 
         assert!(contents.contains("winner-vnet"), "must mention winner VNet");
-        assert!(contents.contains("Prod Sub"),    "must mention winner subscription");
-        assert!(contents.contains("excl-vnet"),   "must mention excluded VNet");
-        assert!(contents.contains("Dev Sub"),     "must mention excluded subscription");
-        assert!(contents.contains("dup-web"),     "must list excluded subnets");
-        assert!(contents.contains("dup-app"),     "must list excluded subnets");
-        assert!(contents.contains("10.0.0.0/24"), "must include subnet CIDRs");
+        assert!(
+            contents.contains("Prod Sub"),
+            "must mention winner subscription"
+        );
+        assert!(contents.contains("excl-vnet"), "must mention excluded VNet");
+        assert!(
+            contents.contains("Dev Sub"),
+            "must mention excluded subscription"
+        );
+        assert!(contents.contains("dup-web"), "must list excluded subnets");
+        assert!(contents.contains("dup-app"), "must list excluded subnets");
+        assert!(
+            contents.contains("10.0.0.0/24"),
+            "must include subnet CIDRs"
+        );
     }
 
     #[test]
     fn duplicates_md_no_duplicates_writes_placeholder() {
-        let subnets = vec![
-            make_subnet("only-vnet", "Prod", "10.0.0.0/16", "10.0.0.0/24", "snet", None),
-        ];
+        let subnets = vec![make_subnet(
+            "only-vnet",
+            "Prod",
+            "10.0.0.0/16",
+            "10.0.0.0/24",
+            "snet",
+            None,
+        )];
         let data = crate::azure::Data {
             count: 1,
             skip_token: None,

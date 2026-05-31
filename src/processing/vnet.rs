@@ -66,7 +66,11 @@ pub fn format_vnets(vnets: &VnetList<'_>) -> String {
             .map(|c| c.to_string())
             .collect::<Vec<_>>()
             .join(", ");
-        let subnet_count = vnet.subnets.iter().filter(|s| s.excluded_by.is_none()).count();
+        let subnet_count = vnet
+            .subnets
+            .iter()
+            .filter(|s| s.excluded_by.is_none())
+            .count();
 
         let line = format!(
             "VNET: '{}' '{}' - {} [{} subnet(s)]",
@@ -138,7 +142,13 @@ mod tests {
     use crate::azure::Data;
     use crate::models::{Ipv4, Subnet};
 
-    fn make_subnet(vnet_name: &str, sub_name: &str, vnet_cidr: &str, subnet_cidr: &str, excluded_by: Option<&str>) -> Subnet {
+    fn make_subnet(
+        vnet_name: &str,
+        sub_name: &str,
+        vnet_cidr: &str,
+        subnet_cidr: &str,
+        excluded_by: Option<&str>,
+    ) -> Subnet {
         let mut s: Subnet = Default::default();
         s.vnet_name = vnet_name.to_string();
         s.subscription_name = sub_name.to_string();
@@ -162,8 +172,20 @@ mod tests {
     #[test]
     fn excluded_vnet_appears_with_dup_reference_in_terminal_output() {
         let data = make_data(vec![
-            make_subnet("winner-vnet", "Coretex Production", "10.1.0.0/16", "10.1.1.0/24", None),
-            make_subnet("loser-vnet",  "Sandbox",            "10.1.0.0/16", "10.1.1.0/24", Some("winner-vnet")),
+            make_subnet(
+                "winner-vnet",
+                "Coretex Production",
+                "10.1.0.0/16",
+                "10.1.1.0/24",
+                None,
+            ),
+            make_subnet(
+                "loser-vnet",
+                "Sandbox",
+                "10.1.0.0/16",
+                "10.1.1.0/24",
+                Some("winner-vnet"),
+            ),
         ]);
 
         let vnets = get_vnets(&data).unwrap();
@@ -171,10 +193,22 @@ mod tests {
 
         // Strip ANSI codes for assertion
         let plain = strip_ansi(&output);
-        assert!(plain.contains("winner-vnet"), "winner must appear in output");
-        assert!(plain.contains("loser-vnet"), "excluded vnet must appear in output");
-        assert!(plain.contains("DUP of 'winner-vnet'"), "excluded must reference winner");
-        assert!(plain.contains("EXCL:"), "excluded vnet must be labeled EXCL");
+        assert!(
+            plain.contains("winner-vnet"),
+            "winner must appear in output"
+        );
+        assert!(
+            plain.contains("loser-vnet"),
+            "excluded vnet must appear in output"
+        );
+        assert!(
+            plain.contains("DUP of 'winner-vnet'"),
+            "excluded must reference winner"
+        );
+        assert!(
+            plain.contains("EXCL:"),
+            "excluded vnet must be labeled EXCL"
+        );
     }
 
     #[test]
@@ -190,8 +224,14 @@ mod tests {
 
         assert!(plain.contains("vnet-a"), "vnet-a must appear");
         assert!(plain.contains("vnet-b"), "vnet-b must appear");
-        assert!(!plain.contains("EXCL:"), "no EXCL markers for non-overlapping");
-        assert!(!plain.contains("DUP of"), "no DUP markers for non-overlapping");
+        assert!(
+            !plain.contains("EXCL:"),
+            "no EXCL markers for non-overlapping"
+        );
+        assert!(
+            !plain.contains("DUP of"),
+            "no DUP markers for non-overlapping"
+        );
     }
 
     /// Strip ANSI escape codes from a string for plain-text assertions.
@@ -210,4 +250,3 @@ mod tests {
         result
     }
 }
-

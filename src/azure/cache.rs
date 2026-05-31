@@ -54,8 +54,8 @@ pub fn read_subnet_cache_with_status(
             let data = run_az_cli_graph()?;
             log::info!("Parsed JSON data received from Azure CLI");
 
-            let json =
-                serde_json::to_string_pretty(&data).map_err(|e| format!("Error serializing JSON: {e}"))?;
+            let json = serde_json::to_string_pretty(&data)
+                .map_err(|e| format!("Error serializing JSON: {e}"))?;
             log::warn!("Writing data to cache file: {cache_file_path}");
             std::fs::write(&cache_file_path, json)
                 .map_err(|e| format!("Error writing cache file {cache_file_path}: {e}"))?;

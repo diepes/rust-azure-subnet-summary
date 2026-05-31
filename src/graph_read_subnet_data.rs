@@ -116,11 +116,9 @@ pub fn run_az_cli_graph() -> Result<Data, Box<dyn std::error::Error>> {
             data.total_records = Some(block_records);
         }
         log::info!(
-            "got block#{count_blocks_returned:2} record_count=+{obj_count:3} => {dc:3} skip_token_param='{skip_token_snippit}'",
+            "got block#{count_blocks_returned:2} record_count=+{obj_count:3} => {dc:3} skip_token_param='{skip_token_param}'",
             dc = data.count,
             obj_count = count,
-            // skip_token_snippit = format!("{}...{}", &skip_token_param[0..16], &skip_token_param[skip_token_param.len() - 3..]),
-            skip_token_snippit = format!("{}", &skip_token_param),
         );
         // pause to see output
         std::thread::sleep(std::time::Duration::from_millis(config::SLEEP_MSEC * 5));

@@ -6,23 +6,12 @@ use crate::models::{next_subnet_ipv4, num_az_hosts, Ipv4, Subnet};
 use std::net::Ipv4Addr;
 
 /// Context from the previous subnet's VNet, carried forward to identify gaps within VNets.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct PrevVnetContext {
     pub vnet_cidr: Vec<Ipv4>,
     pub vnet_name: String,
     pub subscription_name: String,
     pub subscription_id: String,
-}
-
-impl Default for PrevVnetContext {
-    fn default() -> Self {
-        Self {
-            vnet_cidr: vec![],
-            vnet_name: String::new(),
-            subscription_name: String::new(),
-            subscription_id: String::new(),
-        }
-    }
 }
 
 /// Represents a row of subnet data for output.
@@ -368,8 +357,7 @@ mod tests {
         let s = make_subnet("10.5.0.0/24", "10.5.0.0/16", "vnet-b", "snet-b");
         let start = Ipv4Addr::new(10, 0, 0, 0);
 
-        let (_, _, rows_4) =
-            process_subnet_row(&s, 0, start, PrevVnetContext::default(), 4, SKIP);
+        let (_, _, rows_4) = process_subnet_row(&s, 0, start, PrevVnetContext::default(), 4, SKIP);
         let (_, _, rows_16) =
             process_subnet_row(&s, 0, start, PrevVnetContext::default(), 16, SKIP);
 
@@ -422,8 +410,14 @@ mod tests {
             28,
             SKIP,
         );
-        let subnet_row = rows.iter().find(|r| r.j != 0).expect("should have a subnet row");
-        assert_eq!(subnet_row.gap, "GATEWAY", "GatewaySubnet must have gap = GATEWAY");
+        let subnet_row = rows
+            .iter()
+            .find(|r| r.j != 0)
+            .expect("should have a subnet row");
+        assert_eq!(
+            subnet_row.gap, "GATEWAY",
+            "GatewaySubnet must have gap = GATEWAY"
+        );
     }
 
     #[test]

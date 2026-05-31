@@ -3,7 +3,7 @@ use crate::subnet_print::SubnetPrintRow;
 use std::net::Ipv4Addr;
 
 /// Context from the previous subnet's VNet, carried forward to identify gaps within VNets.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct PrevVnetContext {
     pub vnet_cidr: Vec<Ipv4>,
     pub vnet_name: String,
@@ -11,22 +11,11 @@ pub struct PrevVnetContext {
     pub subscription_id: String,
 }
 
-impl Default for PrevVnetContext {
-    fn default() -> Self {
-        Self {
-            vnet_cidr: vec![],
-            vnet_name: String::new(),
-            subscription_name: String::new(),
-            subscription_id: String::new(),
-        }
-    }
-}
-
 // recieve previous ip and next subnet, add print rows for gap subnets and given subnet
 pub fn process_subnet_row(
     s: &crate::subnet_struct::Subnet,
     i: usize,
-    mut next_ip: Ipv4Addr,        // next ip from previous run
+    mut next_ip: Ipv4Addr,          // next ip from previous run
     prev_vnet_ctx: PrevVnetContext, // vnet context from previous run
     default_cidr_mask: u8,
     _skip_subnet_smaller_than: Ipv4Addr,

@@ -66,7 +66,11 @@ _Avoid_: network island, VNet cluster, connected component
 A VNet that contains a subnet named exactly `GatewaySubnet`. That subnet hosts an Azure VPN Gateway or ExpressRoute Gateway, giving the VNet external connectivity to on-premises networks. Identified from existing subnet query data without any additional query. Shown with a distinct external node in the peering diagram.
 _Avoid_: hub VNet (hub is a topology role, not a fixed property), gateway hub
 
-### GATEWAY row
+### Missing VNet
+A VNet referenced in a **Peering Edge** (as a remote target or source) that has no corresponding subnet records in the query results. Caused by VNets in subscriptions outside the query scope, deleted VNets with stale peering config, or cross-tenant VNets. Rendered with a dark-red node and cluster in the **Peering Diagram**, labelled `⚠ MISSING - SUB:<subscription>`.
+_Avoid_: phantom VNet, ghost VNet, unknown VNet
+
+
 A CSV row for the `GatewaySubnet` subnet inside a Gateway VNet. `gap` column = `"GATEWAY"`. All other fields are populated normally from the query result. Signals to downstream consumers that this VNet has external connectivity.
 
 ### Peering Diagram
