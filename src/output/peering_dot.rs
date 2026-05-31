@@ -10,10 +10,16 @@
 //! ```
 
 use super::peering_topology::{build_topology, node_id};
-use crate::azure::{Data, LocalGatewayRow, PeeringEdge};
+use crate::azure::{Data, LocalGatewayRow, PeeringEdge, VWanRow};
 use std::error::Error;
 use std::fs::File;
 use std::io::{BufWriter, Write};
+
+fn html_escape(s: &str) -> String {
+    s.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+}
 
 // ─── public API ─────────────────────────────────────────────────────────────
 
@@ -27,9 +33,10 @@ pub fn write_peering_dot(
     edges: &[PeeringEdge],
     subnets: &Data,
     local_gateways: &[LocalGatewayRow],
+    vwan: &[VWanRow],
     filename: &str,
 ) -> Result<(), Box<dyn Error>> {
-    let topo = build_topology(edges, subnets, local_gateways);
+    let topo = build_topology(edges, subnets, local_gateways, vwan);
 
     let file = File::create(filename)?;
     let mut w = BufWriter::new(file);
@@ -50,9 +57,17 @@ pub fn write_peering_dot(
     writeln!(w)?;
 
     // ── de-duplicate on-premises nodes ────────────────────────────────────────
+    // Build a lookup: LNG name → LocalGatewayRow (first-seen wins per LNG name).
+    let mut lng_lookup: std::collections::HashMap<&str, &LocalGatewayRow> =
+        std::collections::HashMap::new();
+    for row in local_gateways {
+        lng_lookup.entry(row.local_gw_name.as_str()).or_insert(row);
+    }
+
     // Key: sorted LNG names ("|"-joined), or "vnet__<name>" when no LNG is known.
     // Value: (lng_names, merged_cidrs, gateway_vnet_names)
-    let mut ext_map: std::collections::BTreeMap<String, (Vec<String>, Vec<String>, Vec<String>)> =
+    type ExtEntry = (Vec<String>, Vec<String>, Vec<String>);
+    let mut ext_map: std::collections::BTreeMap<String, ExtEntry> =
         std::collections::BTreeMap::new();
     for (vnet_name, meta) in &topo.vnet_meta {
         if !meta.has_gateway {
@@ -60,11 +75,13 @@ pub fn write_peering_dot(
         }
         let mut sorted_names = meta.on_prem_names.clone();
         sorted_names.sort();
-        let key = if sorted_names.is_empty() {
-            format!("vnet__{vnet_name}")
-        } else {
-            sorted_names.join("|")
-        };
+        // Skip gateway VNets that have no LNG connections — those are likely
+        // ExpressRoute or unused gateways. The GatewaySubnet line in the VNet
+        // node label already captures the subnet information.
+        if sorted_names.is_empty() {
+            continue;
+        }
+        let key = sorted_names.join("|");
         let entry = ext_map
             .entry(key)
             .or_insert_with(|| (sorted_names.clone(), Vec::new(), Vec::new()));
@@ -91,28 +108,50 @@ pub fn write_peering_dot(
     // ── top-level on-premises nodes (outside all Islands) ────────────────────
     if !ext_map.is_empty() {
         writeln!(w, "    // On-Premises nodes (outside all Islands)")?;
-        for (key, (lng_names, cidrs, gateway_vnets)) in &ext_map {
+        for (key, (lng_names, cidrs, _gateway_vnets)) in &ext_map {
             let ext_id = format!("ext_{}", sanitize_id(key));
-            let mut sorted_vnets = gateway_vnets.clone();
-            sorted_vnets.sort();
-            let gw_str = sorted_vnets.join(", ");
-            let line1 = format!("🌐 On-Premises - VnetGW:{gw_str}");
-            let label = if lng_names.is_empty() && cidrs.is_empty() {
-                line1
-            } else if lng_names.is_empty() {
-                format!("{line1}\\n{}", cidrs.join("\\n"))
-            } else {
-                let names = lng_names.join(", ");
-                let cidrs_str = cidrs.join("\\n");
-                if cidrs_str.is_empty() {
-                    format!("{line1}\\n{names}")
+            // ext_map only contains entries with non-empty lng_names (fallback was removed).
+            let mut sections: Vec<String> = Vec::new();
+            for lng_name in lng_names {
+                let mut lines: Vec<String> = vec![format!("🌐 LNG:{lng_name}")];
+                if let Some(row) = lng_lookup.get(lng_name.as_str()) {
+                    let pub_ip = if !row.gateway_ip.is_empty() {
+                        row.gateway_ip.clone()
+                    } else if !row.gateway_ips.is_empty() {
+                        row.gateway_ips.join(",")
+                    } else {
+                        String::new()
+                    };
+                    if !pub_ip.is_empty() {
+                        lines.push(format!("PubIP:{pub_ip}"));
+                    }
+                    if !row.bgp_asn.is_empty() {
+                        let bgp_line = if row.bgp_peer_ip.is_empty() {
+                            format!("BGP ASN:{}", row.bgp_asn)
+                        } else {
+                            format!("BGP ASN:{} Peer:{}", row.bgp_asn, row.bgp_peer_ip)
+                        };
+                        lines.push(bgp_line);
+                    }
+                    for cidr in &row.address_prefixes {
+                        if !cidr.is_empty() {
+                            lines.push(cidr.clone());
+                        }
+                    }
                 } else {
-                    format!("{line1}\\n{names}\\n{cidrs_str}")
+                    // No row data — use merged CIDRs from ext_map.
+                    for cidr in cidrs {
+                            if !cidr.is_empty() {
+                                lines.push(cidr.clone());
+                            }
+                        }
                 }
-            };
+                sections.push(lines.join("\\n"));
+            }
+            let label = sections.join("\\n---\\n");
             writeln!(
                 w,
-                "    {ext_id} [label=\"{label}\" shape=ellipse style=\"filled\" fillcolor=\"#c8e6c9\"]"
+                "    {ext_id} [label=\"{label}\" shape=ellipse style=\"filled\" fillcolor=\"#b3d9f7\"]"
             )?;
         }
         writeln!(w)?;
@@ -184,24 +223,11 @@ pub fn write_peering_dot(
 
             for vnet in sub_vnets {
                 let meta = topo.vnet_meta.get(*vnet);
-                let sub_name = meta.map(|m| m.subscription_name.as_str()).unwrap_or("?");
-                let cidr = meta.map(|m| m.vnet_cidr.join("\\n")).unwrap_or_default();
                 let nid = node_id(vnet);
                 let is_missing = meta.map(|m| m.missing).unwrap_or(false);
 
-                let label = if is_missing {
-                    let sub_display = if sub_name.is_empty() { "unknown" } else { sub_name };
-                    if cidr.is_empty() {
-                        format!("⚠ MISSING\\nSUB:{sub_display}\\n{vnet}")
-                    } else {
-                        format!("⚠ MISSING\\nSUB:{sub_display}\\n{vnet}\\n{cidr}")
-                    }
-                } else if cidr.is_empty() {
-                    vnet.to_string()
-                } else {
-                    format!("{vnet}\\n{cidr}")
-                };
-
+                // Missing VNets use a plain string label; present VNets use an
+                // HTML label so the VNG line can be rendered in bold red.
                 let fill = if is_missing {
                     " fillcolor=\"#cc3333\" fontcolor=\"white\""
                 } else if meta.map(|m| m.has_gateway).unwrap_or(false) {
@@ -209,12 +235,105 @@ pub fn write_peering_dot(
                 } else {
                     ""
                 };
-                writeln!(w, "            {nid} [label=\"{label}\"{fill}]")?;
+
+                if is_missing {
+                    let sub_name = meta.map(|m| m.subscription_name.as_str()).unwrap_or("?");
+                    let sub_display = if sub_name.is_empty() { "unknown" } else { sub_name };
+                    let cidr_str = meta.map(|m| m.vnet_cidr.join("\\n")).unwrap_or_default();
+                    let label = if cidr_str.is_empty() {
+                        format!("⚠ MISSING\\nSUB:{sub_display}\\n{vnet}")
+                    } else {
+                        format!("⚠ MISSING\\nSUB:{sub_display}\\n{vnet}\\n{cidr_str}")
+                    };
+                    writeln!(w, "            {nid} [label=\"{label}\"{fill}]")?;
+                } else {
+                    let cidr_str = meta
+                        .map(|m| m.vnet_cidr.join(", "))
+                        .unwrap_or_default();
+                    let mut parts: Vec<String> = vec![html_escape(&format!("VNET:{vnet}"))];
+                    if !cidr_str.is_empty() {
+                        parts.push(html_escape(&format!("CIDR:{cidr_str}")));
+                    }
+                    // Subnets sorted by IP address.
+                    let mut vnet_subnets: Vec<&crate::models::Subnet> = subnets
+                        .data
+                        .iter()
+                        .filter(|s| s.vnet_name == *vnet && s.excluded_by.is_none())
+                        .collect();
+                    vnet_subnets.sort_by_key(|s| {
+                        s.subnet_cidr
+                            .map(|c| u32::from_be_bytes(c.addr.octets()))
+                            .unwrap_or(u32::MAX)
+                    });
+                    let vng_name = meta.and_then(|m| m.vng_name.as_deref()).unwrap_or("");
+                    let vng_bgp_asn = meta.and_then(|m| m.vng_bgp_asn.as_deref()).unwrap_or("");
+                    for s in &vnet_subnets {
+                        let subnet_line = match s.subnet_cidr {
+                            Some(c) => format!("Subnet:{} CIDR:{c}", s.subnet_name),
+                            None => format!("Subnet:{}", s.subnet_name),
+                        };
+                        parts.push(html_escape(&subnet_line));
+                        if s.subnet_name.eq_ignore_ascii_case("GatewaySubnet")
+                            && !vng_name.is_empty()
+                        {
+                            let vng_line = if !vng_bgp_asn.is_empty() {
+                                format!("  └ VNG:{vng_name} BGP:ASN:{vng_bgp_asn}")
+                            } else {
+                                format!("  └ VNG:{vng_name}")
+                            };
+                            parts.push(format!(
+                                "<B><FONT COLOR=\"darkred\">{}</FONT></B>",
+                                html_escape(&vng_line)
+                            ));
+                        }
+                    }
+                    let br = "<BR ALIGN=\"LEFT\"/>";
+                    let inner = parts.join(br);
+                    writeln!(w, "            {nid} [label=<{inner}{br}>{fill}]")?;
+                }
             }
             writeln!(w, "        }}")?;
         }
 
         writeln!(w, "    }}")?;
+        writeln!(w)?;
+    }
+
+    // ── vWAN Hub nodes and spoke edges ────────────────────────────────────────
+    if !topo.vwan_hubs.is_empty() {
+        writeln!(w, "    // vWAN Hub nodes")?;
+        for hub in &topo.vwan_hubs {
+            let hub_id = format!("vwan_{}", sanitize_id(&hub.hub_name));
+            let mut label_parts = vec![format!("vWAN Hub:{}", hub.hub_name)];
+            if !hub.hub_address_prefix.is_empty() {
+                label_parts.push(format!("CIDR:{}", hub.hub_address_prefix));
+            }
+            if !hub.virtual_wan_name.is_empty() {
+                label_parts.push(format!("vWAN:{}", hub.virtual_wan_name));
+            }
+            let label = label_parts.join("\\n");
+            writeln!(
+                w,
+                "    {hub_id} [label=\"{label}\" shape=diamond style=\"filled\" fillcolor=\"#e8d5f5\" color=\"#6a0dad\" penwidth=2]"
+            )?;
+        }
+        writeln!(w)?;
+        writeln!(w, "    // Spoke VNet → vWAN Hub connections")?;
+        for hub in &topo.vwan_hubs {
+            let hub_id = format!("vwan_{}", sanitize_id(&hub.hub_name));
+            let mut spokes: Vec<&str> = hub.spoke_vnets.iter().map(|s| s.as_str()).collect();
+            spokes.sort();
+            for spoke in spokes {
+                // Only draw the edge if the spoke VNet actually appears in the diagram.
+                if topo.vnet_meta.contains_key(spoke) {
+                    writeln!(
+                        w,
+                        "    {} -> {hub_id} [dir=none color=\"#6a0dad\" penwidth=1.5]",
+                        node_id(spoke)
+                    )?;
+                }
+            }
+        }
         writeln!(w)?;
     }
 
@@ -225,7 +344,7 @@ pub fn write_peering_dot(
             vnet_to_ext.iter().map(|(&k, v)| (k, v)).collect();
         sorted_pairs.sort_by_key(|(k, _)| *k);
         for (vnet, ext_id) in sorted_pairs {
-            writeln!(w, "    {} -> {ext_id} [dir=none style=dotted]", node_id(vnet))?;
+            writeln!(w, "    {} -> {ext_id} [dir=none color=\"#1a5fa8\" penwidth=2]", node_id(vnet))?;
         }
         writeln!(w)?;
     }
@@ -294,9 +413,111 @@ mod tests {
     }
 
     #[test]
+    fn dot_vwan_hub_node_rendered() {
+        use crate::azure::VWanRow;
+        use crate::models::Subnet;
+        let mut s = Subnet::default();
+        s.vnet_name = "spoke-vnet".into();
+        s.subnet_name = "default".into();
+        s.subscription_name = "Prod Sub".into();
+        let data = Data {
+            data: vec![s],
+            count: 1,
+            skip_token: None,
+            total_records: None,
+        };
+        let vwan_row = VWanRow {
+            hub_name: "prod-hub".into(),
+            hub_address_prefix: "10.100.0.0/23".into(),
+            virtual_wan_name: "prod-vwan".into(),
+            spoke_vnet_name: "spoke-vnet".into(),
+            remote_vnet_id: arm_id("x", "spoke-vnet"),
+            ..Default::default()
+        };
+        let f = "/tmp/test-dot-vwan-hub.dot";
+        write_peering_dot(&[], &data, &[], &[vwan_row], f).unwrap();
+        let c = std::fs::read_to_string(f).unwrap();
+        std::fs::remove_file(f).ok();
+        assert!(
+            c.contains("vWAN Hub:prod-hub"),
+            "vWAN hub node must be rendered:\n{c}"
+        );
+        assert!(
+            c.contains("shape=diamond"),
+            "vWAN hub must use diamond shape:\n{c}"
+        );
+        assert!(
+            c.contains("#e8d5f5"),
+            "vWAN hub must have light purple fill:\n{c}"
+        );
+    }
+
+    #[test]
+    fn dot_vwan_spoke_to_hub_edge_rendered() {
+        use crate::azure::VWanRow;
+        use crate::models::Subnet;
+        let mut s = Subnet::default();
+        s.vnet_name = "spoke-vnet".into();
+        s.subnet_name = "default".into();
+        s.subscription_name = "Prod Sub".into();
+        let data = Data {
+            data: vec![s],
+            count: 1,
+            skip_token: None,
+            total_records: None,
+        };
+        let vwan_row = VWanRow {
+            hub_name: "prod-hub".into(),
+            hub_address_prefix: "10.100.0.0/23".into(),
+            virtual_wan_name: "prod-vwan".into(),
+            spoke_vnet_name: "spoke-vnet".into(),
+            remote_vnet_id: arm_id("x", "spoke-vnet"),
+            ..Default::default()
+        };
+        let f = "/tmp/test-dot-vwan-edge.dot";
+        write_peering_dot(&[], &data, &[], &[vwan_row], f).unwrap();
+        let c = std::fs::read_to_string(f).unwrap();
+        std::fs::remove_file(f).ok();
+        assert!(
+            c.contains("vwan_prod_hub"),
+            "Hub node ID must appear in diagram:\n{c}"
+        );
+        assert!(
+            c.contains("#6a0dad"),
+            "Spoke→hub edge must use purple colour:\n{c}"
+        );
+    }
+
+    #[test]
+    fn dot_hv_prefix_peering_not_shown_as_broken() {
+        use crate::azure::PeeringEdge;
+        // Spoke has a one-way peering to an HV_ fabric VNet (vWAN). Should NOT
+        // appear as a broken edge — it will be rendered as a vWAN hub edge instead.
+        let edges = vec![PeeringEdge {
+            vnet_name: "spoke-vnet".into(),
+            remote_vnet_id: arm_id("s1", "HV_prod-hub_abc123"),
+            peering_state: "Connected".into(),
+            subscription_name: "Prod Sub".into(),
+            ..Default::default()
+        }];
+        let f = "/tmp/test-dot-hv-hidden.dot";
+        write_peering_dot(&edges, &empty_data(), &[], &[], f).unwrap();
+        let c = std::fs::read_to_string(f).unwrap();
+        std::fs::remove_file(f).ok();
+        assert!(
+            !c.contains("broken"),
+            "HV_ peering must NOT appear as broken edge:\n{c}"
+        );
+        assert!(
+            !c.contains("HV_"),
+            "HV_ internal VNet must NOT appear as a node:\n{c}"
+        );
+    }
+
+    #[test]
     fn dot_file_starts_with_digraph() {
         let f = "/tmp/test-dot-header.dot";
-        write_peering_dot(&[], &empty_data(), &[], f).unwrap();
+        write_peering_dot(&[], &empty_data(), &[], &[], f).unwrap();
         let c = std::fs::read_to_string(f).unwrap();
         std::fs::remove_file(f).ok();
         assert!(
@@ -325,7 +546,7 @@ mod tests {
             },
         ];
         let f = "/tmp/test-dot-bidir.dot";
-        write_peering_dot(&edges, &empty_data(), &[], f).unwrap();
+        write_peering_dot(&edges, &empty_data(), &[], &[], f).unwrap();
         let c = std::fs::read_to_string(f).unwrap();
         std::fs::remove_file(f).ok();
         assert!(
@@ -343,7 +564,7 @@ mod tests {
             ..Default::default()
         }];
         let f = "/tmp/test-dot-broken.dot";
-        write_peering_dot(&edges, &empty_data(), &[], f).unwrap();
+        write_peering_dot(&edges, &empty_data(), &[], &[], f).unwrap();
         let c = std::fs::read_to_string(f).unwrap();
         std::fs::remove_file(f).ok();
         assert!(c.contains("color=red"), "Broken edge must be red:\n{c}");
@@ -354,7 +575,7 @@ mod tests {
     }
 
     #[test]
-    fn dot_node_label_includes_sub_slash_vnet() {
+    fn dot_node_label_includes_vnet_prefix() {
         let edges = vec![PeeringEdge {
             vnet_name: "my-vnet".into(),
             subscription_name: "My Sub".into(),
@@ -363,17 +584,18 @@ mod tests {
             ..Default::default()
         }];
         let f = "/tmp/test-dot-label.dot";
-        write_peering_dot(&edges, &empty_data(), &[], f).unwrap();
+        write_peering_dot(&edges, &empty_data(), &[], &[], f).unwrap();
         let c = std::fs::read_to_string(f).unwrap();
         std::fs::remove_file(f).ok();
         assert!(
-            c.contains("My Sub/my-vnet"),
-            "Node label must include Sub/VNet:\n{c}"
+            c.contains("VNET:my-vnet"),
+            "Node label must include VNET: prefix:\n{c}"
         );
     }
 
     #[test]
     fn dot_gateway_vnet_has_external_node() {
+        use crate::azure::LocalGatewayRow;
         use crate::models::Subnet;
         let mut s = Subnet::default();
         s.vnet_name = "hub-vnet".into();
@@ -385,15 +607,55 @@ mod tests {
             skip_token: None,
             total_records: None,
         };
+        let lng = LocalGatewayRow {
+            vnet_name: "hub-vnet".into(),
+            vng_name: "hub-vpngw".into(),
+            local_gw_name: "on-prem-lng".into(),
+            address_prefixes: vec!["10.0.0.0/8".into()],
+            gateway_ip: "1.2.3.4".into(),
+            ..Default::default()
+        };
         let f = "/tmp/test-dot-gateway.dot";
-        write_peering_dot(&[], &data, &[], f).unwrap();
+        write_peering_dot(&[], &data, &[lng], &[], f).unwrap();
         let c = std::fs::read_to_string(f).unwrap();
         std::fs::remove_file(f).ok();
         assert!(
-            c.contains("On-Premises") || c.contains("External"),
-            "Gateway VNet must have external node:\n{c}"
+            c.contains("shape=ellipse"),
+            "Gateway VNet with LNG must have external ellipse node:\n{c}"
+        );
+        assert!(
+            c.contains("LNG:on-prem-lng"),
+            "Ext node must show LNG: prefix:\n{c}"
         );
         assert!(c.contains("hub-vnet"), "hub-vnet must appear:\n{c}");
+    }
+
+    #[test]
+    fn dot_gateway_vnet_no_lng_has_no_external_node() {
+        use crate::models::Subnet;
+        let mut s = Subnet::default();
+        s.vnet_name = "hub-vnet".into();
+        s.subnet_name = "GatewaySubnet".into();
+        s.subscription_name = "Prod Sub".into();
+        let data = Data {
+            data: vec![s],
+            count: 1,
+            skip_token: None,
+            total_records: None,
+        };
+        let f = "/tmp/test-dot-gateway-no-lng.dot";
+        write_peering_dot(&[], &data, &[], &[], f).unwrap();
+        let c = std::fs::read_to_string(f).unwrap();
+        std::fs::remove_file(f).ok();
+        assert!(
+            !c.contains("shape=ellipse"),
+            "Gateway VNet with no LNG must NOT have external ellipse node:\n{c}"
+        );
+        assert!(c.contains("hub-vnet"), "hub-vnet must still appear:\n{c}");
+        assert!(
+            c.contains("GatewaySubnet"),
+            "GatewaySubnet must appear in VNet label:\n{c}"
+        );
     }
 
     #[test]
@@ -410,7 +672,7 @@ mod tests {
             total_records: None,
         };
         let f = "/tmp/test-dot-standalone.dot";
-        write_peering_dot(&[], &data, &[], f).unwrap();
+        write_peering_dot(&[], &data, &[], &[], f).unwrap();
         let c = std::fs::read_to_string(f).unwrap();
         std::fs::remove_file(f).ok();
         assert!(

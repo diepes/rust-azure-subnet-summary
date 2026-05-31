@@ -6,7 +6,7 @@
 use azure_subnet_summary::{
     azure::{
         read_local_gateway_cache_with_status, read_peering_cache_with_status,
-        LocalGatewayCacheResult, PeeringCacheResult,
+        read_vwan_cache_with_status, LocalGatewayCacheResult, PeeringCacheResult, VWanCacheResult,
     },
     check_for_duplicate_subnets, get_sorted_subnets_with_status,
     output::{subnet_print, write_duplicates_md, write_peering_diagram, write_peering_dot},
@@ -171,9 +171,26 @@ fn main() -> Result<(), Box<dyn Error>> {
         log::info!("Local gateway data fetched from Azure (cache '{lgw_cache_file}')");
     }
 
+    let VWanCacheResult {
+        data: vwan_data,
+        from_cache: vwan_from_cache,
+        cache_file: vwan_cache_file,
+    } = read_vwan_cache_with_status(None)?;
+    if vwan_from_cache {
+        log::info!("vWAN data read from cache '{vwan_cache_file}'");
+    } else {
+        log::info!("vWAN data fetched from Azure (cache '{vwan_cache_file}')");
+    }
+
     if diagram_types.contains("md") {
         let peering_file = format!("subnets-{date_str}-peering.md");
-        write_peering_diagram(&peering_data.data, &data, &local_gw_data.data, &peering_file)?;
+        write_peering_diagram(
+            &peering_data.data,
+            &data,
+            &local_gw_data.data,
+            &vwan_data.data,
+            &peering_file,
+        )?;
         log::info!("Peering diagram written to '{peering_file}' from {peering_source}");
     }
 
@@ -183,6 +200,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             &peering_data.data,
             &data,
             &local_gw_data.data,
+            &vwan_data.data,
             &peering_dot_file,
         )?;
         log::info!("Peering DOT diagram written to '{peering_dot_file}'");

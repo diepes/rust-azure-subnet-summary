@@ -7,7 +7,7 @@
 //! dense graphs.
 
 use super::peering_topology::{build_topology, node_id};
-use crate::azure::{Data, LocalGatewayRow, PeeringEdge};
+use crate::azure::{Data, LocalGatewayRow, PeeringEdge, VWanRow};
 use std::collections::HashSet;
 use std::error::Error;
 use std::fs::File;
@@ -20,14 +20,16 @@ use std::io::{BufWriter, Write};
 /// * `edges`          – directed peering edges from Azure Resource Graph
 /// * `subnets`        – raw subnet data (used to find CIDR, subscription names, GatewaySubnets)
 /// * `local_gateways` – Local Network Gateway rows (on-premises CIDRs per gateway VNet)
+/// * `vwan`           – Virtual WAN hub connection rows
 /// * `filename`       – output path for the `.md` file
 pub fn write_peering_diagram(
     edges: &[PeeringEdge],
     subnets: &Data,
     local_gateways: &[LocalGatewayRow],
+    vwan: &[VWanRow],
     filename: &str,
 ) -> Result<(), Box<dyn Error>> {
-    let topo = build_topology(edges, subnets, local_gateways);
+    let topo = build_topology(edges, subnets, local_gateways, vwan);
 
     let file = File::create(filename)?;
     let mut w = BufWriter::new(file);
@@ -176,7 +178,7 @@ mod tests {
             ..Default::default()
         }];
         let f = "/tmp/test-mermaid-elk.md";
-        write_peering_diagram(&edges, &empty_data(), &[], f).unwrap();
+        write_peering_diagram(&edges, &empty_data(), &[], &[], f).unwrap();
         let c = std::fs::read_to_string(f).unwrap();
         std::fs::remove_file(f).ok();
         assert!(
@@ -204,7 +206,7 @@ mod tests {
             },
         ];
         let f = "/tmp/test-peering-bidir.md";
-        write_peering_diagram(&edges, &empty_data(), &[], f).unwrap();
+        write_peering_diagram(&edges, &empty_data(), &[], &[], f).unwrap();
         let c = std::fs::read_to_string(f).unwrap();
         std::fs::remove_file(f).ok();
         assert!(
@@ -222,7 +224,7 @@ mod tests {
             ..Default::default()
         }];
         let f = "/tmp/test-peering-broken.md";
-        write_peering_diagram(&edges, &empty_data(), &[], f).unwrap();
+        write_peering_diagram(&edges, &empty_data(), &[], &[], f).unwrap();
         let c = std::fs::read_to_string(f).unwrap();
         std::fs::remove_file(f).ok();
         assert!(c.contains("--x"), "Expected --x stop arrow:\n{c}");
@@ -239,7 +241,7 @@ mod tests {
             ..Default::default()
         }];
         let f = "/tmp/test-peering-label.md";
-        write_peering_diagram(&edges, &empty_data(), &[], f).unwrap();
+        write_peering_diagram(&edges, &empty_data(), &[], &[], f).unwrap();
         let c = std::fs::read_to_string(f).unwrap();
         std::fs::remove_file(f).ok();
         assert!(
@@ -262,7 +264,7 @@ mod tests {
             total_records: None,
         };
         let f = "/tmp/test-peering-gateway.md";
-        write_peering_diagram(&[], &data, &[], f).unwrap();
+        write_peering_diagram(&[], &data, &[], &[], f).unwrap();
         let c = std::fs::read_to_string(f).unwrap();
         std::fs::remove_file(f).ok();
         assert!(
@@ -286,7 +288,7 @@ mod tests {
             total_records: None,
         };
         let f = "/tmp/test-peering-standalone.md";
-        write_peering_diagram(&[], &data, &[], f).unwrap();
+        write_peering_diagram(&[], &data, &[], &[], f).unwrap();
         let c = std::fs::read_to_string(f).unwrap();
         std::fs::remove_file(f).ok();
         assert!(c.contains("subgraph"), "Must have subgraph:\n{c}");

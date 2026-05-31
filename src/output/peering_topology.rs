@@ -3,7 +3,7 @@
 //! Parses raw `PeeringEdge` + subnet `Data` into a `PeeringTopology` that both
 //! the Mermaid and Graphviz DOT writers consume.
 
-use crate::azure::{Data, LocalGatewayRow, PeeringEdge};
+use crate::azure::{Data, LocalGatewayRow, PeeringEdge, VWanRow};
 use std::collections::{HashMap, HashSet, VecDeque};
 
 // ─── public types ────────────────────────────────────────────────────────────
@@ -21,6 +21,10 @@ pub(super) struct VNetMeta {
     pub on_prem_names: Vec<String>,
     /// Deduplicated on-premises CIDRs from all connected Local Network Gateways.
     pub on_prem_cidrs: Vec<String>,
+    /// Name of the VPN Gateway resource hosted in this VNet's GatewaySubnet (None if not a Gateway VNet).
+    pub vng_name: Option<String>,
+    /// BGP ASN of the Azure VPN Gateway (None if BGP disabled or not a Gateway VNet).
+    pub vng_bgp_asn: Option<String>,
 }
 
 /// A resolved broken directed edge `(from, to)`.
@@ -31,6 +35,19 @@ pub(super) struct VNetMeta {
 pub(super) struct BrokenEdge {
     pub from: String,
     pub to: String,
+}
+
+/// Metadata for a Virtual WAN Hub node.
+#[derive(Debug, Clone)]
+pub(super) struct VWanHub {
+    /// Hub resource name (e.g. `p-aue-platform-hub`).
+    pub hub_name: String,
+    /// Hub address prefix / CIDR (e.g. `10.100.0.0/23`).
+    pub hub_address_prefix: String,
+    /// Parent Virtual WAN resource name.
+    pub virtual_wan_name: String,
+    /// Sorted list of spoke VNet names connected to this hub.
+    pub spoke_vnets: Vec<String>,
 }
 
 /// Pre-processed peering topology ready for rendering.
@@ -45,6 +62,11 @@ pub(super) struct PeeringTopology {
     pub islands: Vec<Vec<String>>,
     /// VNet name → island index.
     pub island_id: HashMap<String, usize>,
+    /// vWAN Hub nodes (rendered outside all islands).
+    pub vwan_hubs: Vec<VWanHub>,
+    /// spoke VNet name → hub name (for edge rendering).
+    #[allow(dead_code)]
+    pub vwan_spoke_to_hub: HashMap<String, String>,
 }
 
 // ─── builder ─────────────────────────────────────────────────────────────────
@@ -54,6 +76,7 @@ pub(super) fn build_topology(
     edges: &[PeeringEdge],
     subnets: &Data,
     local_gateways: &[LocalGatewayRow],
+    vwan: &[VWanRow],
 ) -> PeeringTopology {
     // --- 1. VNet metadata from subnet data ---
     let mut vnet_meta: HashMap<String, VNetMeta> = HashMap::new();
@@ -67,6 +90,8 @@ pub(super) fn build_topology(
                 missing: false,
                 on_prem_names: Vec::new(),
                 on_prem_cidrs: Vec::new(),
+                vng_name: None,
+                vng_bgp_asn: None,
             });
         if s.subnet_name == "GatewaySubnet" {
             entry.has_gateway = true;
@@ -74,6 +99,7 @@ pub(super) fn build_topology(
     }
 
     // --- 2. Fill in VNets that only appear in peering edges ---
+    // Skip Azure-internal vWAN Hub VNets (HV_ prefix) — they are handled separately.
     for edge in edges {
         vnet_meta
             .entry(edge.vnet_name.clone())
@@ -86,9 +112,12 @@ pub(super) fn build_topology(
                 missing: false,
                 on_prem_names: Vec::new(),
                 on_prem_cidrs: Vec::new(),
+                vng_name: None,
+                vng_bgp_asn: None,
             });
         let remote = edge.remote_vnet_name().to_string();
-        if !remote.is_empty() {
+        // HV_* names are Azure-managed vWAN Hub fabric VNets — not real queryable VNets.
+        if !remote.is_empty() && !remote.starts_with("HV_") {
             vnet_meta.entry(remote).or_insert_with(|| VNetMeta {
                 // Best available identifier for a remote-only VNet is the sub ID from the ARM path
                 subscription_name: edge.remote_subscription_id().to_string(),
@@ -97,6 +126,8 @@ pub(super) fn build_topology(
                 missing: true,
                 on_prem_names: Vec::new(),
                 on_prem_cidrs: Vec::new(),
+                vng_name: None,
+                vng_bgp_asn: None,
             });
         }
     }
@@ -114,14 +145,48 @@ pub(super) fn build_topology(
                     meta.on_prem_cidrs.push(cidr.clone());
                 }
             }
+            // Populate VNG fields from the first row that has them (same VNG across all LNG rows).
+            if meta.vng_name.is_none() && !row.vng_name.is_empty() {
+                meta.vng_name = Some(row.vng_name.clone());
+            }
+            if meta.vng_bgp_asn.is_none() && !row.vng_bgp_asn.is_empty() {
+                meta.vng_bgp_asn = Some(row.vng_bgp_asn.clone());
+            }
         }
     }
 
-    // --- 4. Categorise edges ---
+    // --- 4. Populate vWAN hub topology ---
+    // Build spoke_to_hub and collect hub metadata.
+    let mut vwan_spoke_to_hub: HashMap<String, String> = HashMap::new();
+    let mut hub_map: std::collections::BTreeMap<String, VWanHub> =
+        std::collections::BTreeMap::new();
+    for row in vwan {
+        vwan_spoke_to_hub
+            .entry(row.spoke_vnet_name.clone())
+            .or_insert_with(|| row.hub_name.clone());
+        let hub = hub_map
+            .entry(row.hub_name.clone())
+            .or_insert_with(|| VWanHub {
+                hub_name: row.hub_name.clone(),
+                hub_address_prefix: row.hub_address_prefix.clone(),
+                virtual_wan_name: row.virtual_wan_name.clone(),
+                spoke_vnets: Vec::new(),
+            });
+        if !hub.spoke_vnets.contains(&row.spoke_vnet_name) {
+            hub.spoke_vnets.push(row.spoke_vnet_name.clone());
+        }
+    }
+    for hub in hub_map.values_mut() {
+        hub.spoke_vnets.sort();
+    }
+    let vwan_hubs: Vec<VWanHub> = hub_map.into_values().collect();
+
+    // --- 5. Categorise edges ---
     let mut connection_counts: HashMap<(String, String), usize> = HashMap::new();
     for edge in edges.iter().filter(|e| e.is_connected()) {
         let remote = edge.remote_vnet_name().to_string();
-        if !remote.is_empty() {
+        // Exclude HV_* vWAN fabric VNets from bidir pair counting.
+        if !remote.is_empty() && !remote.starts_with("HV_") {
             *connection_counts
                 .entry(canonical_pair(&edge.vnet_name, &remote))
                 .or_insert(0) += 1;
@@ -133,12 +198,14 @@ pub(super) fn build_topology(
         .map(|(p, _)| p)
         .collect();
 
-    // Broken edges: deduplicated, direction resolved (Connected side is `from`)
+    // Broken edges: deduplicated, direction resolved (Connected side is `from`).
+    // Edges to HV_* (vWAN Hub fabric) or to known vWAN spokes are skipped — they
+    // are rendered separately as vWAN hub edges.
     let mut seen_broken: HashSet<(String, String)> = HashSet::new();
     let mut broken_edges: Vec<BrokenEdge> = Vec::new();
     for edge in edges {
         let remote = edge.remote_vnet_name().to_string();
-        if remote.is_empty() {
+        if remote.is_empty() || remote.starts_with("HV_") {
             continue;
         }
         let pair = canonical_pair(&edge.vnet_name, &remote);
@@ -158,7 +225,7 @@ pub(super) fn build_topology(
         broken_edges.push(BrokenEdge { from, to });
     }
 
-    // --- 5. Connected components via BFS over bidir pairs ---
+    // --- 6. Connected components via BFS over bidir pairs ---
     let mut adjacency: HashMap<String, Vec<String>> = HashMap::new();
     for (a, b) in &bidir_pairs {
         adjacency.entry(a.clone()).or_default().push(b.clone());
@@ -202,6 +269,8 @@ pub(super) fn build_topology(
         broken_edges,
         islands,
         island_id,
+        vwan_hubs,
+        vwan_spoke_to_hub,
     }
 }
 

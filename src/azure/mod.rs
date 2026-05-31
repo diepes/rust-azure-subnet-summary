@@ -12,6 +12,8 @@ mod local_gateway;
 mod local_gateway_cache;
 mod peering_cache;
 mod peering_graph;
+mod vwan_cache;
+mod vwan_graph;
 
 // Re-export public types and functions
 pub use cache::{read_subnet_cache, read_subnet_cache_with_status, CacheResult};
@@ -23,3 +25,5 @@ pub use local_gateway_cache::{
 };
 pub use peering_cache::{read_peering_cache, read_peering_cache_with_status, PeeringCacheResult};
 pub use peering_graph::{PeeringData, PeeringEdge};
+pub use vwan_cache::{read_vwan_cache, read_vwan_cache_with_status, VWanCacheResult};
+pub use vwan_graph::{VWanData, VWanRow};

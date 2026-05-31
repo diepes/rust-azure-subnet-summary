@@ -77,9 +77,19 @@ A CSV row for the `GatewaySubnet` subnet inside a Gateway VNet. `gap` column = `
 A diagram showing all VNets as labelled nodes grouped by **Subscription Island**. Produced in two formats:
 
 - **Mermaid** (`subnets-YYYY-MM-DD-peering.md`): Node labels use `SubscriptionName/VNetName` with the CIDR on a second line. VNets are grouped into `subgraph` blocks by Subscription Island.
-- **Graphviz DOT** (`subnets-YYYY-MM-DD-peering.dot`): Node labels use `VNetName` with the CIDR on a second line. Each Subscription Island cluster contains nested per-**Subscription** sub-clusters (white fill, dashed border). The 🌐 On-Premises node for Gateway VNets is placed at the Island level, outside the subscription sub-clusters.
+- **Graphviz DOT** (`subnets-YYYY-MM-DD-peering.dot`): Node labels use `VNET:<name>` with `CIDR:<cidr>` on a second line, followed by one line per subnet (`Subnet:<name> CIDR:<cidr>`). The `GatewaySubnet` line is annotated with `VNG:<vpn-gateway-name>` and `BGP:ASN:<asn>` when applicable. Each Subscription Island cluster contains nested per-**Subscription** sub-clusters (white fill, dashed border).
 
-Gateway VNets have an additional external node attached to represent on-premises connectivity. Standalone VNets (no peerings) appear as single-node subgraphs.
+**On-Premises (LNG) nodes** — placed at the top level, outside all Island clusters. One node per distinct set of Local Network Gateways. Label format:
+```
+🌐 LNG:<name>
+PubIP:<ip>           (omitted if unknown)
+BGP ASN:<asn> Peer:<ip>   (omitted if BGP disabled)
+<cidr>
+...
+```
+When a gateway VNet has no LNG data, the fallback label is `🌐 GatewaySubnet: <vnet-name>`.
+
+Gateway VNets have a dotted edge to their LNG node. Standalone VNets (no peerings) appear as single-node subgraphs.
 
 Edge rendering rules:
 - **Both sides `Connected`** → single bidirectional arrow (`A <--> B`)
