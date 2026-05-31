@@ -49,6 +49,75 @@ pub fn write_peering_dot(
     writeln!(w, "    edge  [fontname=\"Helvetica\" fontsize=10]")?;
     writeln!(w)?;
 
+    // ── de-duplicate on-premises nodes ────────────────────────────────────────
+    // Key: sorted LNG names ("|"-joined), or "vnet__<name>" when no LNG is known.
+    // Value: (lng_names, merged_cidrs, gateway_vnet_names)
+    let mut ext_map: std::collections::BTreeMap<String, (Vec<String>, Vec<String>, Vec<String>)> =
+        std::collections::BTreeMap::new();
+    for (vnet_name, meta) in &topo.vnet_meta {
+        if !meta.has_gateway {
+            continue;
+        }
+        let mut sorted_names = meta.on_prem_names.clone();
+        sorted_names.sort();
+        let key = if sorted_names.is_empty() {
+            format!("vnet__{vnet_name}")
+        } else {
+            sorted_names.join("|")
+        };
+        let entry = ext_map
+            .entry(key)
+            .or_insert_with(|| (sorted_names.clone(), Vec::new(), Vec::new()));
+        for cidr in &meta.on_prem_cidrs {
+            if !entry.1.contains(cidr) {
+                entry.1.push(cidr.clone());
+            }
+        }
+        if !entry.2.contains(vnet_name) {
+            entry.2.push(vnet_name.clone());
+        }
+    }
+
+    // Reverse map: gateway VNet name → ext node id (used when emitting edges).
+    let mut vnet_to_ext: std::collections::HashMap<&str, String> =
+        std::collections::HashMap::new();
+    for (key, (_, _, vnets)) in &ext_map {
+        let ext_id = format!("ext_{}", sanitize_id(key));
+        for v in vnets {
+            vnet_to_ext.insert(v.as_str(), ext_id.clone());
+        }
+    }
+
+    // ── top-level on-premises nodes (outside all Islands) ────────────────────
+    if !ext_map.is_empty() {
+        writeln!(w, "    // On-Premises nodes (outside all Islands)")?;
+        for (key, (lng_names, cidrs, gateway_vnets)) in &ext_map {
+            let ext_id = format!("ext_{}", sanitize_id(key));
+            let mut sorted_vnets = gateway_vnets.clone();
+            sorted_vnets.sort();
+            let gw_str = sorted_vnets.join(", ");
+            let line1 = format!("🌐 On-Premises - VnetGW:{gw_str}");
+            let label = if lng_names.is_empty() && cidrs.is_empty() {
+                line1
+            } else if lng_names.is_empty() {
+                format!("{line1}\\n{}", cidrs.join("\\n"))
+            } else {
+                let names = lng_names.join(", ");
+                let cidrs_str = cidrs.join("\\n");
+                if cidrs_str.is_empty() {
+                    format!("{line1}\\n{names}")
+                } else {
+                    format!("{line1}\\n{names}\\n{cidrs_str}")
+                }
+            };
+            writeln!(
+                w,
+                "    {ext_id} [label=\"{label}\" shape=ellipse style=\"filled\" fillcolor=\"#c8e6c9\"]"
+            )?;
+        }
+        writeln!(w)?;
+    }
+
     // ── subgraphs (Subscription Islands) ─────────────────────────────────────
     for (island_num, vnets) in topo.islands.iter().enumerate() {
         let all_missing = vnets
@@ -87,60 +156,77 @@ pub fn write_peering_dot(
         )?;
         writeln!(w, "        fontname=\"Helvetica\" fontsize=12")?;
 
+        // ── subscription sub-clusters (inner boxes) ───────────────────────────
+        // Group VNets by subscription name, preserving alphabetical order.
+        let mut by_sub: std::collections::BTreeMap<&str, Vec<&str>> =
+            std::collections::BTreeMap::new();
         for vnet in vnets {
-            let meta = topo.vnet_meta.get(vnet);
-            let sub = meta.map(|m| m.subscription_name.as_str()).unwrap_or("?");
-            let cidr = meta.map(|m| m.vnet_cidr.join("\\n")).unwrap_or_default();
-            let nid = node_id(vnet);
-            let is_missing = meta.map(|m| m.missing).unwrap_or(false);
-
-            let label = if is_missing {
-                let sub_display = if sub.is_empty() { "unknown" } else { sub };
-                if cidr.is_empty() {
-                    format!("⚠ MISSING\\nSUB:{sub_display}\\n{vnet}")
-                } else {
-                    format!("⚠ MISSING\\nSUB:{sub_display}\\n{vnet}\\n{cidr}")
-                }
-            } else if cidr.is_empty() {
-                format!("{sub}/{vnet}")
-            } else {
-                format!("{sub}/{vnet}\\n{cidr}")
-            };
-
-            let fill = if is_missing {
-                " fillcolor=\"#cc3333\" fontcolor=\"white\""
-            } else if meta.map(|m| m.has_gateway).unwrap_or(false) {
-                " fillcolor=\"#fff3b0\""
-            } else {
-                ""
-            };
-            writeln!(w, "        {nid} [label=\"{label}\"{fill}]")?;
-
-            if meta.map(|m| m.has_gateway).unwrap_or(false) {
-                let ext = format!("{nid}_ext");
-                let on_prem_label = meta
-                    .map(|m| {
-                        if m.on_prem_names.is_empty() {
-                            "External\\nOn-Premises".to_string()
-                        } else {
-                            let names = m.on_prem_names.join(", ");
-                            let cidrs = m.on_prem_cidrs.join("\\n");
-                            if cidrs.is_empty() {
-                                format!("On-Premises\\n{names}")
-                            } else {
-                                format!("On-Premises\\n{names}\\n{cidrs}")
-                            }
-                        }
-                    })
-                    .unwrap_or_else(|| "External\\nOn-Premises".to_string());
-                writeln!(
-                    w,
-                    "        {ext} [label=\"{on_prem_label}\" shape=ellipse style=\"filled\" fillcolor=\"#c8e6c9\"]"
-                )?;
-                writeln!(w, "        {nid} -> {ext} [dir=none style=dotted]")?;
-            }
+            let sub = topo
+                .vnet_meta
+                .get(vnet)
+                .map(|m| m.subscription_name.as_str())
+                .unwrap_or("");
+            by_sub.entry(sub).or_default().push(vnet.as_str());
         }
+
+        for (sub_idx, (sub, sub_vnets)) in by_sub.iter().enumerate() {
+            let sub_label = if sub.is_empty() { "unknown" } else { sub };
+            writeln!(
+                w,
+                "        subgraph cluster_sub_{island_num}_{sub_idx} {{"
+            )?;
+            writeln!(w, "            label=\"{sub_label}\"")?;
+            writeln!(
+                w,
+                "            style=\"filled,dashed\" fillcolor=\"white\" color=\"#666666\""
+            )?;
+            writeln!(w, "            fontname=\"Helvetica\" fontsize=11")?;
+
+            for vnet in sub_vnets {
+                let meta = topo.vnet_meta.get(*vnet);
+                let sub_name = meta.map(|m| m.subscription_name.as_str()).unwrap_or("?");
+                let cidr = meta.map(|m| m.vnet_cidr.join("\\n")).unwrap_or_default();
+                let nid = node_id(vnet);
+                let is_missing = meta.map(|m| m.missing).unwrap_or(false);
+
+                let label = if is_missing {
+                    let sub_display = if sub_name.is_empty() { "unknown" } else { sub_name };
+                    if cidr.is_empty() {
+                        format!("⚠ MISSING\\nSUB:{sub_display}\\n{vnet}")
+                    } else {
+                        format!("⚠ MISSING\\nSUB:{sub_display}\\n{vnet}\\n{cidr}")
+                    }
+                } else if cidr.is_empty() {
+                    vnet.to_string()
+                } else {
+                    format!("{vnet}\\n{cidr}")
+                };
+
+                let fill = if is_missing {
+                    " fillcolor=\"#cc3333\" fontcolor=\"white\""
+                } else if meta.map(|m| m.has_gateway).unwrap_or(false) {
+                    " fillcolor=\"#fff3b0\""
+                } else {
+                    ""
+                };
+                writeln!(w, "            {nid} [label=\"{label}\"{fill}]")?;
+            }
+            writeln!(w, "        }}")?;
+        }
+
         writeln!(w, "    }}")?;
+        writeln!(w)?;
+    }
+
+    // ── gateway VNet → on-premises edges ─────────────────────────────────────
+    if !vnet_to_ext.is_empty() {
+        writeln!(w, "    // Gateway VNet → On-Premises connections")?;
+        let mut sorted_pairs: Vec<(&str, &String)> =
+            vnet_to_ext.iter().map(|(&k, v)| (k, v)).collect();
+        sorted_pairs.sort_by_key(|(k, _)| *k);
+        for (vnet, ext_id) in sorted_pairs {
+            writeln!(w, "    {} -> {ext_id} [dir=none style=dotted]", node_id(vnet))?;
+        }
         writeln!(w)?;
     }
 
@@ -177,6 +263,13 @@ pub fn write_peering_dot(
 const ISLAND_COLOURS: &[&str] = &[
     "#f0f4ff", "#fff8f0", "#f0fff4", "#fff0f4", "#f4f0ff", "#f0ffff", "#fffff0",
 ];
+
+/// Sanitise an arbitrary string for use as a Graphviz node/cluster identifier.
+fn sanitize_id(s: &str) -> String {
+    s.chars()
+        .map(|c| if c.is_alphanumeric() { c } else { '_' })
+        .collect()
+}
 
 // ─── tests ──────────────────────────────────────────────────────────────────
 

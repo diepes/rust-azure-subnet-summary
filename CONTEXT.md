@@ -74,7 +74,12 @@ _Avoid_: phantom VNet, ghost VNet, unknown VNet
 A CSV row for the `GatewaySubnet` subnet inside a Gateway VNet. `gap` column = `"GATEWAY"`. All other fields are populated normally from the query result. Signals to downstream consumers that this VNet has external connectivity.
 
 ### Peering Diagram
-A Mermaid diagram file (`subnets-YYYY-MM-DD-peering.md`) showing all VNets as labelled nodes. Each node label uses the format `SubscriptionName/VNetName` with the CIDR on a second line. VNets are grouped into `subgraph` blocks by Subscription Island. Gateway VNets have an additional external node attached to represent on-premises connectivity. Standalone VNets (no peerings) appear as single-node subgraphs.
+A diagram showing all VNets as labelled nodes grouped by **Subscription Island**. Produced in two formats:
+
+- **Mermaid** (`subnets-YYYY-MM-DD-peering.md`): Node labels use `SubscriptionName/VNetName` with the CIDR on a second line. VNets are grouped into `subgraph` blocks by Subscription Island.
+- **Graphviz DOT** (`subnets-YYYY-MM-DD-peering.dot`): Node labels use `VNetName` with the CIDR on a second line. Each Subscription Island cluster contains nested per-**Subscription** sub-clusters (white fill, dashed border). The 🌐 On-Premises node for Gateway VNets is placed at the Island level, outside the subscription sub-clusters.
+
+Gateway VNets have an additional external node attached to represent on-premises connectivity. Standalone VNets (no peerings) appear as single-node subgraphs.
 
 Edge rendering rules:
 - **Both sides `Connected`** → single bidirectional arrow (`A <--> B`)
