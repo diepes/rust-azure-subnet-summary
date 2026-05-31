@@ -9,7 +9,7 @@
 //! # or open in VSCode with the "Graphviz Preview" extension
 //! ```
 
-use super::peering_topology::{build_topology, node_id};
+use super::peering_topology::{build_topology, node_id, VWanHub};
 use crate::azure::{Data, LocalGatewayRow, PeeringEdge, VWanRow};
 use std::error::Error;
 use std::fs::File;
@@ -158,6 +158,18 @@ pub fn write_peering_dot(
     }
 
     // ── subgraphs (Subscription Islands) ─────────────────────────────────────
+    // Pre-compute which island each vWAN hub belongs to (determined by its spokes).
+    let hub_island: std::collections::HashMap<&str, usize> = topo
+        .vwan_hubs
+        .iter()
+        .filter_map(|hub| {
+            hub.spoke_vnets
+                .iter()
+                .find_map(|s| topo.island_id.get(s.as_str()))
+                .map(|&idx| (hub.hub_name.as_str(), idx))
+        })
+        .collect();
+
     for (island_num, vnets) in topo.islands.iter().enumerate() {
         let all_missing = vnets
             .iter()
@@ -295,40 +307,67 @@ pub fn write_peering_dot(
             writeln!(w, "        }}")?;
         }
 
+        // ── vWAN Hub sub-clusters for this island ─────────────────────────────
+        // Collect hubs that belong to this island, grouped by subscription.
+        let mut hubs_by_sub: std::collections::BTreeMap<&str, Vec<&VWanHub>> =
+            std::collections::BTreeMap::new();
+        for hub in &topo.vwan_hubs {
+            if hub_island.get(hub.hub_name.as_str()) == Some(&island_num) {
+                let sub = hub.subscription_name.as_str();
+                hubs_by_sub.entry(sub).or_default().push(hub);
+            }
+        }
+        for (hub_sub_idx, (sub, hubs)) in hubs_by_sub.iter().enumerate() {
+            let sub_label = if sub.is_empty() { "unknown" } else { sub };
+            writeln!(
+                w,
+                "        subgraph cluster_hubsub_{island_num}_{hub_sub_idx} {{"
+            )?;
+            writeln!(w, "            label=\"{sub_label}\"")?;
+            writeln!(
+                w,
+                "            style=\"filled,dashed\" fillcolor=\"white\" color=\"#666666\""
+            )?;
+            writeln!(w, "            fontname=\"Helvetica\" fontsize=11")?;
+            for hub in hubs.iter() {
+                write_hub_node(&mut w, hub)?;
+            }
+            writeln!(w, "        }}")?;
+        }
+
         writeln!(w, "    }}")?;
         writeln!(w)?;
     }
 
-    // ── vWAN Hub nodes and spoke edges ────────────────────────────────────────
-    if !topo.vwan_hubs.is_empty() {
-        writeln!(w, "    // vWAN Hub nodes")?;
-        for hub in &topo.vwan_hubs {
-            let hub_id = format!("vwan_{}", sanitize_id(&hub.hub_name));
-            let mut label_parts = vec![format!("vWAN Hub:{}", hub.hub_name)];
-            if !hub.hub_address_prefix.is_empty() {
-                label_parts.push(format!("CIDR:{}", hub.hub_address_prefix));
-            }
-            if !hub.virtual_wan_name.is_empty() {
-                label_parts.push(format!("vWAN:{}", hub.virtual_wan_name));
-            }
-            let label = label_parts.join("\\n");
-            writeln!(
-                w,
-                "    {hub_id} [label=\"{label}\" shape=diamond style=\"filled\" fillcolor=\"#e8d5f5\" color=\"#6a0dad\" penwidth=2]"
-            )?;
+    // ── vWAN hubs with no island (orphan hubs) ────────────────────────────────
+    // Hubs not associated with any island (no known spokes in diagram) are
+    // rendered outside all clusters so they are still visible.
+    let orphan_hubs: Vec<&VWanHub> = topo
+        .vwan_hubs
+        .iter()
+        .filter(|h| !hub_island.contains_key(h.hub_name.as_str()))
+        .collect();
+    if !orphan_hubs.is_empty() {
+        writeln!(w, "    // Orphan vWAN Hub nodes (no spokes in diagram)")?;
+        for hub in orphan_hubs {
+            write_hub_node(&mut w, hub)?;
         }
         writeln!(w)?;
+    }
+
+    // ── Spoke VNet → vWAN Hub edges ───────────────────────────────────────────
+    if !topo.vwan_hubs.is_empty() {
         writeln!(w, "    // Spoke VNet → vWAN Hub connections")?;
         for hub in &topo.vwan_hubs {
             let hub_id = format!("vwan_{}", sanitize_id(&hub.hub_name));
+            let edge_color = if hub.validated { "#6a0dad" } else { "#cc6600" };
             let mut spokes: Vec<&str> = hub.spoke_vnets.iter().map(|s| s.as_str()).collect();
             spokes.sort();
             for spoke in spokes {
-                // Only draw the edge if the spoke VNet actually appears in the diagram.
                 if topo.vnet_meta.contains_key(spoke) {
                     writeln!(
                         w,
-                        "    {} -> {hub_id} [dir=none color=\"#6a0dad\" penwidth=1.5]",
+                        "    {} -> {hub_id} [dir=none color=\"{edge_color}\" penwidth=1.5]",
                         node_id(spoke)
                     )?;
                 }
@@ -390,7 +429,31 @@ fn sanitize_id(s: &str) -> String {
         .collect()
 }
 
-// ─── tests ──────────────────────────────────────────────────────────────────
+/// Write a single vWAN hub diamond node definition to `w`.
+fn write_hub_node(w: &mut impl Write, hub: &VWanHub) -> std::io::Result<()> {
+    let hub_id = format!("vwan_{}", sanitize_id(&hub.hub_name));
+    let mut label_parts = vec![format!("vWAN Hub:{}", hub.hub_name)];
+    if !hub.hub_address_prefix.is_empty() {
+        label_parts.push(format!("CIDR:{}", hub.hub_address_prefix));
+    }
+    if !hub.virtual_wan_name.is_empty() {
+        label_parts.push(format!("vWAN:{}", hub.virtual_wan_name));
+    }
+    if !hub.validated {
+        label_parts.push("⚠ unconfirmed hub".to_string());
+    }
+    let label = label_parts.join("\\n");
+    let (fill, border, penwidth, style) = if hub.validated {
+        ("#e8d5f5", "#6a0dad", "2", "filled")
+    } else {
+        ("#fff3cd", "#cc6600", "2", "filled,dashed")
+    };
+    writeln!(
+        w,
+        "            {hub_id} [label=\"{label}\" shape=diamond style=\"{style}\" fillcolor=\"{fill}\" color=\"{border}\" penwidth={penwidth}]"
+    )
+}
+
 
 #[cfg(test)]
 mod tests {

@@ -48,6 +48,12 @@ pub(super) struct VWanHub {
     pub virtual_wan_name: String,
     /// Sorted list of spoke VNet names connected to this hub.
     pub spoke_vnets: Vec<String>,
+    /// `true` when the hub was confirmed in the vWAN cache (both sides of the
+    /// connection are known). `false` means it was derived from HV_ peering
+    /// edges only — the hub may have been deleted or is outside our query scope.
+    pub validated: bool,
+    /// Azure subscription that owns the hub (from vWAN cache; empty if unvalidated).
+    pub subscription_name: String,
 }
 
 /// Pre-processed peering topology ready for rendering.
@@ -181,14 +187,14 @@ pub(super) fn build_topology(
             vwan_spoke_to_hub
                 .entry(edge.vnet_name.clone())
                 .or_insert_with(|| hub_name.clone());
-            let hub = hub_map
-                .entry(hub_name.clone())
-                .or_insert_with(|| VWanHub {
-                    hub_name: hub_name.clone(),
-                    hub_address_prefix: String::new(),
-                    virtual_wan_name: String::new(),
-                    spoke_vnets: Vec::new(),
-                });
+            let hub = hub_map.entry(hub_name.clone()).or_insert_with(|| VWanHub {
+                hub_name: hub_name.clone(),
+                hub_address_prefix: String::new(),
+                virtual_wan_name: String::new(),
+                spoke_vnets: Vec::new(),
+                validated: false,
+                subscription_name: String::new(),
+            });
             if !hub.spoke_vnets.contains(&edge.vnet_name) {
                 hub.spoke_vnets.push(edge.vnet_name.clone());
             }
@@ -198,15 +204,48 @@ pub(super) fn build_topology(
     // Step 4b — enrich hub metadata from vWAN cache rows (adds CIDR + vWAN name).
     // The ARG query returns one row per hub (not per spoke), so only hub-level
     // fields are available here; spoke connections come from step 4a (HV_ edges).
+    //
+    // Azure truncates the hub name in the HV_<name>_<uuid> peering to ~22 chars,
+    // so the key in hub_map from step 4a may be a prefix of the full name from
+    // the vWAN cache.  We reconcile by renaming the truncated key to the full name.
     for row in vwan {
-        let hub = hub_map
-            .entry(row.hub_name.clone())
-            .or_insert_with(|| VWanHub {
-                hub_name: row.hub_name.clone(),
-                hub_address_prefix: row.hub_address_prefix.clone(),
-                virtual_wan_name: row.virtual_wan_name.clone(),
-                spoke_vnets: Vec::new(),
-            });
+        // Look for an existing entry whose key is a prefix of the full hub name
+        // (or vice versa — the full name is a prefix of the stored key, unlikely
+        // but handled for symmetry).
+        let truncated_key: Option<String> = hub_map
+            .keys()
+            .find(|k| {
+                let k_lc = k.to_lowercase().replace('-', "_");
+                let r_lc = row.hub_name.to_lowercase().replace('-', "_");
+                r_lc.starts_with(&k_lc) || k_lc.starts_with(&r_lc)
+            })
+            .filter(|k| *k != &row.hub_name)
+            .cloned();
+
+        if let Some(old_key) = truncated_key {
+            // Rename the truncated-name entry to the full canonical name and
+            // merge its spoke list, then continue with the full-name key.
+            let mut hub = hub_map.remove(&old_key).expect("key just found");
+            hub.hub_name = row.hub_name.clone();
+            hub_map.insert(row.hub_name.clone(), hub);
+        }
+
+        // Ensure the full-name entry exists (may have been just renamed above).
+        hub_map.entry(row.hub_name.clone()).or_insert_with(|| VWanHub {
+            hub_name: row.hub_name.clone(),
+            hub_address_prefix: row.hub_address_prefix.clone(),
+            virtual_wan_name: row.virtual_wan_name.clone(),
+            spoke_vnets: Vec::new(),
+            validated: false,
+            subscription_name: row.subscription_name.clone(),
+        });
+        let hub = hub_map.get_mut(&row.hub_name).expect("just inserted");
+        // The hub exists in the vWAN cache — this confirms the hub side of the
+        // peering (equivalent to the second side in a normal VNet peering).
+        hub.validated = true;
+        if hub.subscription_name.is_empty() && !row.subscription_name.is_empty() {
+            hub.subscription_name = row.subscription_name.clone();
+        }
         if hub.hub_address_prefix.is_empty() && !row.hub_address_prefix.is_empty() {
             hub.hub_address_prefix = row.hub_address_prefix.clone();
         }
@@ -269,6 +308,31 @@ pub(super) fn build_topology(
     for (a, b) in &bidir_pairs {
         adjacency.entry(a.clone()).or_default().push(b.clone());
         adjacency.entry(b.clone()).or_default().push(a.clone());
+    }
+
+    // Add synthetic adjacency between all spokes of the same vWAN hub so they
+    // land in the same island. The hub diamond node itself is rendered outside
+    // clusters; only the spoke VNets need to be grouped together.
+    for hub in &vwan_hubs {
+        // Only consider spokes that actually appear in vnet_meta (i.e. have subnet data).
+        let known_spokes: Vec<&str> = hub
+            .spoke_vnets
+            .iter()
+            .filter(|s| vnet_meta.contains_key(*s))
+            .map(|s| s.as_str())
+            .collect();
+        // Connect each spoke to the next — a chain is enough to unify them in BFS.
+        for window in known_spokes.windows(2) {
+            let (a, b) = (window[0], window[1]);
+            adjacency
+                .entry(a.to_string())
+                .or_default()
+                .push(b.to_string());
+            adjacency
+                .entry(b.to_string())
+                .or_default()
+                .push(a.to_string());
+        }
     }
 
     let mut island_id: HashMap<String, usize> = HashMap::new();

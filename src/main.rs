@@ -16,6 +16,8 @@ use azure_subnet_summary::{
     },
 };
 use clap::Parser;
+#[cfg(unix)]
+use std::os::unix::process::ExitStatusExt as _;
 use std::collections::HashSet;
 use std::error::Error;
 
@@ -49,52 +51,117 @@ fn parse_diagram_types(raw: &str) -> HashSet<String> {
 
 const DOCKER_IMAGE: &str = "minidocks/graphviz";
 
-/// Run `docker` to render a DOT file to SVG.
-/// On failure, warns with the error and the manual command — does not abort.
+/// Run graphviz to render a DOT file to SVG.
+///
+/// Describes why a child process exited — exit code or signal (on Unix).
+fn exit_description(status: &std::process::ExitStatus) -> String {
+    if let Some(code) = status.code() {
+        return format!("exit code {code}");
+    }
+    #[cfg(unix)]
+    if let Some(sig) = status.signal() {
+        let name = match sig {
+            1 => "SIGHUP",
+            2 => "SIGINT",
+            3 => "SIGQUIT",
+            6 => "SIGABRT",
+            9 => "SIGKILL",
+            11 => "SIGSEGV (segfault / crash)",
+            13 => "SIGPIPE",
+            15 => "SIGTERM",
+            _ => "unknown signal",
+        };
+        return format!("killed by signal {sig} ({name})");
+    }
+    "unknown failure".to_string()
+}
+
+/// Layout engines to try in order.  `sfdp` is the scalable force-directed
+/// layout and handles large graphs with nested clusters more robustly than
+/// `fdp`.  We keep `fdp` as a fallback so small graphs still use the classic
+/// spring layout.
+const DOT_ENGINES: &[&str] = &["sfdp", "fdp"];
+
 fn render_svg_via_docker(dot_file: &str, svg_file: &str) {
+    // ── Try local `dot` with each engine in order ──────────────────────────
+    let mut dot_installed = false;
+    for engine in DOT_ENGINES {
+        let local = std::process::Command::new("dot")
+            .args([&format!("-K{engine}"), "-Tsvg", dot_file, "-o", svg_file])
+            .output();
+        match local {
+            Ok(out) if out.status.success() => {
+                log::info!("SVG written to '{svg_file}' (via local dot -{engine})");
+                return;
+            }
+            Ok(out) => {
+                dot_installed = true;
+                let stderr = String::from_utf8_lossy(&out.stderr);
+                let why = exit_description(&out.status);
+                let msg = format!("dot -{engine} {why}: {stderr}");
+                log::warn!("{msg}");
+                eprintln!("WARN: {msg}");
+                // try next engine
+            }
+            Err(ref e) if e.kind() == std::io::ErrorKind::NotFound => {
+                // dot not installed — skip to Docker
+                break;
+            }
+            Err(e) => {
+                log::warn!("Could not launch local dot: {e} — trying Docker");
+                break;
+            }
+        }
+    }
+
+    if dot_installed {
+        // dot was found but all engines failed; Docker won't help
+        eprintln!("ERROR: local dot could not render '{dot_file}' (all engines failed)");
+        return;
+    }
+
+    // ── Fall back to Docker ────────────────────────────────────────────────
     let cwd = match std::env::current_dir() {
         Ok(p) => p.display().to_string(),
         Err(e) => {
-            log::warn!("Could not determine current directory for docker volume mount: {e}");
+            let msg = format!("Could not determine current directory for Docker volume: {e}");
+            log::warn!("{msg}");
+            eprintln!("ERROR: {msg}");
             return;
         }
     };
+    let engine = DOT_ENGINES[0];
     let manual_cmd = format!(
-        "docker run --rm -v \"{cwd}:/data\" -w /data {DOCKER_IMAGE} dot -Kfdp -Tsvg {dot_file} -o {svg_file}"
+        "docker run --rm -v \"{cwd}:/data\" -w /data {DOCKER_IMAGE} dot -K{engine} -Tsvg {dot_file} -o {svg_file}"
     );
-    log::info!("Rendering SVG via Docker: {manual_cmd}");
+    log::info!("Local dot not available — trying Docker: {manual_cmd}");
 
     let result = std::process::Command::new("docker")
         .args([
-            "run",
-            "--rm",
-            "-v",
-            &format!("{cwd}:/data"),
-            "-w",
-            "/data",
-            DOCKER_IMAGE,
-            "dot",
-            "-Kfdp",
-            "-Tsvg",
-            dot_file,
-            "-o",
-            svg_file,
+            "run", "--rm", "-v", &format!("{cwd}:/data"), "-w", "/data",
+            DOCKER_IMAGE, "dot", &format!("-K{engine}"), "-Tsvg", dot_file, "-o", svg_file,
         ])
         .output();
 
     match result {
         Ok(out) if out.status.success() => {
-            log::info!("SVG written to '{svg_file}'");
+            log::info!("SVG written to '{svg_file}' (via Docker -{engine})");
         }
         Ok(out) => {
             let stderr = String::from_utf8_lossy(&out.stderr);
-            log::warn!(
-                "Docker render failed (exit {:?}): {stderr}\nRun manually:\n  {manual_cmd}",
-                out.status.code()
+            let why = exit_description(&out.status);
+            let msg = format!(
+                "Docker dot {why}: {stderr}\nRun manually:\n  {manual_cmd}"
             );
+            log::warn!("{msg}");
+            eprintln!("WARN: {msg}");
         }
         Err(e) => {
-            log::warn!("Could not launch docker: {e}\nRun manually:\n  {manual_cmd}");
+            let msg = format!(
+                "Could not launch docker ({e}). Install graphviz or Docker, then run:\n  {manual_cmd}"
+            );
+            log::warn!("{msg}");
+            eprintln!("WARN: {msg}");
         }
     }
 }
@@ -139,8 +206,20 @@ fn main() -> Result<(), Box<dyn Error>> {
     let data = de_duplicate_subnets(data, None)?;
     check_for_duplicate_subnets(&data)?;
 
-    // Output subnet summary
-    let csv_file = subnet_print(&data, args.gap_mask)?;
+    // Load vWAN data early so hub CIDRs can be included in the subnet CSV.
+    let VWanCacheResult {
+        data: vwan_data,
+        from_cache: vwan_from_cache,
+        cache_file: vwan_cache_file,
+    } = read_vwan_cache_with_status(None)?;
+    if vwan_from_cache {
+        log::info!("vWAN data read from cache '{vwan_cache_file}'");
+    } else {
+        log::info!("vWAN data fetched from Azure (cache '{vwan_cache_file}')");
+    }
+
+    // Output subnet summary (includes vWAN hub CIDRs as reserved IP space)
+    let csv_file = subnet_print(&data, args.gap_mask, &vwan_data.data)?;
 
     // Output duplicate VNet report
     let date_str = chrono::Local::now().format("%Y-%m-%d").to_string();
@@ -169,17 +248,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         log::info!("Local gateway data read from cache '{lgw_cache_file}'");
     } else {
         log::info!("Local gateway data fetched from Azure (cache '{lgw_cache_file}')");
-    }
-
-    let VWanCacheResult {
-        data: vwan_data,
-        from_cache: vwan_from_cache,
-        cache_file: vwan_cache_file,
-    } = read_vwan_cache_with_status(None)?;
-    if vwan_from_cache {
-        log::info!("vWAN data read from cache '{vwan_cache_file}'");
-    } else {
-        log::info!("vWAN data fetched from Azure (cache '{vwan_cache_file}')");
     }
 
     if diagram_types.contains("md") {

@@ -1,6 +1,6 @@
 //! CSV output formatting for subnet data.
 
-use crate::azure::Data;
+use crate::azure::{Data, VWanRow};
 use crate::processing::{process_subnet_row, PrevVnetContext, SubnetPrintRow};
 use chrono::Local;
 use std::cmp::Reverse;
@@ -14,12 +14,18 @@ use super::terminal::format_field;
 /// Write subnet data as CSV to a file.
 ///
 /// # Arguments
-/// * `data` - The subnet data to write
+/// * `data`          - The subnet data to write
 /// * `gap_cidr_mask` - The default CIDR mask for gap subnets
+/// * `vwan`          - vWAN hub rows; their address prefixes are injected as
+///   `VWAN_HUB` rows so reserved hub IP space is visible
 ///
 /// # Returns
 /// The path to the generated CSV file
-pub fn subnet_print(data: &Data, gap_cidr_mask: u8) -> Result<String, Box<dyn Error>> {
+pub fn subnet_print(
+    data: &Data,
+    gap_cidr_mask: u8,
+    vwan: &[VWanRow],
+) -> Result<String, Box<dyn Error>> {
     log::info!(
         "#Start subnet_print() add gap subnets with mask /{}",
         gap_cidr_mask
@@ -144,6 +150,57 @@ pub fn subnet_print(data: &Data, gap_cidr_mask: u8) -> Result<String, Box<dyn Er
         output_rows.extend(tail);
     }
 
+    // Inject vWAN Hub rows — each hub's address prefix is reserved IP space.
+    // Parse all hub CIDRs and insert them at the correct sorted position.
+    let mut hub_rows: Vec<(u32, SubnetPrintRow)> = Vec::new();
+    for hub in vwan {
+        if hub.hub_address_prefix.is_empty() {
+            continue;
+        }
+        let cidr = &hub.hub_address_prefix;
+        // Parse "a.b.c.d/n" into start IP and prefix length.
+        let (start_u32, _prefix_len, broadcast, az_hosts) = match parse_cidr(cidr) {
+            Some(v) => v,
+            None => {
+                log::warn!("vWAN hub '{}' has unparseable CIDR '{cidr}' — skipped", hub.hub_name);
+                continue;
+            }
+        };
+        let row = SubnetPrintRow {
+            j: 0,
+            gap: "VWAN_HUB".to_string(),
+            subnet_cidr: cidr.clone(),
+            broadcast,
+            az_hosts,
+            subnet_name: format!("vWAN Hub:{}", hub.hub_name),
+            subscription_name: hub.subscription_name.clone(),
+            vnet_cidr: cidr.clone(),
+            vnet_name: if hub.virtual_wan_name.is_empty() {
+                hub.hub_name.clone()
+            } else {
+                hub.virtual_wan_name.clone()
+            },
+            location: hub.location.clone(),
+            nsg: "None".to_string(),
+            dns: "None".to_string(),
+            subscription_id: hub.subscription_id.clone(),
+            ip_configurations_count: 0,
+        };
+        hub_rows.push((start_u32, row));
+    }
+    hub_rows.sort_by_key(|(ip, _)| *ip);
+
+    // Insert each hub row at the correct position (after all subnet rows whose
+    // start IP is ≤ the hub's start IP).
+    for (hub_ip, hub_row) in hub_rows.into_iter().rev() {
+        let pos = output_rows
+            .iter()
+            .rposition(|r| cidr_start_u32(&r.subnet_cidr).is_some_and(|ip| ip <= hub_ip))
+            .map(|i| i + 1)
+            .unwrap_or(0);
+        output_rows.insert(pos, hub_row);
+    }
+
     // Write the subnets as CSV
     for row in &output_rows {
         write_csv_row(&mut writer, row)?;
@@ -191,6 +248,31 @@ fn write_csv_row<W: Write>(writer: &mut W, row: &SubnetPrintRow) -> Result<(), B
         subscription_id = format_field(&row.subscription_id, 39),
     )?;
     Ok(())
+}
+
+/// Parse `"a.b.c.d/n"` into `(start_u32, prefix_len, broadcast_str, az_hosts)`.
+fn parse_cidr(cidr: &str) -> Option<(u32, u8, String, usize)> {
+    let (addr_str, len_str) = cidr.split_once('/')?;
+    let addr: Ipv4Addr = addr_str.parse().ok()?;
+    let prefix_len: u8 = len_str.parse().ok()?;
+    if prefix_len > 32 {
+        return None;
+    }
+    let start = u32::from(addr);
+    let mask = if prefix_len == 0 { 0u32 } else { !0u32 << (32 - prefix_len) };
+    let broadcast_u32 = (start & mask) | !mask;
+    let broadcast_addr = Ipv4Addr::from(broadcast_u32);
+    // Azure reserves 5 addresses per subnet (network, gateway, two DNS, broadcast).
+    let total_ips = 1u64 << (32 - prefix_len);
+    let az_hosts = total_ips.saturating_sub(5) as usize;
+    Some((start & mask, prefix_len, broadcast_addr.to_string(), az_hosts))
+}
+
+/// Return the start IP of a CIDR string as a `u32`, or `None` if unparseable.
+fn cidr_start_u32(cidr: &str) -> Option<u32> {
+    let addr_str = cidr.split('/').next()?;
+    let addr: Ipv4Addr = addr_str.parse().ok()?;
+    Some(u32::from(addr))
 }
 
 #[cfg(test)]
@@ -294,7 +376,7 @@ mod tests {
         };
 
         // Must not panic (gap finder skips excluded subnet)
-        let path = subnet_print(&data, 28).expect("subnet_print must not panic");
+        let path = subnet_print(&data, 28, &[]).expect("subnet_print must not panic");
         let contents = std::fs::read_to_string(&path).expect("can read CSV");
         let _ = std::fs::remove_file(&path);
 
@@ -357,7 +439,7 @@ mod tests {
             data: subnets,
         };
 
-        let path = subnet_print(&data, 28).expect("must not panic");
+        let path = subnet_print(&data, 28, &[]).expect("must not panic");
         let contents = std::fs::read_to_string(&path).expect("can read");
         let _ = std::fs::remove_file(&path);
 
@@ -411,7 +493,7 @@ mod tests {
             data: subnets,
         };
 
-        let csv_path = subnet_print(&data, 28).expect("must not panic");
+        let csv_path = subnet_print(&data, 28, &[]).expect("must not panic");
         let md_path = csv_path.replace("_subnets.csv", "_duplicates.md");
         let _ = std::fs::remove_file(&csv_path);
         assert!(
