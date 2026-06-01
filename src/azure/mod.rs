@@ -7,6 +7,7 @@
 
 mod cache;
 mod cli;
+mod fetch;
 mod graph;
 mod local_gateway;
 mod local_gateway_cache;
@@ -15,7 +16,8 @@ mod peering_graph;
 mod vwan_cache;
 mod vwan_graph;
 
-// Re-export public types and functions
+pub use fetch::{fetch_azure_data, AzureData, FetchConfig};
+
 pub use cache::{read_subnet_cache, read_subnet_cache_with_status, CacheResult};
 pub use cli::run;
 pub use graph::{run_az_cli_graph, Data};

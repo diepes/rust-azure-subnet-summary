@@ -4,11 +4,8 @@
 //! identifies gaps in IP address allocation, and outputs a CSV summary.
 
 use azure_subnet_summary::{
-    azure::{
-        read_local_gateway_cache_with_status, read_peering_cache_with_status,
-        read_vwan_cache_with_status, LocalGatewayCacheResult, PeeringCacheResult, VWanCacheResult,
-    },
-    check_for_duplicate_subnets, get_sorted_subnets_with_status,
+    azure::{fetch_azure_data, FetchConfig},
+    check_for_duplicate_subnets,
     output::{
         subnet_print, validate_dot_file, write_duplicates_md, write_peering_diagram,
         write_peering_dot,
@@ -214,14 +211,22 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     log::info!("#Start main()");
 
-    // Fetch and process subnet data (with cache status)
-    let cache_result = get_sorted_subnets_with_status(None)?;
-    let cache_source = if cache_result.from_cache {
-        format!("existing cache '{}'", cache_result.cache_file)
+    // Fetch all Azure data in one call (subnets, peering, local gateways, vWAN)
+    let azure = fetch_azure_data(&FetchConfig::default())?;
+    let cache_source = if azure.subnets.from_cache {
+        format!("existing cache '{}'", azure.subnets.cache_file)
     } else {
-        format!("Azure (new cache written to '{}')", cache_result.cache_file)
+        format!(
+            "Azure (new cache written to '{}')",
+            azure.subnets.cache_file
+        )
     };
-    let data = cache_result.data;
+    let mut data = azure.subnets.data;
+    data.data.sort_by_key(|s| s.subnet_cidr);
+
+    let peering_data = azure.peering_edges;
+    let local_gw_data = azure.local_gateways;
+    let vwan_data = azure.vwan;
 
     // Check for and log overlapping VNet CIDRs
     let conflicts = find_overlapping_vnets(&data);
@@ -234,18 +239,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     let data = de_duplicate_subnets(data, None)?;
     check_for_duplicate_subnets(&data)?;
 
-    // Load vWAN data early so hub CIDRs can be included in the subnet CSV.
-    let VWanCacheResult {
-        data: vwan_data,
-        from_cache: vwan_from_cache,
-        cache_file: vwan_cache_file,
-    } = read_vwan_cache_with_status(None)?;
-    if vwan_from_cache {
-        log::info!("vWAN data read from cache '{vwan_cache_file}'");
-    } else {
-        log::info!("vWAN data fetched from Azure (cache '{vwan_cache_file}')");
-    }
-
     // Output subnet summary (includes vWAN hub CIDRs as reserved IP space)
     let csv_file = subnet_print(&data, args.gap_mask, &vwan_data.data)?;
 
@@ -254,29 +247,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     let dup_file = format!("net_{date_str}_duplicates.md");
     write_duplicates_md(&data, &dup_file)?;
     log::info!("Duplicates report written to '{dup_file}'");
-
-    // Output peering diagram
-    let PeeringCacheResult {
-        data: peering_data,
-        from_cache: peering_from_cache,
-        cache_file: peering_cache_file,
-    } = read_peering_cache_with_status(None)?;
-    let peering_source = if peering_from_cache {
-        format!("existing cache '{peering_cache_file}'")
-    } else {
-        format!("Azure (new cache written to '{peering_cache_file}')")
-    };
-
-    let LocalGatewayCacheResult {
-        data: local_gw_data,
-        from_cache: lgw_from_cache,
-        cache_file: lgw_cache_file,
-    } = read_local_gateway_cache_with_status(None)?;
-    if lgw_from_cache {
-        log::info!("Local gateway data read from cache '{lgw_cache_file}'");
-    } else {
-        log::info!("Local gateway data fetched from Azure (cache '{lgw_cache_file}')");
-    }
 
     if diagram_types.contains("md") {
         let peering_file = format!("net_{date_str}_peering.md");
@@ -287,7 +257,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             &vwan_data.data,
             &peering_file,
         )?;
-        log::info!("Peering diagram written to '{peering_file}' from {peering_source}");
+        log::info!("Peering diagram written to '{peering_file}'");
     }
 
     // Generate DOT file (needed for both dot and svg outputs).
