@@ -45,19 +45,17 @@ pub fn write_peering_dot(
     writeln!(w, "// Azure VNet Peering Diagram — generated {date}")?;
     writeln!(w, "// Render: dot -Kfdp -Tsvg {filename} -o peering.svg")?;
     writeln!(w, "digraph azure_vnet_peering {{")?;
-    // fdp layout tuning:
-    //   K=2.5        — spring constant; higher value spreads nodes further apart
-    //   overlap=prism — Prism overlap-removal gives cleaner results than Voronoi (false)
-    //   splines=curved — edges curve around nodes/clusters instead of cutting through
-    //   concentrate=true — merges parallel edges (hub-spoke fan-in collapses to fewer lines)
-    //   esep="+3"    — extra clearance between routed edge paths
+    // Layout tuning — kept engine-agnostic so fdp/sfdp/neato all accept these:
+    //   overlap=false — remove overlaps without scaling the whole graph
+    //   splines=true  — routed edges (avoid "curved" — known to segfault fdp/sfdp)
+    //   K and esep are fdp-specific and omitted to avoid crashes on other engines
     writeln!(
         w,
-        "    graph [layout=fdp K=2.5 overlap=scale splines=curved concentrate=true esep=\"+3\" fontname=\"Helvetica\"]"
+        "    graph [layout=fdp overlap=false splines=true fontname=\"Helvetica\"]"
     )?;
     writeln!(
         w,
-        "    node  [shape=box style=\"filled,rounded\" fillcolor=\"#ddeeff\" fontname=\"Helvetica\" margin=\"0.3,0.1\"]"
+        "    node  [shape=box style=\"filled,rounded\" fillcolor=\"#ddeeff\" fontname=\"Helvetica\" fontsize=10 margin=\"0.15,0.05\"]"
     )?;
     writeln!(w, "    edge  [fontname=\"Helvetica\" fontsize=10]")?;
     writeln!(w)?;
@@ -252,18 +250,20 @@ pub fn write_peering_dot(
 
                 if is_missing {
                     let sub_name = meta.map(|m| m.subscription_name.as_str()).unwrap_or("?");
-                    let sub_display = if sub_name.is_empty() {
-                        "unknown"
-                    } else {
-                        sub_name
-                    };
-                    let cidr_str = meta.map(|m| m.vnet_cidr.join("\\n")).unwrap_or_default();
-                    let label = if cidr_str.is_empty() {
-                        format!("⚠ MISSING\\nSUB:{sub_display}\\n{vnet}")
-                    } else {
-                        format!("⚠ MISSING\\nSUB:{sub_display}\\n{vnet}\\n{cidr_str}")
-                    };
-                    writeln!(w, "            {nid} [label=\"{label}\"{fill}]")?;
+                    let sub_display = if sub_name.is_empty() { "unknown" } else { sub_name };
+                    let cidr_str = meta.map(|m| m.vnet_cidr.join(", ")).unwrap_or_default();
+                    let vnet_escaped = html_escape(vnet);
+                    let sub_escaped = html_escape(sub_display);
+                    let br = "<BR ALIGN=\"LEFT\"/>";
+                    let mut parts = vec![
+                        format!("<FONT COLOR=\"darkred\">&#x26A0; MISSING</FONT>  VNET: <B> {vnet_escaped} </B>"),
+                        format!("  Subscription: {sub_escaped}"),
+                    ];
+                    if !cidr_str.is_empty() {
+                        parts.push(format!("  VNet_CIDRs: {cidr_str}"));
+                    }
+                    let inner = parts.join(br);
+                    writeln!(w, "            {nid} [label=<{inner}{br}>{fill}]")?;
                 } else {
                     let cidr_str = meta.map(|m| m.vnet_cidr.join(", ")).unwrap_or_default();
                     let vnet_escaped = html_escape(vnet);
@@ -298,9 +298,9 @@ pub fn write_peering_dot(
                             && !vng_name.is_empty()
                         {
                             let vng_line = if !vng_bgp_asn.is_empty() {
-                                format!("  └ VNG:{vng_name} BGP:ASN:{vng_bgp_asn}")
+                                format!("  &#x2514; VNG:{vng_name} BGP:ASN:{vng_bgp_asn}")
                             } else {
-                                format!("  └ VNG:{vng_name}")
+                                format!("  &#x2514; VNG:{vng_name}")
                             };
                             parts.push(format!(
                                 "<B><FONT COLOR=\"darkred\">{}</FONT></B>",

@@ -9,7 +9,10 @@ use azure_subnet_summary::{
         read_vwan_cache_with_status, LocalGatewayCacheResult, PeeringCacheResult, VWanCacheResult,
     },
     check_for_duplicate_subnets, get_sorted_subnets_with_status,
-    output::{subnet_print, write_duplicates_md, write_peering_diagram, write_peering_dot},
+    output::{
+        subnet_print, validate_dot_file, write_duplicates_md, write_peering_diagram,
+        write_peering_dot,
+    },
     processing::{
         de_duplicate_subnets, filter_overlapping_vnets, find_overlapping_vnets, get_vnets,
         log_overlapping_vnets, print_vnets,
@@ -80,9 +83,16 @@ fn exit_description(status: &std::process::ExitStatus) -> String {
 /// hub nodes naturally sit in the middle of the VNets they connect — so it
 /// is tried first.  `sfdp` (the scalable variant) is the fallback for cases
 /// where `fdp` crashes on very large or complex graphs.
-const DOT_ENGINES: &[&str] = &["fdp", "sfdp"];
+const DOT_ENGINES: &[&str] = &["fdp", "sfdp", "neato"];
 
 fn render_svg_via_docker(dot_file: &str, svg_file: &str) {
+    // ── Pre-validate the DOT file before invoking Graphviz ─────────────────
+    if let Err(msg) = validate_dot_file(dot_file) {
+        eprintln!("ERROR: DOT validation failed — {msg}");
+        log::error!("DOT validation failed — {msg}");
+        return;
+    }
+
     // ── Try local `dot` with each engine in order ──────────────────────────
     let mut dot_installed = false;
     for engine in DOT_ENGINES {
@@ -116,7 +126,8 @@ fn render_svg_via_docker(dot_file: &str, svg_file: &str) {
 
     if dot_installed {
         // dot was found but all engines failed; Docker won't help
-        eprintln!("ERROR: local dot could not render '{dot_file}' (all engines failed)");
+        let engines = DOT_ENGINES.join(", ");
+        eprintln!("ERROR: local dot could not render '{dot_file}' (tried engines: {engines})");
         return;
     }
 
@@ -179,7 +190,8 @@ fn render_svg_via_docker(dot_file: &str, svg_file: &str) {
             }
         }
     }
-    eprintln!("ERROR: Docker dot could not render '{dot_file}' (all engines failed)");
+    let engines = DOT_ENGINES.join(", ");
+    eprintln!("ERROR: Docker dot could not render '{dot_file}' (tried engines: {engines})");
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
