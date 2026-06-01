@@ -339,6 +339,7 @@ mod tests {
                 "src/tests/test_data/local_gateway_test_cache_01.json".to_string(),
             ),
             vwan_cache: Some("src/tests/test_data/vwan_test_cache_01.json".to_string()),
+            ..FetchConfig::default()
         };
         fetch_azure_data(&config).expect("test fixture fetch failed")
     }

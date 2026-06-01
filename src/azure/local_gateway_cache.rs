@@ -17,7 +17,7 @@ impl AzureSource for LocalGatewayData {
 pub fn read_local_gateway_cache_with_status(
     cache_file: Option<&str>,
 ) -> Result<CacheResult<LocalGatewayData>, Box<dyn Error>> {
-    azure_cache::load(cache_file)
+    azure_cache::load(cache_file, None)
 }
 
 /// Read local gateway data from cache, or fetch from Azure if not cached.

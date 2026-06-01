@@ -29,7 +29,17 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     log::info!("#Start main()");
 
-    let azure = fetch_azure_data(&FetchConfig::default())?;
+    let date_str = chrono::Utc::now()
+        .with_timezone(&chrono_tz::Pacific::Auckland)
+        .format("%Y-%m-%d")
+        .to_string();
+    let cache_dir = format!("report-{date_str}/cache");
+    std::fs::create_dir_all(&cache_dir)?;
+
+    let azure = fetch_azure_data(&FetchConfig {
+        cache_dir: Some(cache_dir),
+        ..FetchConfig::default()
+    })?;
     run(azure, &args, &GraphvizRenderer)?;
 
     Ok(())

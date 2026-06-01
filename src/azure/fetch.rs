@@ -5,13 +5,12 @@
 //! their cache status, and returns an [`AzureData`] bundle.
 
 use super::{
-    local_gateway::LocalGatewayData, local_gateway_cache::read_local_gateway_cache_with_status,
-    peering_cache::read_peering_cache_with_status, peering_graph::PeeringData,
-    vwan_cache::read_vwan_cache_with_status, vwan_graph::VWanData, CacheResult,
+    azure_cache, local_gateway::LocalGatewayData, peering_graph::PeeringData, vwan_graph::VWanData,
+    CacheResult,
 };
-use crate::azure::cache::read_subnet_cache_with_status;
 use crate::azure::graph::Data;
 use std::error::Error;
+use std::path::Path;
 
 /// Optional per-source cache file overrides.
 ///
@@ -27,6 +26,9 @@ pub struct FetchConfig {
     pub local_gateway_cache: Option<String>,
     /// Override path for the vWAN cache file.
     pub vwan_cache: Option<String>,
+    /// Directory to write / read default cache files.
+    /// When `None`, cache files are written to the current directory.
+    pub cache_dir: Option<String>,
 }
 
 /// All Azure data fetched in a single call.
@@ -50,8 +52,10 @@ pub struct AzureData {
 /// # Errors
 /// Returns the first error encountered if any source fails.
 pub fn fetch_azure_data(config: &FetchConfig) -> Result<AzureData, Box<dyn Error>> {
+    let cache_dir: Option<&Path> = config.cache_dir.as_deref().map(Path::new);
+
     // ── Subnets ──────────────────────────────────────────────────────────────
-    let subnet_result = read_subnet_cache_with_status(config.subnet_cache.as_deref())?;
+    let subnet_result = azure_cache::load::<Data>(config.subnet_cache.as_deref(), cache_dir)?;
     if subnet_result.from_cache {
         log::info!("Subnet data read from cache '{}'", subnet_result.cache_file);
     } else {
@@ -62,7 +66,8 @@ pub fn fetch_azure_data(config: &FetchConfig) -> Result<AzureData, Box<dyn Error
     }
 
     // ── Peering ───────────────────────────────────────────────────────────────
-    let peering_result = read_peering_cache_with_status(config.peering_cache.as_deref())?;
+    let peering_result =
+        azure_cache::load::<PeeringData>(config.peering_cache.as_deref(), cache_dir)?;
     if peering_result.from_cache {
         log::info!(
             "Peering data read from cache '{}'",
@@ -76,7 +81,8 @@ pub fn fetch_azure_data(config: &FetchConfig) -> Result<AzureData, Box<dyn Error
     }
 
     // ── Local Gateways ────────────────────────────────────────────────────────
-    let lgw_result = read_local_gateway_cache_with_status(config.local_gateway_cache.as_deref())?;
+    let lgw_result =
+        azure_cache::load::<LocalGatewayData>(config.local_gateway_cache.as_deref(), cache_dir)?;
     if lgw_result.from_cache {
         log::info!(
             "Local gateway data read from cache '{}'",
@@ -90,7 +96,7 @@ pub fn fetch_azure_data(config: &FetchConfig) -> Result<AzureData, Box<dyn Error
     }
 
     // ── vWAN ──────────────────────────────────────────────────────────────────
-    let vwan_result = read_vwan_cache_with_status(config.vwan_cache.as_deref())?;
+    let vwan_result = azure_cache::load::<VWanData>(config.vwan_cache.as_deref(), cache_dir)?;
     if vwan_result.from_cache {
         log::info!("vWAN data read from cache '{}'", vwan_result.cache_file);
     } else {
@@ -120,6 +126,7 @@ mod tests {
                 "src/tests/test_data/local_gateway_test_cache_01.json".to_string(),
             ),
             vwan_cache: Some("src/tests/test_data/vwan_test_cache_01.json".to_string()),
+            ..FetchConfig::default()
         }
     }
 

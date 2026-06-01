@@ -17,7 +17,7 @@ impl AzureSource for VWanData {
 pub fn read_vwan_cache_with_status(
     cache_file: Option<&str>,
 ) -> Result<CacheResult<VWanData>, Box<dyn Error>> {
-    azure_cache::load(cache_file)
+    azure_cache::load(cache_file, None)
 }
 
 /// Read vWAN data from cache, or fetch from Azure if not cached.

@@ -22,7 +22,7 @@ impl AzureSource for Data {
 pub fn read_subnet_cache_with_status(
     cache_file: Option<&str>,
 ) -> Result<CacheResult<Data>, Box<dyn Error>> {
-    azure_cache::load(cache_file)
+    azure_cache::load(cache_file, None)
 }
 
 /// Read subnet data from cache file, or fetch from Azure if cache doesn't exist.

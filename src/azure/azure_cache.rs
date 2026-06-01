@@ -30,8 +30,12 @@ pub trait AzureSource: DeserializeOwned + Serialize {
 ///
 /// If `cache_file` is `Some`, that exact path is used and an error is returned
 /// if the file does not exist. If `None`, a date-stamped filename derived from
-/// [`AzureSource::file_stem`] is used.
-pub fn load<S: AzureSource>(cache_file: Option<&str>) -> Result<CacheResult<S>, Box<dyn Error>> {
+/// [`AzureSource::file_stem`] is used, written into `cache_dir` (defaults to
+/// the current directory when `None`).
+pub fn load<S: AzureSource>(
+    cache_file: Option<&str>,
+    cache_dir: Option<&Path>,
+) -> Result<CacheResult<S>, Box<dyn Error>> {
     let now = chrono::Utc::now().with_timezone(&chrono_tz::Pacific::Auckland);
 
     let cache_file_path = match cache_file {
@@ -42,11 +46,16 @@ pub fn load<S: AzureSource>(cache_file: Option<&str>) -> Result<CacheResult<S>, 
             log::info!("Using provided cache file: {file}");
             file.to_string()
         }
-        None => format!(
-            "net_{}_cache_{}.json",
-            now.format("%Y-%m-%d"),
-            S::file_stem()
-        ),
+        None => {
+            let dir = cache_dir.unwrap_or(Path::new("."));
+            dir.join(format!(
+                "net_{}_cache_{}.json",
+                now.format("%Y-%m-%d"),
+                S::file_stem()
+            ))
+            .to_string_lossy()
+            .into_owned()
+        }
     };
 
     let (data, from_cache) = match std::fs::read_to_string(&cache_file_path) {
@@ -99,7 +108,7 @@ mod tests {
         let path = "/tmp/azure_cache_test_load.json";
         std::fs::write(path, r#"{"v":42}"#).unwrap();
 
-        let result = load::<Stub>(Some(path)).expect("load should succeed");
+        let result = load::<Stub>(Some(path), None).expect("load should succeed");
 
         assert!(result.from_cache, "should report from_cache = true");
         assert_eq!(result.data, Stub { v: 42 });
@@ -109,7 +118,7 @@ mod tests {
 
     #[test]
     fn load_fails_when_explicit_file_missing() {
-        let result = load::<Stub>(Some("/tmp/azure_cache_no_such_file_xyz.json"));
+        let result = load::<Stub>(Some("/tmp/azure_cache_no_such_file_xyz.json"), None);
 
         assert!(result.is_err());
         let msg = result.unwrap_err().to_string();

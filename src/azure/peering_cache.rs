@@ -17,7 +17,7 @@ impl AzureSource for PeeringData {
 pub fn read_peering_cache_with_status(
     cache_file: Option<&str>,
 ) -> Result<CacheResult<PeeringData>, Box<dyn Error>> {
-    azure_cache::load(cache_file)
+    azure_cache::load(cache_file, None)
 }
 
 /// Read peering data from cache, or fetch from Azure if not cached.
