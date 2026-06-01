@@ -10,6 +10,7 @@ use super::{
     vwan_cache::read_vwan_cache_with_status, vwan_graph::VWanData, CacheResult,
 };
 use crate::azure::cache::read_subnet_cache_with_status;
+use crate::azure::graph::Data;
 use std::error::Error;
 
 /// Optional per-source cache file overrides.
@@ -31,7 +32,7 @@ pub struct FetchConfig {
 /// All Azure data fetched in a single call.
 pub struct AzureData {
     /// Subnet data (cache result includes status + file path).
-    pub subnets: CacheResult,
+    pub subnets: CacheResult<Data>,
     /// Peering edge data.
     pub peering_edges: PeeringData,
     /// Local Network Gateway data.

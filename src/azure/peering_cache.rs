@@ -1,59 +1,23 @@
 //! Cache management for VNet peering data.
 
+use super::azure_cache::{self, AzureSource, CacheResult};
 use super::peering_graph::{run_peering_graph, PeeringData};
-use chrono;
 use std::error::Error;
-use std::path::Path;
 
-/// Result of reading peering data, including cache status.
-#[derive(Debug)]
-pub struct PeeringCacheResult {
-    pub data: PeeringData,
-    pub from_cache: bool,
-    pub cache_file: String,
+impl AzureSource for PeeringData {
+    fn file_stem() -> &'static str {
+        "peering"
+    }
+    fn fetch() -> Result<Self, Box<dyn Error>> {
+        run_peering_graph()
+    }
 }
 
 /// Read peering data from cache file, or fetch from Azure if cache doesn't exist.
 pub fn read_peering_cache_with_status(
     cache_file: Option<&str>,
-) -> Result<PeeringCacheResult, Box<dyn Error>> {
-    let now = chrono::Utc::now().with_timezone(&chrono_tz::Pacific::Auckland);
-
-    let cache_file_path = match cache_file {
-        Some(file) => {
-            if !Path::new(file).exists() {
-                return Err(format!("Peering cache file does not exist: {file}").into());
-            }
-            log::info!("Using provided peering cache file: {file}");
-            file.to_string()
-        }
-        None => format!("net_{}_cache_peering.json", now.format("%Y-%m-%d")),
-    };
-
-    let (data, from_cache) = match std::fs::read_to_string(&cache_file_path) {
-        Ok(json) => {
-            log::info!("Reading peering from cache: {cache_file_path}");
-            let data: PeeringData = serde_json::from_str(&json)
-                .map_err(|e| format!("Error parsing peering cache JSON: {e}"))?;
-            (data, true)
-        }
-        Err(_) => {
-            log::warn!("Peering cache not found: {cache_file_path}");
-            let data = run_peering_graph()?;
-            let json = serde_json::to_string_pretty(&data)
-                .map_err(|e| format!("Error serialising peering JSON: {e}"))?;
-            log::warn!("Writing peering cache: {cache_file_path}");
-            std::fs::write(&cache_file_path, json)
-                .map_err(|e| format!("Error writing peering cache {cache_file_path}: {e}"))?;
-            (data, false)
-        }
-    };
-
-    Ok(PeeringCacheResult {
-        data,
-        from_cache,
-        cache_file: cache_file_path,
-    })
+) -> Result<CacheResult<PeeringData>, Box<dyn Error>> {
+    azure_cache::load(cache_file)
 }
 
 /// Read peering data from cache, or fetch from Azure if not cached.
