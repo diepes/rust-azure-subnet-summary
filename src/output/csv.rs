@@ -1,7 +1,7 @@
 //! CSV output formatting for subnet data.
 
 use crate::azure::{Data, VWanRow};
-use crate::processing::{fill_trailing_vgap, process_subnet_row, PrevVnetContext, SubnetPrintRow};
+use crate::processing::{GapFinder, SubnetPrintRow};
 use chrono::Local;
 use std::cmp::Reverse;
 use std::error::Error;
@@ -46,9 +46,7 @@ pub fn subnet_print(
         r#" "cnt", "gap"  , "subnet_cidr"    ,"vms"        ,  "broadcast"      , "subnet_name"          ,  "subscription_name",     "vnet_cidr"        ,      "vnet_name","location","nsg","dns","subscription_id""#
     )?;
 
-    const SKIP_SUBNET_SMALLER_THAN: Ipv4Addr = Ipv4Addr::new(10, 17, 255, 255);
-    let mut next_ip: Ipv4Addr = Ipv4Addr::new(10, 0, 0, 0);
-    let mut prev_vnet_ctx = PrevVnetContext::default();
+    let mut gf = GapFinder::new(gap_cidr_mask);
     let mut output_rows = Vec::new();
 
     for (i, s) in data.data.iter().enumerate() {
@@ -57,25 +55,10 @@ pub fn subnet_print(
         if s.excluded_by.is_some() {
             continue;
         }
-        let (new_next_ip, new_prev_vnet_ctx, rows) = process_subnet_row(
-            s,
-            i,
-            next_ip,
-            prev_vnet_ctx,
-            gap_cidr_mask,
-            SKIP_SUBNET_SMALLER_THAN,
-        );
-        next_ip = new_next_ip;
-        prev_vnet_ctx = new_prev_vnet_ctx;
-        output_rows.extend(rows);
+        output_rows.extend(gf.push(s, i));
     }
 
-    // Fill trailing vgap for the last VNet_CIDR processed.
-    if let Some(last_vnet_cidr) = prev_vnet_ctx.vnet_cidr {
-        let (_new_next_ip, trailing_rows) =
-            fill_trailing_vgap(next_ip, last_vnet_cidr, &prev_vnet_ctx, gap_cidr_mask);
-        output_rows.extend(trailing_rows);
-    }
+    output_rows.extend(gf.finish());
 
     // Insert DUP_EXCL_VNET rows directly after their winner VNet's last row.
     // Collect groups keyed by winner VNet name, preserving encounter order.
@@ -213,12 +196,7 @@ pub fn subnet_print(
 
     writer.flush()?;
 
-    log::info!(
-        "Wrote {} rows to '{}' (skipped subnets smaller than {:?})",
-        output_rows.len(),
-        filename,
-        SKIP_SUBNET_SMALLER_THAN
-    );
+    log::info!("Wrote {} rows to '{}'", output_rows.len(), filename);
 
     // Also write the duplicates markdown report
     let md_filename = format!("net_{}_duplicates.md", date_str);
@@ -325,19 +303,13 @@ mod tests {
         assert_eq!(result.data.len(), 159);
         assert_eq!(result.data[151].subnet_name, "z-ilt-lab5-snet-adds-01");
 
-        // Test process_subnet_row
-        let (next_ip, _prev_vnet_ctx, print_rows) = process_subnet_row(
-            &result.data[0],
-            1,
-            Ipv4Addr::new(10, 0, 0, 0),
-            PrevVnetContext::default(),
-            28,
-            Ipv4Addr::new(10, 17, 255, 255),
-        );
+        // Test first subnet via GapFinder (verifies push returns the subnet row)
+        let mut gf = GapFinder::new(28);
+        let rows = gf.push(&result.data[0], 1);
 
         assert_eq!(result.data[0].subnet_name, "jenkinsarm-snet");
-        assert_eq!(next_ip.to_string(), "10.0.1.0");
-        assert_eq!(print_rows.len(), 1);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].subnet_cidr, "10.0.0.0/24");
     }
 
     #[test]

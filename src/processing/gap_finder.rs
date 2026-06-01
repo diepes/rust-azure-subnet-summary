@@ -47,7 +47,71 @@ pub struct SubnetPrintRow {
     pub ip_configurations_count: u32,
 }
 
-/// Process a subnet and generate output rows including any gaps.
+// ─── GapFinder ───────────────────────────────────────────────────────────────
+
+/// Push-based accumulator that hides `next_ip` / `PrevVnetContext` state.
+///
+/// Feed sorted subnets one at a time with [`GapFinder::push`]; collect the
+/// generated `SubnetPrintRow`s (including any gap rows) from each call.
+/// After the last subnet call [`GapFinder::finish`] to get the trailing vgap
+/// rows for the final VNet.
+pub struct GapFinder {
+    default_cidr_mask: u8,
+    next_ip: Ipv4Addr,
+    prev_vnet_ctx: PrevVnetContext,
+}
+
+impl GapFinder {
+    /// Create a new `GapFinder`.
+    ///
+    /// * `default_cidr_mask` — maximum gap block size (e.g. `28` → `/28` blocks).
+    pub fn new(default_cidr_mask: u8) -> Self {
+        Self {
+            default_cidr_mask,
+            next_ip: Ipv4Addr::new(10, 0, 0, 0),
+            prev_vnet_ctx: PrevVnetContext::default(),
+        }
+    }
+
+    /// Process one subnet and return all rows it generates (gaps + the subnet itself).
+    ///
+    /// Subnets **must** be supplied in ascending CIDR order — the internal
+    /// `assert` inside `process_subnet_row` will panic on out-of-order input.
+    pub fn push(&mut self, s: &Subnet, i: usize) -> Vec<SubnetPrintRow> {
+        const SKIP: Ipv4Addr = Ipv4Addr::new(10, 17, 255, 255);
+        let (new_next_ip, new_prev_ctx, rows) = process_subnet_row(
+            s,
+            i,
+            self.next_ip,
+            std::mem::take(&mut self.prev_vnet_ctx),
+            self.default_cidr_mask,
+            SKIP,
+        );
+        self.next_ip = new_next_ip;
+        self.prev_vnet_ctx = new_prev_ctx;
+        rows
+    }
+
+    /// Return trailing vgap rows for the last VNet seen, then reset state.
+    ///
+    /// Call once after all subnets have been pushed.  Safe to call even if no
+    /// subnets were pushed (returns an empty `Vec`).
+    pub fn finish(self) -> Vec<SubnetPrintRow> {
+        match self.prev_vnet_ctx.vnet_cidr {
+            None => vec![],
+            Some(vnet_cidr) => {
+                fill_trailing_vgap(
+                    self.next_ip,
+                    vnet_cidr,
+                    &self.prev_vnet_ctx,
+                    self.default_cidr_mask,
+                )
+                .1
+            }
+        }
+    }
+}
+
 ///
 /// # Arguments
 /// * `s` - The subnet to process
@@ -501,5 +565,32 @@ mod tests {
         assert_eq!(result.subnet_name, "jenkinsarm-snet");
         assert_eq!(next_ip.to_string(), "10.0.1.0");
         assert_eq!(print_rows.len(), 1, "Expected 1 row for subnet");
+    }
+
+    /// RED: GapFinder owns state; push() returns rows for each subnet.
+    #[test]
+    fn gap_finder_push_accumulates_rows_and_hides_state() {
+        // mask=24 → the one /24 gap between snet-a and snet-b becomes a single row
+        let mut gf = GapFinder::new(24);
+        let s1 = make_subnet("10.0.0.0/24", "10.0.0.0/16", "vnet-a", "snet-a");
+        let s2 = make_subnet("10.0.2.0/24", "10.0.0.0/16", "vnet-a", "snet-b");
+
+        let rows1 = gf.push(&s1, 0);
+        let rows2 = gf.push(&s2, 1);
+        let trailing = gf.finish();
+
+        // s1 has no gap before it — just the one subnet row
+        assert_eq!(rows1.len(), 1, "s1: no gap expected");
+        assert_eq!(rows1[0].subnet_name, "snet-a");
+
+        // s2: 10.0.1.0/24 gap then snet-b → 2 rows
+        assert_eq!(rows2.len(), 2, "s2: one gap + one subnet");
+        assert_eq!(rows2[0].gap, "-vgap-");
+        assert_eq!(rows2[0].subnet_cidr, "10.0.1.0/24");
+        assert_eq!(rows2[1].subnet_name, "snet-b");
+
+        // trailing vgap fills rest of 10.0.0.0/16
+        assert!(!trailing.is_empty(), "trailing vgaps expected");
+        assert!(trailing.iter().all(|r| r.gap == "-vgap-"));
     }
 }
