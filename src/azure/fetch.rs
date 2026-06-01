@@ -5,8 +5,7 @@
 //! their cache status, and returns an [`AzureData`] bundle.
 
 use super::{
-    local_gateway::LocalGatewayData,
-    local_gateway_cache::read_local_gateway_cache_with_status,
+    local_gateway::LocalGatewayData, local_gateway_cache::read_local_gateway_cache_with_status,
     peering_cache::read_peering_cache_with_status, peering_graph::PeeringData,
     vwan_cache::read_vwan_cache_with_status, vwan_graph::VWanData, CacheResult,
 };

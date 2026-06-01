@@ -6,8 +6,7 @@
 //! Uses the ELK renderer (`%%{init}%%` directive) for better auto-layout of
 //! dense graphs.
 
-use super::peering_topology::{build_topology, node_id};
-use crate::azure::{Data, LocalGatewayRow, PeeringEdge, VWanRow};
+use super::peering_topology::{node_id, PeeringTopology};
 use std::collections::HashSet;
 use std::error::Error;
 use std::fs::File;
@@ -17,20 +16,9 @@ use std::io::{BufWriter, Write};
 
 /// Write a Mermaid peering diagram to `filename`.
 ///
-/// * `edges`          – directed peering edges from Azure Resource Graph
-/// * `subnets`        – raw subnet data (used to find CIDR, subscription names, GatewaySubnets)
-/// * `local_gateways` – Local Network Gateway rows (on-premises CIDRs per gateway VNet)
-/// * `vwan`           – Virtual WAN hub connection rows
-/// * `filename`       – output path for the `.md` file
-pub fn write_peering_diagram(
-    edges: &[PeeringEdge],
-    subnets: &Data,
-    local_gateways: &[LocalGatewayRow],
-    vwan: &[VWanRow],
-    filename: &str,
-) -> Result<(), Box<dyn Error>> {
-    let topo = build_topology(edges, subnets, local_gateways, vwan);
-
+/// * `topo`     – pre-built peering topology (see [`build_topology`])
+/// * `filename` – output path for the `.md` file
+pub fn write_peering_diagram(topo: &PeeringTopology, filename: &str) -> Result<(), Box<dyn Error>> {
     let file = File::create(filename)?;
     let mut w = BufWriter::new(file);
     let date = chrono::Local::now().format("%Y-%m-%d");
@@ -151,8 +139,9 @@ pub fn write_peering_diagram(
 
 #[cfg(test)]
 mod tests {
+    use super::super::peering_topology::build_topology;
     use super::*;
-    use crate::azure::Data;
+    use crate::azure::{Data, PeeringEdge};
 
     fn arm_id(sub: &str, vnet: &str) -> String {
         format!(
@@ -177,8 +166,9 @@ mod tests {
             remote_vnet_id: arm_id("s2", "vnet-b"),
             ..Default::default()
         }];
+        let topo = build_topology(&edges, &empty_data(), &[], &[]);
         let f = "/tmp/test-mermaid-elk.md";
-        write_peering_diagram(&edges, &empty_data(), &[], &[], f).unwrap();
+        write_peering_diagram(&topo, f).unwrap();
         let c = std::fs::read_to_string(f).unwrap();
         std::fs::remove_file(f).ok();
         assert!(
@@ -205,8 +195,9 @@ mod tests {
                 ..Default::default()
             },
         ];
+        let topo = build_topology(&edges, &empty_data(), &[], &[]);
         let f = "/tmp/test-peering-bidir.md";
-        write_peering_diagram(&edges, &empty_data(), &[], &[], f).unwrap();
+        write_peering_diagram(&topo, f).unwrap();
         let c = std::fs::read_to_string(f).unwrap();
         std::fs::remove_file(f).ok();
         assert!(
@@ -223,8 +214,9 @@ mod tests {
             remote_vnet_id: arm_id("s2", "spoke-vnet"),
             ..Default::default()
         }];
+        let topo = build_topology(&edges, &empty_data(), &[], &[]);
         let f = "/tmp/test-peering-broken.md";
-        write_peering_diagram(&edges, &empty_data(), &[], &[], f).unwrap();
+        write_peering_diagram(&topo, f).unwrap();
         let c = std::fs::read_to_string(f).unwrap();
         std::fs::remove_file(f).ok();
         assert!(c.contains("--x"), "Expected --x stop arrow:\n{c}");
@@ -240,8 +232,9 @@ mod tests {
             remote_vnet_id: arm_id("s2", "other-vnet"),
             ..Default::default()
         }];
+        let topo = build_topology(&edges, &empty_data(), &[], &[]);
         let f = "/tmp/test-peering-label.md";
-        write_peering_diagram(&edges, &empty_data(), &[], &[], f).unwrap();
+        write_peering_diagram(&topo, f).unwrap();
         let c = std::fs::read_to_string(f).unwrap();
         std::fs::remove_file(f).ok();
         assert!(
@@ -263,8 +256,9 @@ mod tests {
             skip_token: None,
             total_records: None,
         };
+        let topo = build_topology(&[], &data, &[], &[]);
         let f = "/tmp/test-peering-gateway.md";
-        write_peering_diagram(&[], &data, &[], &[], f).unwrap();
+        write_peering_diagram(&topo, f).unwrap();
         let c = std::fs::read_to_string(f).unwrap();
         std::fs::remove_file(f).ok();
         assert!(
@@ -287,8 +281,9 @@ mod tests {
             skip_token: None,
             total_records: None,
         };
+        let topo = build_topology(&[], &data, &[], &[]);
         let f = "/tmp/test-peering-standalone.md";
-        write_peering_diagram(&[], &data, &[], &[], f).unwrap();
+        write_peering_diagram(&topo, f).unwrap();
         let c = std::fs::read_to_string(f).unwrap();
         std::fs::remove_file(f).ok();
         assert!(c.contains("subgraph"), "Must have subgraph:\n{c}");
@@ -296,5 +291,43 @@ mod tests {
             c.contains("Standalone Sub/standalone-vnet"),
             "Must have correct label:\n{c}"
         );
+    }
+
+    #[test]
+    fn writer_accepts_prebuilt_topology() {
+        use super::super::peering_topology::{PeeringTopology, VNetMeta};
+        use std::collections::{HashMap, HashSet};
+
+        let mut vnet_meta: HashMap<String, VNetMeta> = HashMap::new();
+        vnet_meta.insert(
+            "alpha".to_string(),
+            VNetMeta {
+                subscription_name: "Sub-X".into(),
+                vnet_cidr: vec!["10.1.0.0/24".into()],
+                has_gateway: false,
+                missing: false,
+                on_prem_names: vec![],
+                on_prem_cidrs: vec![],
+                vng_name: None,
+                vng_bgp_asn: None,
+            },
+        );
+        let island_id = [("alpha".to_string(), 0)].into_iter().collect();
+        let topo = PeeringTopology {
+            vnet_meta,
+            bidir_pairs: HashSet::new(),
+            broken_edges: vec![],
+            islands: vec![vec!["alpha".to_string()]],
+            island_id,
+            vwan_hubs: vec![],
+            vwan_spoke_to_hub: HashMap::new(),
+            subnets: crate::azure::Data::default(),
+            local_gateways: vec![],
+        };
+        let f = "/tmp/test-prebuilt-topo.md";
+        write_peering_diagram(&topo, f).unwrap();
+        let c = std::fs::read_to_string(f).unwrap();
+        std::fs::remove_file(f).ok();
+        assert!(c.contains("Sub-X/alpha"), "Label must appear:\n{c}");
     }
 }

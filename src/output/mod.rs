@@ -18,5 +18,6 @@ pub use csv::subnet_print;
 pub use dup_report::write_duplicates_md;
 pub use peering_diagram::write_peering_diagram;
 pub use peering_dot::write_peering_dot;
+pub use peering_topology::{build_topology, PeeringTopology};
 pub use terminal::format_field;
 pub use validate_dot::validate_dot_file;

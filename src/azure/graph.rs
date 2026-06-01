@@ -30,7 +30,7 @@ const SUBNET_QUERY: &str = r#"resources
         | sort by vnet_name asc"#;
 
 /// Response data from Azure Graph query.
-#[derive(Serialize, Deserialize, Debug, Default)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct Data {
     /// List of subnets returned.
     pub data: Vec<Subnet>,

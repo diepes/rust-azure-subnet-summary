@@ -9,8 +9,8 @@
 //! # or open in VSCode with the "Graphviz Preview" extension
 //! ```
 
-use super::peering_topology::{build_topology, node_id, VWanHub};
-use crate::azure::{Data, LocalGatewayRow, PeeringEdge, VWanRow};
+use super::peering_topology::{node_id, PeeringTopology, VWanHub};
+use crate::azure::LocalGatewayRow;
 use std::error::Error;
 use std::fs::File;
 use std::io::{BufWriter, Write};
@@ -25,19 +25,9 @@ fn html_escape(s: &str) -> String {
 
 /// Write a Graphviz DOT peering diagram to `filename`.
 ///
-/// * `edges`          – directed peering edges from Azure Resource Graph
-/// * `subnets`        – raw subnet data (used to find CIDR, subscription names, GatewaySubnets)
-/// * `local_gateways` – Local Network Gateway rows (on-premises CIDRs per gateway VNet)
-/// * `filename`       – output path for the `.dot` file
-pub fn write_peering_dot(
-    edges: &[PeeringEdge],
-    subnets: &Data,
-    local_gateways: &[LocalGatewayRow],
-    vwan: &[VWanRow],
-    filename: &str,
-) -> Result<(), Box<dyn Error>> {
-    let topo = build_topology(edges, subnets, local_gateways, vwan);
-
+/// * `topo`     – pre-built peering topology (see [`build_topology`])
+/// * `filename` – output path for the `.dot` file
+pub fn write_peering_dot(topo: &PeeringTopology, filename: &str) -> Result<(), Box<dyn Error>> {
     let file = File::create(filename)?;
     let mut w = BufWriter::new(file);
     let date = chrono::Local::now().format("%Y-%m-%d");
@@ -64,7 +54,7 @@ pub fn write_peering_dot(
     // Build a lookup: LNG name → LocalGatewayRow (first-seen wins per LNG name).
     let mut lng_lookup: std::collections::HashMap<&str, &LocalGatewayRow> =
         std::collections::HashMap::new();
-    for row in local_gateways {
+    for row in &topo.local_gateways {
         lng_lookup.entry(row.local_gw_name.as_str()).or_insert(row);
     }
 
@@ -279,7 +269,8 @@ pub fn write_peering_dot(
                         )]
                     };
                     // Subnets sorted by vnet_cidr start IP first, then subnet_cidr IP.
-                    let mut vnet_subnets: Vec<&crate::models::Subnet> = subnets
+                    let mut vnet_subnets: Vec<&crate::models::Subnet> = topo
+                        .subnets
                         .data
                         .iter()
                         .filter(|s| s.vnet_name == *vnet && s.excluded_by.is_none())
@@ -476,7 +467,7 @@ fn write_hub_node(w: &mut impl Write, hub: &VWanHub) -> std::io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::azure::Data;
+    use crate::azure::{Data, PeeringEdge};
 
     fn arm_id(sub: &str, vnet: &str) -> String {
         format!(
@@ -491,6 +482,15 @@ mod tests {
             skip_token: None,
             total_records: None,
         }
+    }
+
+    fn topo(
+        edges: &[crate::azure::PeeringEdge],
+        data: &Data,
+        lgws: &[crate::azure::LocalGatewayRow],
+        vwan: &[crate::azure::VWanRow],
+    ) -> super::super::peering_topology::PeeringTopology {
+        super::super::peering_topology::build_topology(edges, data, lgws, vwan)
     }
 
     #[test]
@@ -514,7 +514,7 @@ mod tests {
             ..Default::default()
         };
         let f = "/tmp/test-dot-vwan-hub.dot";
-        write_peering_dot(&[], &data, &[], &[vwan_row], f).unwrap();
+        write_peering_dot(&topo(&[], &data, &[], &[vwan_row]), f).unwrap();
         let c = std::fs::read_to_string(f).unwrap();
         std::fs::remove_file(f).ok();
         assert!(
@@ -552,7 +552,7 @@ mod tests {
             ..Default::default()
         };
         let f = "/tmp/test-dot-vwan-edge.dot";
-        write_peering_dot(&[], &data, &[], &[vwan_row], f).unwrap();
+        write_peering_dot(&topo(&[], &data, &[], &[vwan_row]), f).unwrap();
         let c = std::fs::read_to_string(f).unwrap();
         std::fs::remove_file(f).ok();
         assert!(
@@ -578,7 +578,7 @@ mod tests {
             ..Default::default()
         }];
         let f = "/tmp/test-dot-hv-hidden.dot";
-        write_peering_dot(&edges, &empty_data(), &[], &[], f).unwrap();
+        write_peering_dot(&topo(&edges, &empty_data(), &[], &[]), f).unwrap();
         let c = std::fs::read_to_string(f).unwrap();
         std::fs::remove_file(f).ok();
         assert!(
@@ -594,7 +594,7 @@ mod tests {
     #[test]
     fn dot_file_starts_with_digraph() {
         let f = "/tmp/test-dot-header.dot";
-        write_peering_dot(&[], &empty_data(), &[], &[], f).unwrap();
+        write_peering_dot(&topo(&[], &empty_data(), &[], &[]), f).unwrap();
         let c = std::fs::read_to_string(f).unwrap();
         std::fs::remove_file(f).ok();
         assert!(
@@ -623,7 +623,7 @@ mod tests {
             },
         ];
         let f = "/tmp/test-dot-bidir.dot";
-        write_peering_dot(&edges, &empty_data(), &[], &[], f).unwrap();
+        write_peering_dot(&topo(&edges, &empty_data(), &[], &[]), f).unwrap();
         let c = std::fs::read_to_string(f).unwrap();
         std::fs::remove_file(f).ok();
         assert!(
@@ -641,7 +641,7 @@ mod tests {
             ..Default::default()
         }];
         let f = "/tmp/test-dot-broken.dot";
-        write_peering_dot(&edges, &empty_data(), &[], &[], f).unwrap();
+        write_peering_dot(&topo(&edges, &empty_data(), &[], &[]), f).unwrap();
         let c = std::fs::read_to_string(f).unwrap();
         std::fs::remove_file(f).ok();
         assert!(c.contains("color=red"), "Broken edge must be red:\n{c}");
@@ -661,7 +661,7 @@ mod tests {
             ..Default::default()
         }];
         let f = "/tmp/test-dot-label.dot";
-        write_peering_dot(&edges, &empty_data(), &[], &[], f).unwrap();
+        write_peering_dot(&topo(&edges, &empty_data(), &[], &[]), f).unwrap();
         let c = std::fs::read_to_string(f).unwrap();
         std::fs::remove_file(f).ok();
         assert!(
@@ -693,7 +693,7 @@ mod tests {
             ..Default::default()
         };
         let f = "/tmp/test-dot-gateway.dot";
-        write_peering_dot(&[], &data, &[lng], &[], f).unwrap();
+        write_peering_dot(&topo(&[], &data, &[lng], &[]), f).unwrap();
         let c = std::fs::read_to_string(f).unwrap();
         std::fs::remove_file(f).ok();
         assert!(
@@ -721,7 +721,7 @@ mod tests {
             total_records: None,
         };
         let f = "/tmp/test-dot-gateway-no-lng.dot";
-        write_peering_dot(&[], &data, &[], &[], f).unwrap();
+        write_peering_dot(&topo(&[], &data, &[], &[]), f).unwrap();
         let c = std::fs::read_to_string(f).unwrap();
         std::fs::remove_file(f).ok();
         assert!(
@@ -757,7 +757,7 @@ mod tests {
             total_records: None,
         };
         let f = "/tmp/test-dot-multi-cidr.dot";
-        write_peering_dot(&[], &data, &[], &[], f).unwrap();
+        write_peering_dot(&topo(&[], &data, &[], &[]), f).unwrap();
         let c = std::fs::read_to_string(f).unwrap();
         std::fs::remove_file(f).ok();
         assert!(
@@ -784,7 +784,7 @@ mod tests {
             total_records: None,
         };
         let f = "/tmp/test-dot-standalone.dot";
-        write_peering_dot(&[], &data, &[], &[], f).unwrap();
+        write_peering_dot(&topo(&[], &data, &[], &[]), f).unwrap();
         let c = std::fs::read_to_string(f).unwrap();
         std::fs::remove_file(f).ok();
         assert!(
@@ -819,7 +819,7 @@ mod tests {
             total_records: None,
         };
         let f = "/tmp/test-dot-compact-header.dot";
-        write_peering_dot(&[], &data, &[], &[], f).unwrap();
+        write_peering_dot(&topo(&[], &data, &[], &[]), f).unwrap();
         let c = std::fs::read_to_string(f).unwrap();
         std::fs::remove_file(f).ok();
 
@@ -859,7 +859,7 @@ mod tests {
             total_records: None,
         };
         let f = "/tmp/test-dot-subnet-vnet-cidr-order.dot";
-        write_peering_dot(&[], &data, &[], &[], f).unwrap();
+        write_peering_dot(&topo(&[], &data, &[], &[]), f).unwrap();
         let c = std::fs::read_to_string(f).unwrap();
         std::fs::remove_file(f).ok();
 

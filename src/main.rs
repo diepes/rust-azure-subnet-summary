@@ -7,8 +7,8 @@ use azure_subnet_summary::{
     azure::{fetch_azure_data, FetchConfig},
     check_for_duplicate_subnets,
     output::{
-        subnet_print, validate_dot_file, write_duplicates_md, write_peering_diagram,
-        write_peering_dot,
+        build_topology, subnet_print, validate_dot_file, write_duplicates_md,
+        write_peering_diagram, write_peering_dot,
     },
     processing::{
         de_duplicate_subnets, filter_overlapping_vnets, find_overlapping_vnets, get_vnets,
@@ -248,15 +248,17 @@ fn main() -> Result<(), Box<dyn Error>> {
     write_duplicates_md(&data, &dup_file)?;
     log::info!("Duplicates report written to '{dup_file}'");
 
+    // Build peering topology once; pass to both diagram writers.
+    let topo = build_topology(
+        &peering_data.data,
+        &data,
+        &local_gw_data.data,
+        &vwan_data.data,
+    );
+
     if diagram_types.contains("md") {
         let peering_file = format!("net_{date_str}_peering.md");
-        write_peering_diagram(
-            &peering_data.data,
-            &data,
-            &local_gw_data.data,
-            &vwan_data.data,
-            &peering_file,
-        )?;
+        write_peering_diagram(&topo, &peering_file)?;
         log::info!("Peering diagram written to '{peering_file}'");
     }
 
@@ -264,13 +266,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Store the file name so we can render SVG after all other output.
     let peering_dot_file = if diagram_types.contains("dot") || diagram_types.contains("svg") {
         let f = format!("net_{date_str}_peering.dot");
-        write_peering_dot(
-            &peering_data.data,
-            &data,
-            &local_gw_data.data,
-            &vwan_data.data,
-            &f,
-        )?;
+        write_peering_dot(&topo, &f)?;
         log::info!("Peering DOT diagram written to '{f}'");
         Some(f)
     } else {

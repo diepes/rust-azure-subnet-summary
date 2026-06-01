@@ -10,7 +10,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 
 /// Metadata collected for a single VNet.
 #[derive(Debug, Clone)]
-pub(super) struct VNetMeta {
+pub struct VNetMeta {
     pub subscription_name: String,
     pub vnet_cidr: Vec<String>,
     pub has_gateway: bool,
@@ -32,14 +32,14 @@ pub(super) struct VNetMeta {
 /// Direction is chosen so that the Connected side (if any) is `from`.
 /// For both-broken / one-sided edges the first-seen direction is kept.
 #[derive(Debug, Clone)]
-pub(super) struct BrokenEdge {
+pub struct BrokenEdge {
     pub from: String,
     pub to: String,
 }
 
 /// Metadata for a Virtual WAN Hub node.
 #[derive(Debug, Clone)]
-pub(super) struct VWanHub {
+pub struct VWanHub {
     /// Hub resource name (e.g. `p-aue-platform-hub`).
     pub hub_name: String,
     /// Hub address prefix / CIDR (e.g. `10.100.0.0/23`).
@@ -57,7 +57,7 @@ pub(super) struct VWanHub {
 }
 
 /// Pre-processed peering topology ready for rendering.
-pub(super) struct PeeringTopology {
+pub struct PeeringTopology {
     /// Metadata keyed by VNet name.
     pub vnet_meta: HashMap<String, VNetMeta>,
     /// Canonical `(lo, hi)` pairs where BOTH sides reported `Connected`.
@@ -73,12 +73,16 @@ pub(super) struct PeeringTopology {
     /// spoke VNet name → hub name (for edge rendering).
     #[allow(dead_code)]
     pub vwan_spoke_to_hub: HashMap<String, String>,
+    /// Raw subnet data (used by DOT writer for subnet label rendering).
+    pub subnets: Data,
+    /// Raw local gateway rows (used by DOT writer for on-premises node rendering).
+    pub local_gateways: Vec<LocalGatewayRow>,
 }
 
 // ─── builder ─────────────────────────────────────────────────────────────────
 
 /// Build a `PeeringTopology` from raw Azure data.
-pub(super) fn build_topology(
+pub fn build_topology(
     edges: &[PeeringEdge],
     subnets: &Data,
     local_gateways: &[LocalGatewayRow],
@@ -377,13 +381,15 @@ pub(super) fn build_topology(
         island_id,
         vwan_hubs,
         vwan_spoke_to_hub,
+        subnets: subnets.clone(),
+        local_gateways: local_gateways.to_vec(),
     }
 }
 
 // ─── utilities ───────────────────────────────────────────────────────────────
 
 /// Returns `(lo, hi)` with `lo <= hi` alphabetically — used for deduplication.
-pub(super) fn canonical_pair(a: &str, b: &str) -> (String, String) {
+pub(crate) fn canonical_pair(a: &str, b: &str) -> (String, String) {
     if a <= b {
         (a.to_string(), b.to_string())
     } else {
@@ -392,7 +398,7 @@ pub(super) fn canonical_pair(a: &str, b: &str) -> (String, String) {
 }
 
 /// Sanitise a VNet name into a valid Mermaid / DOT node identifier.
-pub(super) fn node_id(name: &str) -> String {
+pub(crate) fn node_id(name: &str) -> String {
     let s: String = name
         .chars()
         .map(|c| if c.is_alphanumeric() { c } else { '_' })
