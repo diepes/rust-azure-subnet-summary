@@ -3,7 +3,7 @@
 use crate::azure::{Data, VWanRow};
 use crate::models::{num_az_hosts, Subnet};
 use crate::processing::gap_finder::{extract_nsg_name, format_dns_servers};
-use crate::processing::{gaps, ExcludedSubnet, GapFinder, GapKind, SubnetPrintRow, VnetCidr};
+use crate::processing::{gaps, ExcludedSubnet, GapKind, SubnetPrintRow, VnetCidr};
 use chrono::Local;
 use std::cmp::Reverse;
 use std::error::Error;
@@ -259,144 +259,7 @@ pub fn subnet_print(
         r#" "cnt", "gap"  , "subnet_cidr"    ,"vms"        ,  "broadcast"      , "subnet_name"          ,  "subscription_name",     "vnet_cidr"        ,      "vnet_name","location","nsg","dns","subscription_id""#
     )?;
 
-    let mut gf = GapFinder::new(gap_cidr_mask);
-    let mut output_rows = Vec::new();
-
-    for (i, s) in data.data.iter().enumerate() {
-        output_rows.extend(gf.push(s, i));
-    }
-
-    output_rows.extend(gf.finish());
-
-    // Insert DUP_EXCL_VNET rows directly after their winner VNet's last row.
-    // Collect groups keyed by winner VNet name, preserving encounter order.
-    let mut winner_order: Vec<String> = Vec::new();
-    let mut dup_groups: std::collections::HashMap<String, Vec<SubnetPrintRow>> =
-        std::collections::HashMap::new();
-
-    for e in excluded {
-        let winner = e.winner_vnet_name.clone();
-        let s = &e.subnet;
-        let subnet_cidr_str = s
-            .subnet_cidr
-            .map(|c| c.to_string())
-            .unwrap_or_else(|| "None".to_string());
-        let broadcast_str = s
-            .subnet_cidr
-            .and_then(|c| c.broadcast().ok().map(|b| b.addr.to_string()))
-            .unwrap_or_else(|| "None".to_string());
-        let az_hosts = s
-            .subnet_cidr
-            .and_then(|c| crate::models::num_az_hosts(c.mask).ok())
-            .unwrap_or(0) as usize;
-        let row = SubnetPrintRow {
-            j: 0,
-            gap: "DUP_EXCL_VNET".to_string(),
-            subnet_cidr: subnet_cidr_str,
-            broadcast: broadcast_str,
-            az_hosts,
-            subnet_name: format!("{} [DUP of VNET {}]", s.subnet_name, winner),
-            subscription_name: s.subscription_name.clone(),
-            vnet_cidr: s.vnet_cidr.to_string(),
-            vnet_name: s.vnet_name.clone(),
-            location: s.location.clone(),
-            nsg: s
-                .nsg
-                .as_deref()
-                .unwrap_or("None")
-                .split('/')
-                .next_back()
-                .unwrap_or("None")
-                .to_string(),
-            dns: s
-                .dns_servers
-                .as_deref()
-                .map(|d| d.join(","))
-                .unwrap_or_else(|| "None".to_string()),
-            subscription_id: s.subscription_id.clone(),
-            ip_configurations_count: s.ip_configurations_count.unwrap_or(0),
-        };
-        if !dup_groups.contains_key(&winner) {
-            winner_order.push(winner.clone());
-        }
-        dup_groups.entry(winner).or_default().push(row);
-    }
-
-    // Build (insertion_index, rows) pairs — insert after the last row of each winner VNet.
-    // Process from the highest index downward so earlier insertions don't shift later ones.
-    let mut insertions: Vec<(usize, Vec<SubnetPrintRow>)> = winner_order
-        .into_iter()
-        .map(|winner_vnet| {
-            let pos = output_rows
-                .iter()
-                .rposition(|r| r.vnet_name == winner_vnet)
-                .map(|i| i + 1)
-                .unwrap_or(output_rows.len()); // fallback: append at end
-            let rows = dup_groups.remove(&winner_vnet).unwrap_or_default();
-            (pos, rows)
-        })
-        .collect();
-
-    insertions.sort_by_key(|b| Reverse(b.0));
-    for (pos, rows) in insertions {
-        let tail = output_rows.split_off(pos);
-        output_rows.extend(rows);
-        output_rows.extend(tail);
-    }
-
-    // Inject vWAN Hub rows — each hub's address prefix is reserved IP space.
-    // Parse all hub CIDRs and insert them at the correct sorted position.
-    let mut hub_rows: Vec<(u32, SubnetPrintRow)> = Vec::new();
-    for hub in vwan {
-        if hub.hub_address_prefix.is_empty() {
-            continue;
-        }
-        let cidr = &hub.hub_address_prefix;
-        // Parse "a.b.c.d/n" into start IP and prefix length.
-        let (start_u32, _prefix_len, broadcast, az_hosts) = match parse_cidr(cidr) {
-            Some(v) => v,
-            None => {
-                log::warn!(
-                    "vWAN hub '{}' has unparseable CIDR '{cidr}' — skipped",
-                    hub.hub_name
-                );
-                continue;
-            }
-        };
-        let row = SubnetPrintRow {
-            j: 0,
-            gap: "VWAN_HUB".to_string(),
-            subnet_cidr: cidr.clone(),
-            broadcast,
-            az_hosts,
-            subnet_name: format!("vWAN Hub:{}", hub.hub_name),
-            subscription_name: hub.subscription_name.clone(),
-            vnet_cidr: cidr.clone(),
-            vnet_name: if hub.virtual_wan_name.is_empty() {
-                hub.hub_name.clone()
-            } else {
-                hub.virtual_wan_name.clone()
-            },
-            location: hub.location.clone(),
-            nsg: "None".to_string(),
-            dns: "None".to_string(),
-            subscription_id: hub.subscription_id.clone(),
-            ip_configurations_count: 0,
-        };
-        hub_rows.push((start_u32, row));
-    }
-    hub_rows.sort_by_key(|(ip, _)| *ip);
-
-    // Insert each hub row at the correct position (after all subnet rows whose
-    // start IP is ≤ the hub's start IP).
-    for (hub_ip, hub_row) in hub_rows.into_iter().rev() {
-        let pos = output_rows
-            .iter()
-            .rposition(|r| cidr_start_u32(&r.subnet_cidr).is_some_and(|ip| ip <= hub_ip))
-            .map(|i| i + 1)
-            .unwrap_or(0);
-        output_rows.insert(pos, hub_row);
-    }
+    let output_rows = build_rows(&data.data, excluded, gap_cidr_mask, vwan);
 
     // Write the subnets as CSV
     for row in &output_rows {
@@ -513,6 +376,7 @@ mod tests {
         assert_eq!(result.data[151].subnet_name, "z-ilt-lab5-snet-adds-01");
 
         // Test first subnet via GapFinder (verifies push returns the subnet row)
+        use crate::processing::GapFinder;
         let mut gf = GapFinder::new(28);
         let rows = gf.push(&result.data[0], 1);
 
@@ -774,6 +638,35 @@ mod tests {
         assert!(
             rows.iter().any(|r| r.gap == "DUP_EXCL_VNET"),
             "expected DUP_EXCL_VNET row"
+        );
+    }
+
+    #[test]
+    fn build_rows_vwan_hub_appears_at_sorted_ip_position() {
+        use crate::azure::VWanRow;
+        let s1 = make_subnet_for_build("vnet-a", "Prod", "10.0.0.0/24", "10.0.0.0/24", "snet");
+        let s2 = make_subnet_for_build("vnet-b", "Prod", "10.2.0.0/24", "10.2.0.0/24", "snet");
+        let hub = VWanRow {
+            hub_name: "my-hub".to_string(),
+            hub_address_prefix: "10.1.0.0/24".to_string(),
+            virtual_wan_name: "my-vwan".to_string(),
+            subscription_name: "Prod".to_string(),
+            subscription_id: "sub-id".to_string(),
+            location: "eastus".to_string(),
+        };
+        let rows = build_rows(&[s1, s2], &[], 28, &[hub]);
+
+        assert!(
+            rows.iter().any(|r| r.gap == "VWAN_HUB"),
+            "expected a VWAN_HUB row"
+        );
+        // hub (10.1.x) must appear between vnet-a (10.0.x) and vnet-b (10.2.x)
+        let hub_pos = rows.iter().position(|r| r.gap == "VWAN_HUB").unwrap();
+        let a_pos = rows.iter().position(|r| r.vnet_name == "vnet-a").unwrap();
+        let b_pos = rows.iter().position(|r| r.vnet_name == "vnet-b").unwrap();
+        assert!(
+            a_pos < hub_pos && hub_pos < b_pos,
+            "hub must be between vnet-a and vnet-b; positions: a={a_pos}, hub={hub_pos}, b={b_pos}"
         );
     }
 }
