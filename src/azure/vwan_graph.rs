@@ -64,21 +64,19 @@ pub fn run_vwan_graph() -> Result<VWanData, Box<dyn Error>> {
     let mut count_blocks = 0;
 
     while skip_token_param != "--skip-token null" {
-        let cmd = format!(
-            "az graph query --first 50 {skip_token_param} -q '{VWAN_QUERY}' --output json"
-        );
+        let cmd =
+            format!("az graph query --first 50 {skip_token_param} -q '{VWAN_QUERY}' --output json");
         let output = cli::run(&cmd)?;
 
         let mut deser = serde_json::Deserializer::from_str(&output);
-        let block: VWanData =
-            serde_path_to_error::deserialize(&mut deser).map_err(|e| {
-                log::error!("OUTPUT START:\n\n{}\n\nOUTPUT END\n", output);
-                format!(
-                    "Error parsing vWAN JSON block {count_blocks}: path={} error={}",
-                    e.path(),
-                    e
-                )
-            })?;
+        let block: VWanData = serde_path_to_error::deserialize(&mut deser).map_err(|e| {
+            log::error!("OUTPUT START:\n\n{}\n\nOUTPUT END\n", output);
+            format!(
+                "Error parsing vWAN JSON block {count_blocks}: path={} error={}",
+                e.path(),
+                e
+            )
+        })?;
 
         let skip_token_new = block
             .skip_token

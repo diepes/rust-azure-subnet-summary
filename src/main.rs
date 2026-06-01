@@ -16,10 +16,10 @@ use azure_subnet_summary::{
     },
 };
 use clap::Parser;
-#[cfg(unix)]
-use std::os::unix::process::ExitStatusExt as _;
 use std::collections::HashSet;
 use std::error::Error;
+#[cfg(unix)]
+use std::os::unix::process::ExitStatusExt as _;
 
 /// Azure Subnet Summary - maps IP allocation and identifies free gaps.
 #[derive(Parser, Debug)]
@@ -139,8 +139,19 @@ fn render_svg_via_docker(dot_file: &str, svg_file: &str) {
 
         let result = std::process::Command::new("docker")
             .args([
-                "run", "--rm", "-v", &format!("{cwd}:/data"), "-w", "/data",
-                DOCKER_IMAGE, "dot", &format!("-K{engine}"), "-Tsvg", dot_file, "-o", svg_file,
+                "run",
+                "--rm",
+                "-v",
+                &format!("{cwd}:/data"),
+                "-w",
+                "/data",
+                DOCKER_IMAGE,
+                "dot",
+                &format!("-K{engine}"),
+                "-Tsvg",
+                dot_file,
+                "-o",
+                svg_file,
             ])
             .output();
 
@@ -152,7 +163,8 @@ fn render_svg_via_docker(dot_file: &str, svg_file: &str) {
             Ok(out) => {
                 let stderr = String::from_utf8_lossy(&out.stderr);
                 let why = exit_description(&out.status);
-                let msg = format!("Docker dot -{engine} {why}: {stderr}\nRun manually:\n  {manual_cmd}");
+                let msg =
+                    format!("Docker dot -{engine} {why}: {stderr}\nRun manually:\n  {manual_cmd}");
                 log::warn!("{msg}");
                 eprintln!("WARN: {msg}");
                 // try next engine

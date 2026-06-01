@@ -102,8 +102,7 @@ pub fn write_peering_dot(
     }
 
     // Reverse map: gateway VNet name → ext node id (used when emitting edges).
-    let mut vnet_to_ext: std::collections::HashMap<&str, String> =
-        std::collections::HashMap::new();
+    let mut vnet_to_ext: std::collections::HashMap<&str, String> = std::collections::HashMap::new();
     for (key, (_, _, vnets)) in &ext_map {
         let ext_id = format!("ext_{}", sanitize_id(key));
         for v in vnets {
@@ -147,10 +146,10 @@ pub fn write_peering_dot(
                 } else {
                     // No row data — use merged CIDRs from ext_map.
                     for cidr in cidrs {
-                            if !cidr.is_empty() {
-                                lines.push(cidr.clone());
-                            }
+                        if !cidr.is_empty() {
+                            lines.push(cidr.clone());
                         }
+                    }
                 }
                 sections.push(lines.join("\\n"));
             }
@@ -228,10 +227,7 @@ pub fn write_peering_dot(
 
         for (sub_idx, (sub, sub_vnets)) in by_sub.iter().enumerate() {
             let sub_label = if sub.is_empty() { "unknown" } else { sub };
-            writeln!(
-                w,
-                "        subgraph cluster_sub_{island_num}_{sub_idx} {{"
-            )?;
+            writeln!(w, "        subgraph cluster_sub_{island_num}_{sub_idx} {{")?;
             writeln!(w, "            label=\"{sub_label}\"")?;
             writeln!(
                 w,
@@ -256,7 +252,11 @@ pub fn write_peering_dot(
 
                 if is_missing {
                     let sub_name = meta.map(|m| m.subscription_name.as_str()).unwrap_or("?");
-                    let sub_display = if sub_name.is_empty() { "unknown" } else { sub_name };
+                    let sub_display = if sub_name.is_empty() {
+                        "unknown"
+                    } else {
+                        sub_name
+                    };
                     let cidr_str = meta.map(|m| m.vnet_cidr.join("\\n")).unwrap_or_default();
                     let label = if cidr_str.is_empty() {
                         format!("⚠ MISSING\\nSUB:{sub_display}\\n{vnet}")
@@ -265,23 +265,27 @@ pub fn write_peering_dot(
                     };
                     writeln!(w, "            {nid} [label=\"{label}\"{fill}]")?;
                 } else {
-                    let cidr_str = meta
-                        .map(|m| m.vnet_cidr.join(", "))
-                        .unwrap_or_default();
-                    let mut parts: Vec<String> = vec![html_escape(&format!("VNET:{vnet}"))];
-                    if !cidr_str.is_empty() {
-                        parts.push(html_escape(&format!("CIDR:{cidr_str}")));
-                    }
-                    // Subnets sorted by IP address.
+                    let cidr_str = meta.map(|m| m.vnet_cidr.join(", ")).unwrap_or_default();
+                    let vnet_escaped = html_escape(vnet);
+                    let header = if cidr_str.is_empty() {
+                        format!("VNET: <B>{vnet_escaped}</B>")
+                    } else {
+                        format!("VNET: <B>{vnet_escaped}</B> VNet_CIDRs: {cidr_str}")
+                    };
+                    let mut parts: Vec<String> = vec![header];
+                    // Subnets sorted by vnet_cidr start IP first, then subnet_cidr IP.
                     let mut vnet_subnets: Vec<&crate::models::Subnet> = subnets
                         .data
                         .iter()
                         .filter(|s| s.vnet_name == *vnet && s.excluded_by.is_none())
                         .collect();
                     vnet_subnets.sort_by_key(|s| {
-                        s.subnet_cidr
+                        let vcidr_key = u32::from_be_bytes(s.vnet_cidr.addr.octets());
+                        let snet_key = s
+                            .subnet_cidr
                             .map(|c| u32::from_be_bytes(c.addr.octets()))
-                            .unwrap_or(u32::MAX)
+                            .unwrap_or(u32::MAX);
+                        (vcidr_key, snet_key)
                     });
                     let vng_name = meta.and_then(|m| m.vng_name.as_deref()).unwrap_or("");
                     let vng_bgp_asn = meta.and_then(|m| m.vng_bgp_asn.as_deref()).unwrap_or("");
@@ -389,7 +393,11 @@ pub fn write_peering_dot(
             vnet_to_ext.iter().map(|(&k, v)| (k, v)).collect();
         sorted_pairs.sort_by_key(|(k, _)| *k);
         for (vnet, ext_id) in sorted_pairs {
-            writeln!(w, "    {} -> {ext_id} [dir=none color=\"#1a5fa8\" penwidth=2]", node_id(vnet))?;
+            writeln!(
+                w,
+                "    {} -> {ext_id} [dir=none color=\"#1a5fa8\" penwidth=2]",
+                node_id(vnet)
+            )?;
         }
         writeln!(w)?;
     }
@@ -459,7 +467,6 @@ fn write_hub_node(w: &mut impl Write, hub: &VWanHub) -> std::io::Result<()> {
         "            {hub_id} [label=\"{label}\" shape=diamond style=\"{style}\" fillcolor=\"{fill}\" color=\"{border}\" penwidth={penwidth}]"
     )
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -653,8 +660,8 @@ mod tests {
         let c = std::fs::read_to_string(f).unwrap();
         std::fs::remove_file(f).ok();
         assert!(
-            c.contains("VNET:my-vnet"),
-            "Node label must include VNET: prefix:\n{c}"
+            c.contains("<B>my-vnet</B>"),
+            "Node label must include bold VNet name:\n{c}"
         );
     }
 
@@ -724,6 +731,41 @@ mod tests {
     }
 
     #[test]
+    fn dot_vnet_with_two_address_spaces_shows_both_cidrs() {
+        use crate::models::{Ipv4, Subnet};
+        let mut s1 = Subnet::default();
+        s1.vnet_name = "multi-cidr-vnet".into();
+        s1.subnet_name = "subnet-a".into();
+        s1.subscription_name = "Prod Sub".into();
+        s1.vnet_cidr = Ipv4::new("10.0.0.0/16").unwrap();
+
+        let mut s2 = Subnet::default();
+        s2.vnet_name = "multi-cidr-vnet".into();
+        s2.subnet_name = "subnet-b".into();
+        s2.subscription_name = "Prod Sub".into();
+        s2.vnet_cidr = Ipv4::new("172.17.8.0/21").unwrap();
+
+        let data = Data {
+            data: vec![s1, s2],
+            count: 2,
+            skip_token: None,
+            total_records: None,
+        };
+        let f = "/tmp/test-dot-multi-cidr.dot";
+        write_peering_dot(&[], &data, &[], &[], f).unwrap();
+        let c = std::fs::read_to_string(f).unwrap();
+        std::fs::remove_file(f).ok();
+        assert!(
+            c.contains("10.0.0.0/16"),
+            "First address space must appear in diagram:\n{c}"
+        );
+        assert!(
+            c.contains("172.17.8.0/21"),
+            "Second address space must appear in diagram:\n{c}"
+        );
+    }
+
+    #[test]
     fn dot_standalone_vnet_in_cluster() {
         use crate::models::Subnet;
         let mut s = Subnet::default();
@@ -747,6 +789,80 @@ mod tests {
         assert!(
             c.contains("standalone-vnet"),
             "VNet must appear in diagram:\n{c}"
+        );
+    }
+
+    #[test]
+    fn dot_vnet_header_is_compact_with_bold_name_and_vnet_cidrs_label() {
+        use crate::models::{Ipv4, Subnet};
+        let mut s1 = Subnet::default();
+        s1.vnet_name = "pd-ibe-westus-arm".into();
+        s1.subnet_name = "subnet-a".into();
+        s1.subscription_name = "Prod Sub".into();
+        s1.vnet_cidr = Ipv4::new("10.0.0.0/16").unwrap();
+
+        let mut s2 = Subnet::default();
+        s2.vnet_name = "pd-ibe-westus-arm".into();
+        s2.subnet_name = "subnet-b".into();
+        s2.subscription_name = "Prod Sub".into();
+        s2.vnet_cidr = Ipv4::new("172.17.8.0/21").unwrap();
+
+        let data = Data {
+            data: vec![s1, s2],
+            count: 2,
+            skip_token: None,
+            total_records: None,
+        };
+        let f = "/tmp/test-dot-compact-header.dot";
+        write_peering_dot(&[], &data, &[], &[], f).unwrap();
+        let c = std::fs::read_to_string(f).unwrap();
+        std::fs::remove_file(f).ok();
+
+        assert!(
+            c.contains("<B>pd-ibe-westus-arm</B>"),
+            "VNet name must be bold in label:\n{c}"
+        );
+        assert!(
+            c.contains("VNet_CIDRs:"),
+            "Header must use VNet_CIDRs: label (not CIDR:):\n{c}"
+        );
+    }
+
+    #[test]
+    fn dot_subnets_sorted_by_vnet_cidr_then_subnet_cidr() {
+        use crate::models::{Ipv4, Subnet};
+        // subnet-z in 172.17.8.0/21 (higher vnet_cidr) and subnet-a in 10.0.0.0/16 (lower).
+        // subnet-a must appear before subnet-z in the label.
+        let mut s1 = Subnet::default();
+        s1.vnet_name = "multi-cidr-vnet".into();
+        s1.subnet_name = "subnet-z".into();
+        s1.subscription_name = "Prod Sub".into();
+        s1.vnet_cidr = Ipv4::new("172.17.8.0/21").unwrap();
+        s1.subnet_cidr = Some(Ipv4::new("172.17.8.0/24").unwrap());
+
+        let mut s2 = Subnet::default();
+        s2.vnet_name = "multi-cidr-vnet".into();
+        s2.subnet_name = "subnet-a".into();
+        s2.subscription_name = "Prod Sub".into();
+        s2.vnet_cidr = Ipv4::new("10.0.0.0/16").unwrap();
+        s2.subnet_cidr = Some(Ipv4::new("10.0.0.0/24").unwrap());
+
+        let data = Data {
+            data: vec![s1, s2],
+            count: 2,
+            skip_token: None,
+            total_records: None,
+        };
+        let f = "/tmp/test-dot-subnet-vnet-cidr-order.dot";
+        write_peering_dot(&[], &data, &[], &[], f).unwrap();
+        let c = std::fs::read_to_string(f).unwrap();
+        std::fs::remove_file(f).ok();
+
+        let a_pos = c.find("subnet-a").expect("subnet-a must appear");
+        let z_pos = c.find("subnet-z").expect("subnet-z must appear");
+        assert!(
+            a_pos < z_pos,
+            "subnet-a (10.0.0.0/16) must appear before subnet-z (172.17.8.0/21):\n{c}"
         );
     }
 }

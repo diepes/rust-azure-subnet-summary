@@ -29,14 +29,7 @@ pub fn write_duplicates_md(data: &Data, filename: &str) -> Result<(), Box<dyn Er
         data.data
             .iter()
             .find(|s| s.excluded_by.is_none() && s.vnet_name == vnet_name)
-            .map(|s| {
-                let cidr = s
-                    .vnet_cidr
-                    .first()
-                    .map(|c| c.to_string())
-                    .unwrap_or_default();
-                (cidr, s.subscription_name.clone())
-            })
+            .map(|s| (s.vnet_cidr.to_string(), s.subscription_name.clone()))
             .unwrap_or_default()
     };
 
@@ -69,8 +62,7 @@ pub fn write_duplicates_md(data: &Data, filename: &str) -> Result<(), Box<dyn Er
             let subnets = &excl_map[excl_vnet];
             let excl_cidr = subnets
                 .first()
-                .and_then(|s| s.vnet_cidr.first())
-                .map(|c| c.to_string())
+                .map(|s| s.vnet_cidr.to_string())
                 .unwrap_or_default();
             let excl_sub = subnets
                 .first()
@@ -111,7 +103,7 @@ mod tests {
         s.vnet_name = vnet_name.to_string();
         s.subscription_name = sub_name.to_string();
         s.subscription_id = "sub-id".to_string();
-        s.vnet_cidr = vec![Ipv4::new(vnet_cidr).unwrap()];
+        s.vnet_cidr = Ipv4::new(vnet_cidr).unwrap();
         s.subnet_cidr = Some(Ipv4::new(subnet_cidr).unwrap());
         s.subnet_name = subnet_name.to_string();
         s.excluded_by = excluded_by.map(|s| s.to_string());

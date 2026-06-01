@@ -8,7 +8,7 @@ use std::net::Ipv4Addr;
 /// Context from the previous subnet's VNet, carried forward to identify gaps within VNets.
 #[derive(Debug, Clone, Default)]
 pub struct PrevVnetContext {
-    pub vnet_cidr: Vec<Ipv4>,
+    pub vnet_cidr: Option<Ipv4>,
     pub vnet_name: String,
     pub subscription_name: String,
     pub subscription_id: String,
@@ -89,7 +89,7 @@ pub fn process_subnet_row(
         "next_ip[{next_ip}] > subnet_cidr[{subnet_cidr}] should never happen.\n  Subscription: '{subscription_name}',  Subnet: '{subnet_name}', Vnet_CIDR: '{vnet_cidr}'",
         subscription_name = s.subscription_name,
         subnet_name = s.subnet_name,
-        vnet_cidr = format_vnet_cidr(&s.vnet_cidr),
+        vnet_cidr = s.vnet_cidr,
     );
 
     // Create gap subnets
@@ -101,17 +101,16 @@ pub fn process_subnet_row(
         };
 
         // Check if gap is within the current or previous subnet's vnet
-        let gap_in_current_vnet = s.vnet_cidr.iter().any(|vnet| vnet.contains(next_ip));
+        let gap_in_current_vnet = s.vnet_cidr.contains(next_ip);
         let gap_in_prev_vnet = prev_vnet_ctx
             .vnet_cidr
-            .iter()
-            .any(|vnet| vnet.contains(next_ip));
+            .is_some_and(|vnet| vnet.contains(next_ip));
 
         let (gap_label, gap_vnet_cidr, gap_vnet_name, gap_sub_name, gap_sub_id) =
             if gap_in_current_vnet {
                 (
                     "-vgap-",
-                    format_vnet_cidr(&s.vnet_cidr),
+                    s.vnet_cidr.to_string(),
                     s.vnet_name.clone(),
                     s.subscription_name.clone(),
                     s.subscription_id.clone(),
@@ -119,7 +118,9 @@ pub fn process_subnet_row(
             } else if gap_in_prev_vnet {
                 (
                     "-vgap-",
-                    format_vnet_cidr(&prev_vnet_ctx.vnet_cidr),
+                    prev_vnet_ctx
+                        .vnet_cidr
+                        .map_or("None".to_string(), |v| v.to_string()),
                     prev_vnet_ctx.vnet_name.clone(),
                     prev_vnet_ctx.subscription_name.clone(),
                     prev_vnet_ctx.subscription_id.clone(),
@@ -155,7 +156,7 @@ pub fn process_subnet_row(
     }
 
     let new_prev_vnet_ctx = PrevVnetContext {
-        vnet_cidr: s.vnet_cidr.clone(),
+        vnet_cidr: Some(s.vnet_cidr),
         vnet_name: s.vnet_name.clone(),
         subscription_name: s.subscription_name.clone(),
         subscription_id: s.subscription_id.clone(),
@@ -177,7 +178,7 @@ pub fn process_subnet_row(
         az_hosts: num_az_hosts(subnet_cidr.mask).unwrap() as usize,
         subnet_name: s.subnet_name.clone(),
         subscription_name: s.subscription_name.clone(),
-        vnet_cidr: format_vnet_cidr(&s.vnet_cidr),
+        vnet_cidr: s.vnet_cidr.to_string(),
         vnet_name: s.vnet_name.clone(),
         location: s.location.clone(),
         nsg: extract_nsg_name(s.nsg.as_deref()),
@@ -207,7 +208,7 @@ fn create_row_from_subnet(
         az_hosts,
         subnet_name: s.subnet_name.clone(),
         subscription_name: s.subscription_name.clone(),
-        vnet_cidr: format_vnet_cidr(&s.vnet_cidr),
+        vnet_cidr: s.vnet_cidr.to_string(),
         vnet_name: s.vnet_name.clone(),
         location: s.location.clone(),
         nsg: extract_nsg_name(s.nsg.as_deref()),
@@ -215,15 +216,6 @@ fn create_row_from_subnet(
         subscription_id: s.subscription_id.clone(),
         ip_configurations_count: s.ip_configurations_count.unwrap_or(0),
     }
-}
-
-/// Format VNet CIDR blocks as a comma-separated string.
-fn format_vnet_cidr(cidrs: &[Ipv4]) -> String {
-    cidrs
-        .iter()
-        .map(|ip| ip.to_string())
-        .collect::<Vec<String>>()
-        .join(",")
 }
 
 /// Extract NSG name from full resource ID.
@@ -239,6 +231,75 @@ fn extract_nsg_name(nsg: Option<&str>) -> String {
 fn format_dns_servers(dns: Option<&[String]>) -> String {
     dns.map(|servers| servers.join(","))
         .unwrap_or_else(|| "None".to_string())
+}
+
+/// Fill the trailing unused space within a VNet_CIDR as `-vgap-` rows.
+///
+/// Called after all subnets in the dataset (or after the last subnet in a VNet_CIDR group)
+/// to fill address space from `next_ip` to the VNet_CIDR's broadcast.
+///
+/// Returns `(new_next_ip, rows)`.
+pub fn fill_trailing_vgap(
+    mut next_ip: Ipv4Addr,
+    vnet_cidr: Ipv4,
+    prev_vnet_ctx: &PrevVnetContext,
+    default_cidr_mask: u8,
+) -> (Ipv4Addr, Vec<SubnetPrintRow>) {
+    let mut rows = Vec::new();
+    let vnet_hi = vnet_cidr.hi();
+
+    while next_ip <= vnet_hi {
+        let next_mask = find_biggest_subnet_within(next_ip, default_cidr_mask, vnet_cidr);
+        let next_subnet = Ipv4 {
+            addr: next_ip,
+            mask: next_mask,
+        };
+
+        rows.push(SubnetPrintRow {
+            j: 0,
+            gap: "-vgap-".to_string(),
+            subnet_cidr: next_subnet.to_string(),
+            broadcast: next_subnet.broadcast().unwrap().addr.to_string(),
+            az_hosts: num_az_hosts(next_mask).unwrap() as usize,
+            subnet_name: "None".to_string(),
+            subscription_name: prev_vnet_ctx.subscription_name.clone(),
+            vnet_cidr: vnet_cidr.to_string(),
+            vnet_name: prev_vnet_ctx.vnet_name.clone(),
+            location: "None".to_string(),
+            nsg: "Unused_nsg".to_string(),
+            dns: "Unused_dns".to_string(),
+            subscription_id: prev_vnet_ctx.subscription_id.clone(),
+            ip_configurations_count: 0,
+        });
+
+        next_ip = next_subnet_ipv4(next_subnet, None).unwrap().lo();
+    }
+
+    (next_ip, rows)
+}
+
+/// Find the biggest subnet starting at `start_ip` that fits entirely within `vnet_cidr`.
+fn find_biggest_subnet_within(start_ip: Ipv4Addr, start_mask: u8, vnet_cidr: Ipv4) -> u8 {
+    let min_mask_for_alignment = crate::models::lo_mask(start_ip);
+    let mut next_mask = start_mask.max(min_mask_for_alignment);
+
+    loop {
+        let next_subnet = Ipv4 {
+            addr: start_ip,
+            mask: next_mask,
+        };
+        if next_subnet.hi() > vnet_cidr.hi() {
+            next_mask += 1;
+        } else {
+            break;
+        }
+    }
+
+    assert!(
+        next_mask <= 32,
+        "next_mask[{next_mask}] > 32 should never happen."
+    );
+    next_mask
 }
 
 /// Find the biggest subnet that fits before the target subnet.
@@ -342,7 +403,7 @@ mod tests {
     fn make_subnet(cidr: &str, vnet_cidr: &str, vnet_name: &str, subnet_name: &str) -> Subnet {
         let mut s: Subnet = Default::default();
         s.vnet_name = vnet_name.to_string();
-        s.vnet_cidr = vec![Ipv4::new(vnet_cidr).unwrap()];
+        s.vnet_cidr = Ipv4::new(vnet_cidr).unwrap();
         s.subnet_name = subnet_name.to_string();
         s.subnet_cidr = Some(Ipv4::new(cidr).unwrap());
         s
@@ -424,7 +485,7 @@ mod tests {
     fn test_process_subnet_row_01() {
         let mut result: Subnet = Default::default();
         result.vnet_name = "jenkinsarm-vnet".to_string();
-        result.vnet_cidr = vec![Ipv4::new("10.0.0.0/16").unwrap()];
+        result.vnet_cidr = Ipv4::new("10.0.0.0/16").unwrap();
         result.subnet_name = "jenkinsarm-snet".to_string();
         result.subnet_cidr = Some(Ipv4::new("10.0.0.0/24").unwrap());
 

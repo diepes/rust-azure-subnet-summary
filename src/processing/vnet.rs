@@ -153,7 +153,7 @@ mod tests {
         s.vnet_name = vnet_name.to_string();
         s.subscription_name = sub_name.to_string();
         s.subscription_id = "sub-id".to_string();
-        s.vnet_cidr = vec![Ipv4::new(vnet_cidr).unwrap()];
+        s.vnet_cidr = Ipv4::new(vnet_cidr).unwrap();
         s.subnet_cidr = Some(Ipv4::new(subnet_cidr).unwrap());
         s.subnet_name = format!("{vnet_name}-subnet");
         s.excluded_by = excluded_by.map(|s| s.to_string());

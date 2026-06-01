@@ -9,8 +9,8 @@ use std::fmt;
 pub struct Vnet<'a> {
     /// Name of the virtual network.
     pub vnet_name: &'a str,
-    /// CIDR blocks of the virtual network.
-    pub vnet_cidr: &'a Vec<Ipv4>,
+    /// All distinct VNet_CIDRs (address spaces) seen across this VNet's subnets.
+    pub vnet_cidr: Vec<Ipv4>,
     /// Azure region location.
     pub location: &'a str,
     /// Azure subscription ID.
@@ -26,7 +26,7 @@ impl<'a> Vnet<'a> {
     pub fn new(subnet: &Subnet) -> Vnet<'_> {
         Vnet {
             vnet_name: &subnet.vnet_name,
-            vnet_cidr: &subnet.vnet_cidr,
+            vnet_cidr: vec![subnet.vnet_cidr],
             location: &subnet.location,
             subscription_id: &subnet.subscription_id,
             subscription_name: &subnet.subscription_name,
@@ -34,8 +34,11 @@ impl<'a> Vnet<'a> {
         }
     }
 
-    /// Add a subnet to this VNet.
+    /// Add a subnet to this VNet, accumulating its VNet_CIDR if not already present.
     pub fn add_subnet(&mut self, subnet: &'a Subnet) {
+        if !self.vnet_cidr.contains(&subnet.vnet_cidr) {
+            self.vnet_cidr.push(subnet.vnet_cidr);
+        }
         self.subnets.push(subnet);
     }
 }

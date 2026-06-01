@@ -1,7 +1,7 @@
 //! CSV output formatting for subnet data.
 
 use crate::azure::{Data, VWanRow};
-use crate::processing::{process_subnet_row, PrevVnetContext, SubnetPrintRow};
+use crate::processing::{fill_trailing_vgap, process_subnet_row, PrevVnetContext, SubnetPrintRow};
 use chrono::Local;
 use std::cmp::Reverse;
 use std::error::Error;
@@ -70,6 +70,13 @@ pub fn subnet_print(
         output_rows.extend(rows);
     }
 
+    // Fill trailing vgap for the last VNet_CIDR processed.
+    if let Some(last_vnet_cidr) = prev_vnet_ctx.vnet_cidr {
+        let (_new_next_ip, trailing_rows) =
+            fill_trailing_vgap(next_ip, last_vnet_cidr, &prev_vnet_ctx, gap_cidr_mask);
+        output_rows.extend(trailing_rows);
+    }
+
     // Insert DUP_EXCL_VNET rows directly after their winner VNet's last row.
     // Collect groups keyed by winner VNet name, preserving encounter order.
     let mut winner_order: Vec<String> = Vec::new();
@@ -98,12 +105,7 @@ pub fn subnet_print(
             az_hosts,
             subnet_name: format!("{} [DUP of VNET {}]", s.subnet_name, winner),
             subscription_name: s.subscription_name.clone(),
-            vnet_cidr: s
-                .vnet_cidr
-                .iter()
-                .map(|c| c.to_string())
-                .collect::<Vec<_>>()
-                .join(","),
+            vnet_cidr: s.vnet_cidr.to_string(),
             vnet_name: s.vnet_name.clone(),
             location: s.location.clone(),
             nsg: s
@@ -162,7 +164,10 @@ pub fn subnet_print(
         let (start_u32, _prefix_len, broadcast, az_hosts) = match parse_cidr(cidr) {
             Some(v) => v,
             None => {
-                log::warn!("vWAN hub '{}' has unparseable CIDR '{cidr}' — skipped", hub.hub_name);
+                log::warn!(
+                    "vWAN hub '{}' has unparseable CIDR '{cidr}' — skipped",
+                    hub.hub_name
+                );
                 continue;
             }
         };
@@ -259,13 +264,22 @@ fn parse_cidr(cidr: &str) -> Option<(u32, u8, String, usize)> {
         return None;
     }
     let start = u32::from(addr);
-    let mask = if prefix_len == 0 { 0u32 } else { !0u32 << (32 - prefix_len) };
+    let mask = if prefix_len == 0 {
+        0u32
+    } else {
+        !0u32 << (32 - prefix_len)
+    };
     let broadcast_u32 = (start & mask) | !mask;
     let broadcast_addr = Ipv4Addr::from(broadcast_u32);
     // Azure reserves 5 addresses per subnet (network, gateway, two DNS, broadcast).
     let total_ips = 1u64 << (32 - prefix_len);
     let az_hosts = total_ips.saturating_sub(5) as usize;
-    Some((start & mask, prefix_len, broadcast_addr.to_string(), az_hosts))
+    Some((
+        start & mask,
+        prefix_len,
+        broadcast_addr.to_string(),
+        az_hosts,
+    ))
 }
 
 /// Return the start IP of a CIDR string as a `u32`, or `None` if unparseable.
@@ -343,7 +357,7 @@ mod tests {
             s.vnet_name = vnet_name.to_string();
             s.subscription_name = sub_name.to_string();
             s.subscription_id = "sub-id".to_string();
-            s.vnet_cidr = vec![Ipv4::new(vnet_cidr).unwrap()];
+            s.vnet_cidr = Ipv4::new(vnet_cidr).unwrap();
             s.subnet_cidr = Some(Ipv4::new(subnet_cidr).unwrap());
             s.subnet_name = "my-subnet".to_string();
             s.excluded_by = excluded_by.map(|s| s.to_string());
@@ -408,7 +422,7 @@ mod tests {
             s.vnet_name = vnet_name.to_string();
             s.subscription_name = sub_name.to_string();
             s.subscription_id = "sub-id".to_string();
-            s.vnet_cidr = vec![Ipv4::new(vnet_cidr).unwrap()];
+            s.vnet_cidr = Ipv4::new(vnet_cidr).unwrap();
             s.subnet_cidr = Some(Ipv4::new(subnet_cidr).unwrap());
             s.subnet_name = "snet".to_string();
             s.excluded_by = excluded_by.map(|s| s.to_string());
@@ -455,6 +469,44 @@ mod tests {
     }
 
     #[test]
+    fn trailing_vgap_within_vnet_cidr_is_filled() {
+        let _guard = CSV_FILE_LOCK.lock().unwrap();
+        use crate::azure::Data;
+        use crate::models::{Ipv4, Subnet};
+
+        // Single subnet 10.0.0.0/24 in VNet with CIDR 10.0.0.0/16.
+        // The remaining space 10.0.1.0 → 10.0.255.255 should be filled as -vgap-.
+        let mut s: Subnet = Default::default();
+        s.vnet_name = "my-vnet".to_string();
+        s.subscription_name = "my-sub".to_string();
+        s.subscription_id = "sub-id".to_string();
+        s.vnet_cidr = Ipv4::new("10.0.0.0/16").unwrap();
+        s.subnet_cidr = Some(Ipv4::new("10.0.0.0/24").unwrap());
+        s.subnet_name = "only-subnet".to_string();
+
+        let data = Data {
+            count: 1,
+            skip_token: None,
+            total_records: None,
+            data: vec![s],
+        };
+
+        let path = subnet_print(&data, 28, &[]).expect("must not panic");
+        let contents = std::fs::read_to_string(&path).expect("can read CSV");
+        let _ = std::fs::remove_file(&path);
+
+        // Trailing space 10.0.1.0 → 10.0.255.255 must appear as -vgap- rows with the VNet_CIDR.
+        assert!(
+            contents.contains("-vgap-"),
+            "CSV must contain -vgap- rows for trailing space within VNet_CIDR\n{contents}"
+        );
+        assert!(
+            contents.contains("10.0.0.0/16_vnet"),
+            "trailing vgap must reference the VNet_CIDR 10.0.0.0/16\n{contents}"
+        );
+    }
+
+    #[test]
     fn subnet_print_also_produces_duplicates_md() {
         let _guard = CSV_FILE_LOCK.lock().unwrap();
         use crate::azure::Data;
@@ -470,7 +522,7 @@ mod tests {
             s.vnet_name = vnet_name.to_string();
             s.subscription_name = "Sub".to_string();
             s.subscription_id = "sub-id".to_string();
-            s.vnet_cidr = vec![Ipv4::new(vnet_cidr).unwrap()];
+            s.vnet_cidr = Ipv4::new(vnet_cidr).unwrap();
             s.subnet_cidr = Some(Ipv4::new(subnet_cidr).unwrap());
             s.subnet_name = "snet".to_string();
             s.excluded_by = excluded_by.map(|s| s.to_string());

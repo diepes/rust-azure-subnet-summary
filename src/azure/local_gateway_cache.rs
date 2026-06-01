@@ -43,9 +43,8 @@ pub fn read_local_gateway_cache_with_status(
             let json = serde_json::to_string_pretty(&data)
                 .map_err(|e| format!("Error serialising local gateway JSON: {e}"))?;
             log::warn!("Writing local gateway cache: {cache_file_path}");
-            std::fs::write(&cache_file_path, json).map_err(|e| {
-                format!("Error writing local gateway cache {cache_file_path}: {e}")
-            })?;
+            std::fs::write(&cache_file_path, json)
+                .map_err(|e| format!("Error writing local gateway cache {cache_file_path}: {e}"))?;
             (data, false)
         }
     };

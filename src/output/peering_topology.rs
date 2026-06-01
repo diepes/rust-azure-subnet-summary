@@ -91,7 +91,7 @@ pub(super) fn build_topology(
             .entry(s.vnet_name.clone())
             .or_insert_with(|| VNetMeta {
                 subscription_name: s.subscription_name.clone(),
-                vnet_cidr: s.vnet_cidr.iter().map(|c| c.to_string()).collect(),
+                vnet_cidr: Vec::new(),
                 has_gateway: false,
                 missing: false,
                 on_prem_names: Vec::new(),
@@ -99,6 +99,10 @@ pub(super) fn build_topology(
                 vng_name: None,
                 vng_bgp_asn: None,
             });
+        let cidr_str = s.vnet_cidr.to_string();
+        if cidr_str != "0.0.0.0/0" && !entry.vnet_cidr.contains(&cidr_str) {
+            entry.vnet_cidr.push(cidr_str);
+        }
         if s.subnet_name == "GatewaySubnet" {
             entry.has_gateway = true;
         }
@@ -141,9 +145,7 @@ pub(super) fn build_topology(
     // --- 3. Populate on-premises info from Local Network Gateways ---
     for row in local_gateways {
         if let Some(meta) = vnet_meta.get_mut(&row.vnet_name) {
-            if !row.local_gw_name.is_empty()
-                && !meta.on_prem_names.contains(&row.local_gw_name)
-            {
+            if !row.local_gw_name.is_empty() && !meta.on_prem_names.contains(&row.local_gw_name) {
                 meta.on_prem_names.push(row.local_gw_name.clone());
             }
             for cidr in &row.address_prefixes {
@@ -166,10 +168,9 @@ pub(super) fn build_topology(
     // peering edges. This works even when the vWAN Resource Graph query returns nothing
     // (the hubvirtualnetworkconnections resource type is not always indexed in ARG).
     // vwan rows are used as an enrichment source for hub_address_prefix / virtual_wan_name.
-    let uuid_suffix = regex::Regex::new(
-        r"_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
-    )
-    .expect("static regex");
+    let uuid_suffix =
+        regex::Regex::new(r"_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+            .expect("static regex");
 
     let mut vwan_spoke_to_hub: HashMap<String, String> = HashMap::new();
     let mut hub_map: std::collections::BTreeMap<String, VWanHub> =
@@ -231,14 +232,16 @@ pub(super) fn build_topology(
         }
 
         // Ensure the full-name entry exists (may have been just renamed above).
-        hub_map.entry(row.hub_name.clone()).or_insert_with(|| VWanHub {
-            hub_name: row.hub_name.clone(),
-            hub_address_prefix: row.hub_address_prefix.clone(),
-            virtual_wan_name: row.virtual_wan_name.clone(),
-            spoke_vnets: Vec::new(),
-            validated: false,
-            subscription_name: row.subscription_name.clone(),
-        });
+        hub_map
+            .entry(row.hub_name.clone())
+            .or_insert_with(|| VWanHub {
+                hub_name: row.hub_name.clone(),
+                hub_address_prefix: row.hub_address_prefix.clone(),
+                virtual_wan_name: row.virtual_wan_name.clone(),
+                spoke_vnets: Vec::new(),
+                validated: false,
+                subscription_name: row.subscription_name.clone(),
+            });
         let hub = hub_map.get_mut(&row.hub_name).expect("just inserted");
         // The hub exists in the vWAN cache — this confirms the hub side of the
         // peering (equivalent to the second side in a normal VNet peering).
