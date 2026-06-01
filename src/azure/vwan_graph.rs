@@ -4,10 +4,11 @@
 //! address prefixes, and vWAN associations. Spoke connections are derived
 //! separately from `HV_*` peering edges in the peering cache.
 
-use super::cli;
+use super::{cli, paginate::paginate};
 use crate::config;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
+use std::time::Duration;
 
 /// KQL: one row per vWAN Hub (hub metadata only; spoke connections come from peering cache).
 ///
@@ -59,49 +60,21 @@ pub struct VWanData {
 
 /// Execute the Azure Resource Graph vWAN query with automatic pagination.
 pub fn run_vwan_graph() -> Result<VWanData, Box<dyn Error>> {
-    let mut data: VWanData = Default::default();
-    let mut skip_token_param = String::new();
-    let mut count_blocks = 0;
+    let sleep = Duration::from_millis(config::SLEEP_MSEC * 5);
+    let rows = paginate(VWAN_QUERY, sleep, cli::run)?;
 
-    while skip_token_param != "--skip-token null" {
-        let cmd =
-            format!("az graph query --first 50 {skip_token_param} -q '{VWAN_QUERY}' --output json");
-        let output = cli::run(&cmd)?;
+    let data: Vec<VWanRow> = serde_json::from_value(serde_json::Value::Array(rows))
+        .map_err(|e| format!("Error parsing vWAN rows: {e}"))?;
 
-        let mut deser = serde_json::Deserializer::from_str(&output);
-        let block: VWanData = serde_path_to_error::deserialize(&mut deser).map_err(|e| {
-            log::error!("OUTPUT START:\n\n{}\n\nOUTPUT END\n", output);
-            format!(
-                "Error parsing vWAN JSON block {count_blocks}: path={} error={}",
-                e.path(),
-                e
-            )
-        })?;
+    let count = data.len() as i32;
+    let total_records = Some(data.len() as u32);
 
-        let skip_token_new = block
-            .skip_token
-            .clone()
-            .unwrap_or_else(|| "null".to_string());
-        let skip_token_new = format!("--skip-token {skip_token_new}");
-        if skip_token_new == skip_token_param {
-            return Err("vWAN skip token not unique - possible infinite loop".into());
-        }
-        skip_token_param = skip_token_new;
+    log::info!("Got {count} vWAN hub rows from az graph query");
 
-        let count = block.count;
-        data.data.extend(block.data);
-        data.count += count;
-        if let Some(r) = block.total_records {
-            data.total_records = Some(r);
-        }
-
-        log::info!(
-            "got vWAN block#{count_blocks:2} record_count=+{count:3} => {total:3} skip_token='{skip_token_param}'",
-            total = data.count,
-        );
-        std::thread::sleep(std::time::Duration::from_millis(config::SLEEP_MSEC * 5));
-        count_blocks += 1;
-    }
-
-    Ok(data)
+    Ok(VWanData {
+        data,
+        skip_token: None,
+        total_records,
+        count,
+    })
 }

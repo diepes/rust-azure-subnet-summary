@@ -2,11 +2,12 @@
 //!
 //! Handles querying Azure Resource Graph for subnet information.
 
-use super::cli;
+use super::{cli, paginate::paginate};
 use crate::config;
 use crate::models::Subnet;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
+use std::time::Duration;
 
 /// Azure Graph query for fetching subnet data.
 const SUBNET_QUERY: &str = r#"resources 
@@ -50,78 +51,27 @@ pub struct Data {
 /// * `Ok(Data)` - All subnet data from Azure
 /// * `Err` - If the query fails
 pub fn run_az_cli_graph() -> Result<Data, Box<dyn Error>> {
-    let mut data: Data = Default::default();
-    let mut skip_token_param: String = String::new();
-    let mut count_blocks_returned = 0;
-    let mut src_index: usize = 0;
+    let sleep = Duration::from_millis(config::SLEEP_MSEC * 5);
+    let rows = paginate(SUBNET_QUERY, sleep, cli::run)?;
 
-    while skip_token_param != "--skip-token null" {
-        let cmd = format!(
-            "az graph query --first 50 {skip_token_param} -q '{SUBNET_QUERY}' --output json"
-        );
-        let output = cli::run(&cmd)?;
+    let data: Vec<Subnet> = serde_json::from_value(serde_json::Value::Array(rows))
+        .map_err(|e| format!("Error parsing subnet rows: {e}"))?;
 
-        let mut json_block_deserializer = serde_json::Deserializer::from_str(&output);
-        let json_parsed: Data = serde_path_to_error::deserialize(&mut json_block_deserializer)
-            .map_err(|e| {
-                log::error!("OUTPUT START:\n\n{}\n\nOUTPUT END\n", output);
-                format!(
-                    "Error parsing JSON block {}: path={} error={}",
-                    count_blocks_returned,
-                    e.path(),
-                    e
-                )
-            })?;
-
-        let skip_token_new = json_parsed
-            .skip_token
-            .clone()
-            .unwrap_or_else(|| "null".to_string());
-        let skip_token_new = format!("--skip-token {skip_token_new}");
-
-        if skip_token_new == skip_token_param {
-            return Err("Skip token not unique - possible infinite loop".into());
-        }
-        skip_token_param = skip_token_new;
-
-        data.data.extend(json_parsed.data.into_iter().inspect(|_s| {
-            src_index += 1;
-        }));
-
-        let count = json_parsed.count;
-        data.count += json_parsed.count;
-
-        if let Some(block_records) = json_parsed.total_records {
-            data.total_records = Some(block_records);
-        }
-
-        log::info!(
-            "got block#{count_blocks_returned:2} record_count=+{count:3} => {total:3} skip_token='{skip_token_param}'",
-            total = data.count,
-        );
-
-        // Rate limiting pause
-        std::thread::sleep(std::time::Duration::from_millis(config::SLEEP_MSEC * 5));
-        count_blocks_returned += 1;
-    }
+    let count = data.len() as i32;
+    let total_records = Some(data.len() as u32);
 
     log::info!(
-        "Got data #{} == {} records from az graph query, src_index={src_index}",
-        data.count,
-        data.data.len()
+        "Got data #{count} == {} records from az graph query",
+        data.len()
     );
 
-    if src_index != data.data.len() {
-        return Err(format!(
-            "Index mismatch: src_index={} != data.len()={}",
-            src_index,
-            data.data.len()
-        )
-        .into());
-    }
-
     log::info!("sleep 15s ...");
-    std::thread::sleep(std::time::Duration::from_millis(config::SLEEP_MSEC * 15));
+    std::thread::sleep(Duration::from_millis(config::SLEEP_MSEC * 15));
 
-    Ok(data)
+    Ok(Data {
+        data,
+        skip_token: None,
+        total_records,
+        count,
+    })
 }

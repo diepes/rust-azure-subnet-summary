@@ -11,6 +11,7 @@ mod fetch;
 mod graph;
 mod local_gateway;
 mod local_gateway_cache;
+mod paginate;
 mod peering_cache;
 mod peering_graph;
 mod vwan_cache;
