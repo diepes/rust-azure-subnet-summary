@@ -68,7 +68,7 @@ Recorded here so work can resume after fixing the current issue.
 
 ---
 
-## Candidate 6 — Generic cache module
+## Candidate 6 — Generic cache module ✅ DONE
 
 **Files:** `src/azure/cache.rs`, `src/azure/local_gateway_cache.rs`, `src/azure/peering_cache.rs`, `src/azure/vwan_cache.rs`
 
@@ -98,7 +98,7 @@ enum CacheStatus { Hit, Miss, Stale }
 
 ---
 
-## Candidate 7 — Paginated Azure query seam
+## Candidate 7 — Paginated Azure query seam ✅ DONE
 
 **Files:** `src/azure/graph.rs`, `src/azure/peering_graph.rs`, `src/azure/local_gateway.rs`, `src/azure/vwan_graph.rs`
 
@@ -112,7 +112,7 @@ enum CacheStatus { Hit, Miss, Stale }
 
 ---
 
-## Candidate 8 — `main.rs` pipeline depth
+## Candidate 8 — `main.rs` pipeline depth ✅ DONE
 
 **Files:** `src/main.rs`
 
@@ -138,7 +138,7 @@ trait SvgRenderer {
 
 ---
 
-## Candidate 9 — `output::csv` row-stream decomposition
+## Candidate 9 — `output::csv` row-stream decomposition ✅ DONE
 
 **Files:** `src/output/csv.rs`, `src/processing/gap_finder.rs`
 
@@ -166,7 +166,7 @@ pub fn subnet_print(rows: &[SubnetPrintRow], path: &Path) -> Result<()>
 
 ---
 
-## Candidate 10 — `GapIterator`: decouple Gap-Finding Loop state machine from row shaping
+## Candidate 10 — `GapIterator`: decouple Gap-Finding Loop state machine from row shaping ✅ DONE
 
 **Files:** `src/processing/gap_finder.rs`
 
@@ -211,8 +211,8 @@ pub struct VnetCidr {
 ---
 
 ## Priority order — Session 2 (recommended)
-1. Candidate 6 — generic cache module (pure boilerplate reduction, low risk)
-2. Candidate 7 — paginated query seam (removes copy-paste protocol, improves testability)
-3. Candidate 9 — CSV row-stream decomposition (high test leverage, isolated change)
-4. Candidate 10 — `GapIterator` state machine isolation (invariant clarity, pairs well with 9)
-5. Candidate 8 — pipeline depth in `main.rs` (largest structural change, highest payoff last)
+1. Candidate 6 — generic cache module ✅ DONE
+2. Candidate 7 — paginated query seam ✅ DONE
+3. Candidate 9 — CSV row-stream decomposition ✅ DONE
+4. Candidate 10 — `GapIterator` state machine isolation ✅ DONE
+5. Candidate 8 — pipeline depth in `main.rs` ✅ DONE

@@ -20,6 +20,7 @@
 pub mod azure;
 pub mod models;
 pub mod output;
+pub mod pipeline;
 pub mod processing;
 
 mod cmd;
