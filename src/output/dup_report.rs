@@ -1,6 +1,7 @@
 //! Markdown report for duplicate (excluded) VNets.
 
 use crate::azure::Data;
+use crate::processing::ExcludedSubnet;
 use std::collections::HashMap;
 use std::error::Error;
 use std::fs::File;
@@ -10,25 +11,33 @@ use std::io::{BufWriter, Write};
 ///
 /// For each "winning" VNet, lists every excluded VNet that was deduplicated
 /// against it, along with all subnets in those excluded VNets.
-pub fn write_duplicates_md(data: &Data, filename: &str) -> Result<(), Box<dyn Error>> {
-    // Group excluded subnets: winner_vnet_name → excl_vnet_name → Vec<subnet>
-    let mut groups: HashMap<String, HashMap<String, Vec<&crate::models::Subnet>>> = HashMap::new();
-    let mut winner_order: Vec<String> = Vec::new();
+pub fn write_duplicates_md(
+    active: &Data,
+    excluded: &[ExcludedSubnet],
+    filename: &str,
+) -> Result<(), Box<dyn Error>> {
+    // Group excluded subnets: winner_vnet_name → excl_vnet_name → Vec<&Subnet>
+    let mut groups: HashMap<&str, HashMap<String, Vec<&crate::models::Subnet>>> = HashMap::new();
+    let mut winner_order: Vec<&str> = Vec::new();
 
-    for s in data.data.iter().filter(|s| s.excluded_by.is_some()) {
-        let winner = s.excluded_by.as_deref().unwrap_or("?").to_string();
-        let entry = groups.entry(winner.clone()).or_insert_with(|| {
-            winner_order.push(winner.clone());
+    for e in excluded {
+        let winner = e.winner_vnet_name.as_str();
+        let entry = groups.entry(winner).or_insert_with(|| {
+            winner_order.push(winner);
             HashMap::new()
         });
-        entry.entry(s.vnet_name.clone()).or_default().push(s);
+        entry
+            .entry(e.subnet.vnet_name.clone())
+            .or_default()
+            .push(&e.subnet);
     }
 
-    // Find the first non-excluded subnet for a vnet to get its CIDR + subscription
+    // Find the first active subnet for a vnet to get its CIDR + subscription
     let winner_info = |vnet_name: &str| -> (String, String) {
-        data.data
+        active
+            .data
             .iter()
-            .find(|s| s.excluded_by.is_none() && s.vnet_name == vnet_name)
+            .find(|s| s.vnet_name == vnet_name)
             .map(|s| (s.vnet_cidr.to_string(), s.subscription_name.clone()))
             .unwrap_or_default()
     };
@@ -54,7 +63,7 @@ pub fn write_duplicates_md(data: &Data, filename: &str) -> Result<(), Box<dyn Er
             "\n## Winner VNET: `{winner_vnet}` ({winner_cidr}) — {winner_sub}"
         )?;
 
-        let excl_map = &groups[winner_vnet];
+        let excl_map = &groups[*winner_vnet];
         let mut excl_names: Vec<&String> = excl_map.keys().collect();
         excl_names.sort();
 
@@ -90,6 +99,7 @@ pub fn write_duplicates_md(data: &Data, filename: &str) -> Result<(), Box<dyn Er
 mod tests {
     use super::*;
     use crate::models::{Ipv4, Subnet};
+    use crate::processing::ExcludedSubnet;
 
     fn make_subnet(
         vnet_name: &str,
@@ -97,7 +107,6 @@ mod tests {
         vnet_cidr: &str,
         subnet_cidr: &str,
         subnet_name: &str,
-        excluded_by: Option<&str>,
     ) -> Subnet {
         let mut s: Subnet = Default::default();
         s.vnet_name = vnet_name.to_string();
@@ -106,20 +115,18 @@ mod tests {
         s.vnet_cidr = Ipv4::new(vnet_cidr).unwrap();
         s.subnet_cidr = Some(Ipv4::new(subnet_cidr).unwrap());
         s.subnet_name = subnet_name.to_string();
-        s.excluded_by = excluded_by.map(|s| s.to_string());
         s
     }
 
     #[test]
     fn duplicates_md_contains_winner_and_excluded_vnet_sections() {
-        let subnets = vec![
+        let active_subnets = vec![
             make_subnet(
                 "winner-vnet",
                 "Prod Sub",
                 "10.0.0.0/16",
                 "10.0.0.0/24",
                 "web-snet",
-                None,
             ),
             make_subnet(
                 "winner-vnet",
@@ -127,34 +134,40 @@ mod tests {
                 "10.0.0.0/16",
                 "10.0.1.0/24",
                 "app-snet",
-                None,
-            ),
-            make_subnet(
-                "excl-vnet",
-                "Dev Sub",
-                "10.0.0.0/16",
-                "10.0.0.0/24",
-                "dup-web",
-                Some("winner-vnet"),
-            ),
-            make_subnet(
-                "excl-vnet",
-                "Dev Sub",
-                "10.0.0.0/16",
-                "10.0.1.0/24",
-                "dup-app",
-                Some("winner-vnet"),
             ),
         ];
-        let data = crate::azure::Data {
-            count: subnets.len() as i32,
+        let active = crate::azure::Data {
+            count: active_subnets.len() as i32,
             skip_token: None,
             total_records: None,
-            data: subnets,
+            data: active_subnets,
         };
 
+        let excluded = vec![
+            ExcludedSubnet {
+                subnet: make_subnet(
+                    "excl-vnet",
+                    "Dev Sub",
+                    "10.0.0.0/16",
+                    "10.0.0.0/24",
+                    "dup-web",
+                ),
+                winner_vnet_name: "winner-vnet".to_string(),
+            },
+            ExcludedSubnet {
+                subnet: make_subnet(
+                    "excl-vnet",
+                    "Dev Sub",
+                    "10.0.0.0/16",
+                    "10.0.1.0/24",
+                    "dup-app",
+                ),
+                winner_vnet_name: "winner-vnet".to_string(),
+            },
+        ];
+
         let filename = "subnets-test-duplicates.md";
-        write_duplicates_md(&data, filename).expect("must not fail");
+        write_duplicates_md(&active, &excluded, filename).expect("must not fail");
         let contents = std::fs::read_to_string(filename).expect("file must exist");
         let _ = std::fs::remove_file(filename);
 
@@ -178,23 +191,21 @@ mod tests {
 
     #[test]
     fn duplicates_md_no_duplicates_writes_placeholder() {
-        let subnets = vec![make_subnet(
-            "only-vnet",
-            "Prod",
-            "10.0.0.0/16",
-            "10.0.0.0/24",
-            "snet",
-            None,
-        )];
-        let data = crate::azure::Data {
+        let active = crate::azure::Data {
             count: 1,
             skip_token: None,
             total_records: None,
-            data: subnets,
+            data: vec![make_subnet(
+                "only-vnet",
+                "Prod",
+                "10.0.0.0/16",
+                "10.0.0.0/24",
+                "snet",
+            )],
         };
 
         let filename = "subnets-test-no-dup-duplicates.md";
-        write_duplicates_md(&data, filename).expect("must not fail");
+        write_duplicates_md(&active, &[], filename).expect("must not fail");
         let contents = std::fs::read_to_string(filename).expect("file must exist");
         let _ = std::fs::remove_file(filename);
 

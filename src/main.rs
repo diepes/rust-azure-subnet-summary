@@ -11,8 +11,8 @@ use azure_subnet_summary::{
         write_peering_diagram, write_peering_dot,
     },
     processing::{
-        de_duplicate_subnets, filter_overlapping_vnets, find_overlapping_vnets, get_vnets,
-        log_overlapping_vnets, print_vnets,
+        de_duplicate_subnets, find_overlapping_vnets, get_vnets, log_overlapping_vnets,
+        print_vnets, resolve_overlapping_vnets,
     },
 };
 use clap::Parser;
@@ -232,20 +232,28 @@ fn main() -> Result<(), Box<dyn Error>> {
     let conflicts = find_overlapping_vnets(&data);
     log_overlapping_vnets(&conflicts);
 
-    // Filter overlapping VNets (production subscription wins; marks losers with excluded_by)
-    // This must happen before gap-finding, which assumes subnets are non-overlapping
-    let data = filter_overlapping_vnets(data, true)?;
+    // Filter overlapping VNets (production subscription wins)
+    // resolve_overlapping_vnets splits subnets into active (winners) and excluded (losers)
+    let cr_out = resolve_overlapping_vnets(data);
+    for e in &cr_out.excluded {
+        log::warn!(
+            "Excluding VNet '{}' — overlaps with kept VNet '{}'",
+            e.subnet.vnet_name,
+            e.winner_vnet_name,
+        );
+    }
+    let data = cr_out.active;
 
     let data = de_duplicate_subnets(data, None)?;
     check_for_duplicate_subnets(&data)?;
 
     // Output subnet summary (includes vWAN hub CIDRs as reserved IP space)
-    let csv_file = subnet_print(&data, args.gap_mask, &vwan_data.data)?;
+    let csv_file = subnet_print(&data, &cr_out.excluded, args.gap_mask, &vwan_data.data)?;
 
     // Output duplicate VNet report
     let date_str = chrono::Local::now().format("%Y-%m-%d").to_string();
     let dup_file = format!("net_{date_str}_duplicates.md");
-    write_duplicates_md(&data, &dup_file)?;
+    write_duplicates_md(&data, &cr_out.excluded, &dup_file)?;
     log::info!("Duplicates report written to '{dup_file}'");
 
     // Build peering topology once; pass to both diagram writers.
@@ -275,7 +283,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Output VNet summary
     let vnets = get_vnets(&data)?;
-    print_vnets(&vnets, None)?;
+    print_vnets(&vnets, &cr_out.excluded)?;
 
     // Final summary
     log::info!("Complete: Generated '{}' from {}", csv_file, cache_source);

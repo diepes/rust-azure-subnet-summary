@@ -84,13 +84,9 @@ pub fn run_az_cli_graph() -> Result<Data, Box<dyn Error>> {
         }
         skip_token_param = skip_token_new;
 
-        data.data
-            .extend(json_parsed.data.into_iter().enumerate().map(|(i, mut s)| {
-                s.src_index = i;
-                s.block_id = count_blocks_returned;
-                src_index += 1;
-                s
-            }));
+        data.data.extend(json_parsed.data.into_iter().inspect(|_s| {
+            src_index += 1;
+        }));
 
         let count = json_parsed.count;
         data.count += json_parsed.count;

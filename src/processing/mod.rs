@@ -17,7 +17,7 @@ pub use gap_finder::{
     fill_trailing_vgap, process_subnet_row, GapFinder, PrevVnetContext, SubnetPrintRow,
 };
 pub use overlap::{
-    filter_overlapping_vnets, find_overlapping_vnets, log_overlapping_vnets, OverlapConflict,
-    VnetInfo,
+    find_overlapping_vnets, log_overlapping_vnets, resolve_overlapping_vnets,
+    ConflictResolutionOutput, ExcludedSubnet, OverlapConflict, VnetInfo,
 };
 pub use vnet::{get_vnets, print_vnets};

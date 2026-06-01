@@ -4,12 +4,17 @@
 
 use crate::azure::Data;
 use crate::models::VnetList;
+use crate::processing::ExcludedSubnet;
+use std::collections::HashMap;
 use std::error::Error;
+
+// winner_vnet_name → excl_vnet_name → (subscription_name, CIDRs, count)
+type ExcludedByWinner<'a> = HashMap<&'a str, HashMap<String, (String, Vec<String>, usize)>>;
 
 /// Build a VnetList from subnet data.
 ///
 /// # Arguments
-/// * `data` - The subnet data to aggregate
+/// * `data` - The active subnet data to aggregate
 ///
 /// # Returns
 /// * `Ok(VnetList)` - Aggregated VNet data
@@ -33,30 +38,32 @@ pub fn get_vnets(data: &Data) -> Result<VnetList<'_>, Box<dyn Error>> {
 ///
 /// Winners are shown in green. Excluded VNets are shown beneath their winner
 /// with a `[DUP of <winner>]` reference.
-pub fn format_vnets(vnets: &VnetList<'_>) -> String {
+pub fn format_vnets(vnets: &VnetList<'_>, excluded: &[ExcludedSubnet]) -> String {
     use colored::Colorize;
-    use std::collections::{HashMap, HashSet};
+    use std::collections::HashSet;
 
-    // Separate active VNets from excluded VNets
-    // A VNet is excluded if any of its subnets has excluded_by set
-    let mut excluded_by_winner: HashMap<&str, Vec<&crate::models::Vnet<'_>>> = HashMap::new();
-    let mut active_vnets: Vec<&crate::models::Vnet<'_>> = Vec::new();
+    // Build: winner_vnet_name → excl_vnet_name → (subscription_name, CIDRs, count)
+    let mut excluded_by_winner: ExcludedByWinner<'_> = HashMap::new();
 
-    for vnet in vnets.vnets.values() {
-        if let Some(excluded_by) = vnet.subnets.iter().find_map(|s| s.excluded_by.as_deref()) {
-            excluded_by_winner
-                .entry(excluded_by)
-                .or_default()
-                .push(vnet);
-        } else {
-            active_vnets.push(vnet);
+    for e in excluded {
+        let winner = e.winner_vnet_name.as_str();
+        let inner = excluded_by_winner.entry(winner).or_default();
+        let entry = inner
+            .entry(e.subnet.vnet_name.clone())
+            .or_insert_with(|| (e.subnet.subscription_name.clone(), Vec::new(), 0));
+        let cidr_str = e.subnet.vnet_cidr.to_string();
+        if !entry.1.contains(&cidr_str) {
+            entry.1.push(cidr_str);
         }
+        entry.2 += 1;
     }
 
-    // Sort active VNets by subscription name then vnet name for stable output
+    let winner_names: HashSet<&str> = excluded_by_winner.keys().copied().collect();
+
+    // All vnets in the list are active (no excluded subnets in data anymore)
+    let mut active_vnets: Vec<&crate::models::Vnet<'_>> = vnets.vnets.values().collect();
     active_vnets.sort_by_key(|v| (v.subscription_name, v.vnet_name));
 
-    let winner_names: HashSet<&str> = excluded_by_winner.keys().copied().collect();
     let mut lines = Vec::new();
 
     for vnet in &active_vnets {
@@ -66,11 +73,7 @@ pub fn format_vnets(vnets: &VnetList<'_>) -> String {
             .map(|c| c.to_string())
             .collect::<Vec<_>>()
             .join(", ");
-        let subnet_count = vnet
-            .subnets
-            .iter()
-            .filter(|s| s.excluded_by.is_none())
-            .count();
+        let subnet_count = vnet.subnets.len();
 
         let line = format!(
             "VNET: '{}' '{}' - {} [{} subnet(s)]",
@@ -79,25 +82,18 @@ pub fn format_vnets(vnets: &VnetList<'_>) -> String {
 
         if winner_names.contains(vnet.vnet_name) {
             lines.push(line.green().to_string());
-            // Print excluded duplicates below this winner
-            if let Some(excluded) = excluded_by_winner.get(vnet.vnet_name) {
-                let mut sorted_excluded = excluded.clone();
-                sorted_excluded.sort_by_key(|v| (v.subscription_name, v.vnet_name));
-                for excl in sorted_excluded {
-                    let excl_cidrs = excl
-                        .vnet_cidr
-                        .iter()
-                        .map(|c| c.to_string())
-                        .collect::<Vec<_>>()
-                        .join(", ");
-                    let excl_count = excl.subnets.len();
+            if let Some(excl_map) = excluded_by_winner.get(vnet.vnet_name) {
+                let mut excl_names: Vec<&String> = excl_map.keys().collect();
+                excl_names.sort();
+                for excl_name in excl_names {
+                    let (sub_name, excl_cidrs, count) = &excl_map[excl_name];
                     lines.push(
                         format!(
                             "  EXCL: '{}' '{}' - {} [{} subnet(s)] [DUP of '{}']",
-                            excl.vnet_name,
-                            excl.subscription_name,
-                            excl_cidrs,
-                            excl_count,
+                            excl_name,
+                            sub_name,
+                            excl_cidrs.join(", "),
+                            count,
                             vnet.vnet_name
                         )
                         .red()
@@ -116,21 +112,24 @@ pub fn format_vnets(vnets: &VnetList<'_>) -> String {
 /// Print VNet summary to stdout.
 pub fn print_vnets(
     vnets: &VnetList<'_>,
-    _excluded_vnets: Option<&[crate::processing::VnetInfo]>,
+    excluded: &[ExcludedSubnet],
 ) -> Result<(), Box<dyn Error>> {
     let total = vnets.vnets.len();
-    let excluded_count = vnets
-        .vnets
-        .values()
-        .filter(|v| v.subnets.iter().any(|s| s.excluded_by.is_some()))
-        .count();
+    let excluded_vnet_count = {
+        use std::collections::HashSet;
+        excluded
+            .iter()
+            .map(|e| e.subnet.vnet_name.as_str())
+            .collect::<HashSet<_>>()
+            .len()
+    };
     log::info!(
         "VNETs: found {} VNETs ({} excluded as duplicates)",
         total,
-        excluded_count
+        excluded_vnet_count,
     );
 
-    let output = format_vnets(vnets);
+    let output = format_vnets(vnets, excluded);
     println!("{output}");
 
     Ok(())
@@ -142,13 +141,7 @@ mod tests {
     use crate::azure::Data;
     use crate::models::{Ipv4, Subnet};
 
-    fn make_subnet(
-        vnet_name: &str,
-        sub_name: &str,
-        vnet_cidr: &str,
-        subnet_cidr: &str,
-        excluded_by: Option<&str>,
-    ) -> Subnet {
+    fn make_subnet(vnet_name: &str, sub_name: &str, vnet_cidr: &str, subnet_cidr: &str) -> Subnet {
         let mut s: Subnet = Default::default();
         s.vnet_name = vnet_name.to_string();
         s.subscription_name = sub_name.to_string();
@@ -156,7 +149,6 @@ mod tests {
         s.vnet_cidr = Ipv4::new(vnet_cidr).unwrap();
         s.subnet_cidr = Some(Ipv4::new(subnet_cidr).unwrap());
         s.subnet_name = format!("{vnet_name}-subnet");
-        s.excluded_by = excluded_by.map(|s| s.to_string());
         s
     }
 
@@ -171,27 +163,20 @@ mod tests {
 
     #[test]
     fn excluded_vnet_appears_with_dup_reference_in_terminal_output() {
-        let data = make_data(vec![
-            make_subnet(
-                "winner-vnet",
-                "Coretex Production",
-                "10.1.0.0/16",
-                "10.1.1.0/24",
-                None,
-            ),
-            make_subnet(
-                "loser-vnet",
-                "Sandbox",
-                "10.1.0.0/16",
-                "10.1.1.0/24",
-                Some("winner-vnet"),
-            ),
-        ]);
+        let active = make_data(vec![make_subnet(
+            "winner-vnet",
+            "Coretex Production",
+            "10.1.0.0/16",
+            "10.1.1.0/24",
+        )]);
+        let excluded = vec![ExcludedSubnet {
+            subnet: make_subnet("loser-vnet", "Sandbox", "10.1.0.0/16", "10.1.1.0/24"),
+            winner_vnet_name: "winner-vnet".to_string(),
+        }];
 
-        let vnets = get_vnets(&data).unwrap();
-        let output = format_vnets(&vnets);
+        let vnets = get_vnets(&active).unwrap();
+        let output = format_vnets(&vnets, &excluded);
 
-        // Strip ANSI codes for assertion
         let plain = strip_ansi(&output);
         assert!(
             plain.contains("winner-vnet"),
@@ -214,12 +199,12 @@ mod tests {
     #[test]
     fn non_overlapping_vnets_show_without_conflict_markers() {
         let data = make_data(vec![
-            make_subnet("vnet-a", "Sub A", "10.1.0.0/16", "10.1.1.0/24", None),
-            make_subnet("vnet-b", "Sub B", "10.2.0.0/16", "10.2.1.0/24", None),
+            make_subnet("vnet-a", "Sub A", "10.1.0.0/16", "10.1.1.0/24"),
+            make_subnet("vnet-b", "Sub B", "10.2.0.0/16", "10.2.1.0/24"),
         ]);
 
         let vnets = get_vnets(&data).unwrap();
-        let output = format_vnets(&vnets);
+        let output = format_vnets(&vnets, &[]);
         let plain = strip_ansi(&output);
 
         assert!(plain.contains("vnet-a"), "vnet-a must appear");

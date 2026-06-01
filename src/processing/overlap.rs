@@ -4,9 +4,100 @@
 //! and provides filtering options to handle them.
 
 use crate::azure::Data;
-use crate::models::Ipv4;
+use crate::models::{Ipv4, Subnet};
 use std::collections::HashMap;
-use std::error::Error;
+
+/// An excluded subnet paired with the VNet name that won conflict resolution.
+pub struct ExcludedSubnet {
+    pub subnet: Subnet,
+    pub winner_vnet_name: String,
+}
+
+/// Typed result of conflict resolution: active subnets and excluded subnets.
+///
+/// `active` contains only the winner subnets; `excluded` contains every subnet
+/// that lost, each paired with the winner's VNet name.
+pub struct ConflictResolutionOutput {
+    pub active: Data,
+    pub excluded: Vec<ExcludedSubnet>,
+}
+
+/// Resolve overlapping VNets, returning a typed split of active and excluded subnets.
+///
+/// Winner selection priority within a conflict group:
+/// 1. Production subscription (name contains "prod", case-insensitive)
+/// 2. Most subnets
+/// 3. Alphabetical by subscription name
+///
+/// Excludes entire VNets by CIDR so only the conflicting address space is removed;
+/// other address spaces of the same VNet remain active.
+pub fn resolve_overlapping_vnets(data: Data) -> ConflictResolutionOutput {
+    let conflicts = find_overlapping_vnets(&data);
+    if conflicts.is_empty() {
+        return ConflictResolutionOutput {
+            active: data,
+            excluded: vec![],
+        };
+    }
+
+    let mut exclusion_keys: Vec<(String, String, String, String)> = Vec::new();
+
+    for conflict in &conflicts {
+        let mut sorted_vnets = conflict.vnets.clone();
+        sorted_vnets.sort_by(|a, b| {
+            is_production(&b.subscription_name)
+                .cmp(&is_production(&a.subscription_name))
+                .then_with(|| b.subnet_count.cmp(&a.subnet_count))
+                .then_with(|| a.subscription_name.cmp(&b.subscription_name))
+        });
+
+        let keeper = &sorted_vnets[0];
+        for vnet in sorted_vnets.iter().skip(1) {
+            let cidr_str = vnet
+                .vnet_cidr
+                .first()
+                .map(|c| c.to_string())
+                .unwrap_or_default();
+            exclusion_keys.push((
+                vnet.vnet_name.clone(),
+                vnet.subscription_id.clone(),
+                cidr_str,
+                keeper.vnet_name.clone(),
+            ));
+        }
+    }
+
+    let skip_token = data.skip_token.clone();
+    let total_records = data.total_records;
+    let mut active_subnets: Vec<Subnet> = Vec::new();
+    let mut excluded: Vec<ExcludedSubnet> = Vec::new();
+
+    for subnet in data.data {
+        if let Some((_, _, _, winner_name)) =
+            exclusion_keys.iter().find(|(name, sub_id, cidr_str, _)| {
+                &subnet.vnet_name == name
+                    && &subnet.subscription_id == sub_id
+                    && subnet.vnet_cidr.to_string() == *cidr_str
+            })
+        {
+            excluded.push(ExcludedSubnet {
+                winner_vnet_name: winner_name.clone(),
+                subnet,
+            });
+        } else {
+            active_subnets.push(subnet);
+        }
+    }
+
+    let active = Data {
+        count: active_subnets.len() as i32,
+        data: active_subnets,
+        skip_token,
+        total_records,
+    };
+
+    ConflictResolutionOutput { active, excluded }
+}
 
 /// Information about a VNet for overlap detection.
 #[derive(Debug, Clone)]
@@ -179,98 +270,6 @@ fn is_production(subscription_name: &str) -> bool {
     subscription_name.to_lowercase().contains("prod")
 }
 
-/// Filter overlapping VNets, keeping only one VNet per conflict group.
-///
-/// Selection priority within a conflict group:
-/// 1. Production subscription (subscription name contains "prod", case-insensitive)
-/// 2. Most subnets (indicates more active use)
-/// 3. Alphabetical by subscription name
-///
-/// Excluded subnets are NOT removed — they remain in `data` with
-/// `excluded_by` set to the winner's VNet name.
-///
-/// # Arguments
-/// * `data` - The subnet data to process
-/// * `log_removals` - Whether to log which VNets are being excluded
-///
-/// # Returns
-/// * `Ok(Data)` - Data with excluded subnets marked via `excluded_by`
-pub fn filter_overlapping_vnets(
-    mut data: Data,
-    log_removals: bool,
-) -> Result<Data, Box<dyn Error>> {
-    let conflicts = find_overlapping_vnets(&data);
-
-    if conflicts.is_empty() {
-        return Ok(data);
-    }
-
-    // For each conflict group, select winner and collect losers
-    let mut exclusions: Vec<(String, String, String, String)> = Vec::new(); // (vnet_name, subscription_id, vnet_cidr, winner_vnet_name)
-
-    for conflict in &conflicts {
-        let mut sorted_vnets = conflict.vnets.clone();
-        sorted_vnets.sort_by(|a, b| {
-            // Production subscription wins first
-            is_production(&b.subscription_name)
-                .cmp(&is_production(&a.subscription_name))
-                // Then most subnets
-                .then_with(|| b.subnet_count.cmp(&a.subnet_count))
-                // Then alphabetical by subscription name
-                .then_with(|| a.subscription_name.cmp(&b.subscription_name))
-        });
-
-        let keeper = &sorted_vnets[0];
-        for vnet in sorted_vnets.iter().skip(1) {
-            if log_removals {
-                log::warn!(
-                    "Excluding VNet '{}' (subscription: '{}') — overlaps with kept VNet '{}' (subscription: '{}')",
-                    vnet.vnet_name,
-                    vnet.subscription_name,
-                    keeper.vnet_name,
-                    keeper.subscription_name,
-                );
-            }
-            let cidr_str = vnet
-                .vnet_cidr
-                .first()
-                .map(|c| c.to_string())
-                .unwrap_or_default();
-            exclusions.push((
-                vnet.vnet_name.clone(),
-                vnet.subscription_id.clone(),
-                cidr_str,
-                keeper.vnet_name.clone(),
-            ));
-        }
-    }
-
-    // Mark excluded subnets with the winner's VNet name.
-    // Match on (vnet_name, subscription_id, vnet_cidr) so only subnets in the
-    // conflicting address space are excluded — other VNet_CIDRs of the same VNet remain active.
-    let excluded_count = exclusions.len();
-    for subnet in &mut data.data {
-        if let Some((_, _, _, winner_name)) =
-            exclusions.iter().find(|(name, sub_id, cidr_str, _)| {
-                &subnet.vnet_name == name
-                    && &subnet.subscription_id == sub_id
-                    && subnet.vnet_cidr.to_string() == *cidr_str
-            })
-        {
-            subnet.excluded_by = Some(winner_name.clone());
-        }
-    }
-
-    if excluded_count > 0 {
-        log::info!(
-            "Marked subnets from {} overlapping VNets as excluded",
-            excluded_count
-        );
-    }
-
-    Ok(data)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -373,30 +372,30 @@ mod tests {
             make_subnet("prod-vnet", "Zzz Production", "10.1.0.0/16", "10.1.3.0/24"),
         ]);
 
-        let result = filter_overlapping_vnets(data, false).unwrap();
+        let out = resolve_overlapping_vnets(data);
 
-        let kept: Vec<&str> = result
+        let active_names: Vec<&str> = out
+            .active
             .data
             .iter()
-            .filter(|s| s.excluded_by.is_none())
             .map(|s| s.vnet_name.as_str())
             .collect();
         assert!(
-            kept.contains(&"prod-vnet"),
+            active_names.contains(&"prod-vnet"),
             "production VNet should win even though it sorts last"
         );
         assert!(
-            !kept.contains(&"dev-vnet"),
+            !active_names.contains(&"dev-vnet"),
             "non-prod VNet should be excluded"
         );
         assert!(
-            !kept.contains(&"dev-vnet2"),
+            !active_names.contains(&"dev-vnet2"),
             "non-prod VNet should be excluded"
         );
     }
 
     #[test]
-    fn excluded_subnets_have_excluded_by_set_to_winner_vnet_name() {
+    fn excluded_subnets_have_winner_vnet_name_set() {
         let data = make_data(vec![
             make_subnet("loser-vnet", "Sandbox", "10.1.0.0/16", "10.1.1.0/24"),
             make_subnet(
@@ -407,27 +406,13 @@ mod tests {
             ),
         ]);
 
-        let result = filter_overlapping_vnets(data, false).unwrap();
+        let out = resolve_overlapping_vnets(data);
 
-        let loser_subnet = result
-            .data
-            .iter()
-            .find(|s| s.vnet_name == "loser-vnet")
-            .unwrap();
-        assert_eq!(
-            loser_subnet.excluded_by,
-            Some("winner-vnet".to_string()),
-            "excluded subnet should reference winner VNet"
-        );
-        let winner_subnet = result
-            .data
-            .iter()
-            .find(|s| s.vnet_name == "winner-vnet")
-            .unwrap();
-        assert_eq!(
-            winner_subnet.excluded_by, None,
-            "winner subnet should not be excluded"
-        );
+        assert_eq!(out.active.data.len(), 1);
+        assert_eq!(out.active.data[0].vnet_name, "winner-vnet");
+        assert_eq!(out.excluded.len(), 1);
+        assert_eq!(out.excluded[0].subnet.vnet_name, "loser-vnet");
+        assert_eq!(out.excluded[0].winner_vnet_name, "winner-vnet");
     }
 
     #[test]
@@ -439,20 +424,20 @@ mod tests {
             make_subnet("big-vnet", "Test Sub", "10.1.0.0/16", "10.1.3.0/24"),
         ]);
 
-        let result = filter_overlapping_vnets(data, false).unwrap();
+        let out = resolve_overlapping_vnets(data);
 
-        let kept: Vec<&str> = result
+        let active_names: Vec<&str> = out
+            .active
             .data
             .iter()
-            .filter(|s| s.excluded_by.is_none())
             .map(|s| s.vnet_name.as_str())
             .collect();
         assert!(
-            kept.contains(&"big-vnet"),
+            active_names.contains(&"big-vnet"),
             "vnet with more subnets should be kept"
         );
         assert!(
-            !kept.contains(&"small-vnet"),
+            !active_names.contains(&"small-vnet"),
             "vnet with fewer subnets should be excluded"
         );
     }
@@ -462,7 +447,7 @@ mod tests {
         // pd-ibe-westus-arm has two address spaces:
         //   10.0.0.0/16 — conflicts with other-vnet (same CIDR, different sub)
         //   172.17.8.0/21 — no conflict
-        // After fix: only subnets in 10.0.0.0/16 should be excluded;
+        // Only subnets in 10.0.0.0/16 should be excluded;
         // subnets in 172.17.8.0/21 should remain active.
         let mut subnet_a = make_subnet(
             "pd-ibe-westus-arm",
@@ -489,37 +474,27 @@ mod tests {
         other.subscription_id = "sub-prod".to_string();
 
         let data = make_data(vec![subnet_a, subnet_b, other]);
-        let result = filter_overlapping_vnets(data, false).unwrap();
+        let out = resolve_overlapping_vnets(data);
 
-        let excluded: Vec<&str> = result
-            .data
+        let excluded_names: Vec<&str> = out
+            .excluded
             .iter()
-            .filter(|s| s.excluded_by.is_some())
-            .map(|s| s.subnet_name.as_str())
+            .map(|e| e.subnet.vnet_name.as_str())
             .collect();
-        let active: Vec<&str> = result
-            .data
-            .iter()
-            .filter(|s| s.excluded_by.is_none())
-            .map(|s| s.subnet_name.as_str())
-            .collect();
+        assert!(
+            excluded_names.contains(&"pd-ibe-westus-arm"),
+            "subnet with conflicting CIDR (10.0.0.0/16) must be excluded:\n{excluded_names:?}"
+        );
 
-        assert!(
-            excluded.iter().any(|n| n.contains("pd-ibe-westus-arm")),
-            "subnet with conflicting CIDR (10.0.0.0/16) must be excluded:\n{excluded:?}"
-        );
-        assert!(
-            active.iter().any(|_| true), // at least one active
-            "some subnets should remain active"
-        );
-        // The subnet in 172.17.8.0/21 must NOT be excluded
-        let subnet_b = result
+        // The subnet in 172.17.8.0/21 must NOT be excluded — must be in active
+        let subnet_b_active = out
+            .active
             .data
             .iter()
             .find(|s| s.vnet_cidr.to_string() == "172.17.8.0/21")
-            .expect("subnet_b must still exist in result");
+            .expect("subnet_b must still be in active");
         assert_eq!(
-            subnet_b.excluded_by, None,
+            subnet_b_active.vnet_name, "pd-ibe-westus-arm",
             "subnet in non-conflicting VNet_CIDR (172.17.8.0/21) must not be excluded"
         );
     }
@@ -533,5 +508,26 @@ mod tests {
             // Just verify it doesn't crash - actual results depend on test data
             assert!(!conflicts.is_empty() || conflicts.is_empty()); // Always true, just to avoid unused warning
         }
+    }
+
+    #[test]
+    fn resolve_returns_split_active_and_excluded() {
+        let data = make_data(vec![
+            make_subnet("loser-vnet", "Sandbox", "10.1.0.0/16", "10.1.1.0/24"),
+            make_subnet(
+                "winner-vnet",
+                "Coretex Production",
+                "10.1.0.0/16",
+                "10.1.2.0/24",
+            ),
+        ]);
+
+        let out = resolve_overlapping_vnets(data);
+
+        assert_eq!(out.active.data.len(), 1);
+        assert_eq!(out.active.data[0].vnet_name, "winner-vnet");
+        assert_eq!(out.excluded.len(), 1);
+        assert_eq!(out.excluded[0].winner_vnet_name, "winner-vnet");
+        assert_eq!(out.excluded[0].subnet.vnet_name, "loser-vnet");
     }
 }

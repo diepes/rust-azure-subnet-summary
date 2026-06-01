@@ -15,7 +15,7 @@ Recorded here so work can resume after fixing the current issue.
 
 ---
 
-## Candidate 2 — Remove `Subnet.excluded_by` and pipeline state from the domain model
+## Candidate 2 — Remove `Subnet.excluded_by` and pipeline state from the domain model ✅ DONE
 
 **Files:** `src/models/subnet.rs`, `src/processing/overlap.rs`, `src/output/csv.rs`, `src/output/dup_report.rs`, `src/processing/vnet.rs`
 

@@ -81,6 +81,80 @@ pub fn validate_dot_file(path: &str) -> Result<(), String> {
         }
     }
 
+    // Plain string labels (label="...") must contain only ASCII and must not
+    // have unescaped interior quotes.  Non-ASCII or a bare " inside the value
+    // produce a syntactically invalid DOT file that can segfault Graphviz.
+    check_plain_string_labels(&content, path)?;
+
+    Ok(())
+}
+
+/// Scan every `label="..."` value in `content` for non-ASCII characters and
+/// unescaped interior `"` characters.
+///
+/// Returns the first violation found, or `Ok(())` if the file is clean.
+fn check_plain_string_labels(content: &str, path: &str) -> Result<(), String> {
+    let marker = "label=\"";
+    let mut rest = content;
+    let mut offset = 0usize;
+
+    while let Some(rel) = rest.find(marker) {
+        let abs_start = offset + rel + marker.len();
+        rest = &rest[rel + marker.len()..];
+        offset = abs_start;
+
+        // Parse the string value, honouring \" escapes.
+        let mut prev_backslash = false;
+        let mut label_value = String::new();
+        let mut closed = false;
+
+        for ch in rest.chars() {
+            let ch_len = ch.len_utf8();
+            if ch == '"' && !prev_backslash {
+                offset += ch_len;
+                rest = &rest[ch_len..];
+                closed = true;
+                break;
+            }
+            if !ch.is_ascii() {
+                return Err(format!(
+                    "'{path}': non-ASCII character {:?} inside a plain string label \
+                     — use HTML label (label=<...>) with HTML entities for non-ASCII content",
+                    ch
+                ));
+            }
+            prev_backslash = ch == '\\' && !prev_backslash;
+            label_value.push(ch);
+            offset += ch_len;
+            rest = &rest[ch_len..];
+        }
+
+        if !closed {
+            // Structural issue — brace checker will catch this; skip.
+            break;
+        }
+
+        // After the closing quote, check for unescaped-quote split pattern.
+        // If what follows (after whitespace) is a bare word immediately
+        // followed by `"` — e.g. `Broken" Sub` — the original string had an
+        // unescaped `"` that split the label value.
+        let after: &str = rest.trim_start_matches([' ', '\t']);
+        let suspicious = after.starts_with('"') || {
+            // Word char(s) immediately followed by `"` (no `=` in between)
+            let word_end = after
+                .find(|c: char| !c.is_alphanumeric() && c != '_' && c != '-')
+                .unwrap_or(after.len());
+            word_end > 0 && after.as_bytes().get(word_end) == Some(&b'"')
+        };
+        if suspicious {
+            return Err(format!(
+                "'{path}': unescaped quote inside plain string label \
+                 — escape embedded quotes as \\\" (found split near: {:?})",
+                label_value
+            ));
+        }
+    }
+
     Ok(())
 }
 
@@ -144,14 +218,49 @@ mod tests {
     }
 
     #[test]
-    fn accepts_non_ascii_in_plain_label() {
-        let f = write_tmp(r#"digraph G { a [label="⚠ ok in plain"]; }"#);
+    fn accepts_html_entity_in_html_label() {
+        let f = write_tmp("digraph G { a [label=<&#x26A0; safe>]; }");
         assert!(validate_dot_file(f.path().to_str().unwrap()).is_ok());
     }
 
+    // ── plain string label checks ────────────────────────────────────────────
+
     #[test]
-    fn accepts_html_entity_in_html_label() {
-        let f = write_tmp("digraph G { a [label=<&#x26A0; safe>]; }");
+    fn non_ascii_in_plain_string_label_is_detected() {
+        // ⚠ in a plain string label (label="...") — not an HTML label
+        let f = write_tmp(r#"digraph G { a [label="⚠ warning"]; }"#);
+        let err = validate_dot_file(f.path().to_str().unwrap()).unwrap_err();
+        assert!(
+            err.contains("non-ASCII") && err.contains("plain"),
+            "expected plain-label non-ASCII error, got: {err}"
+        );
+    }
+
+    #[test]
+    fn non_ascii_in_cluster_plain_label_is_detected() {
+        // ⚠ in a cluster label= attribute
+        let f = write_tmp("digraph G { subgraph cluster_0 { label=\"Island 1 [⚠ missing]\"; } }");
+        let err = validate_dot_file(f.path().to_str().unwrap()).unwrap_err();
+        assert!(
+            err.contains("non-ASCII") && err.contains("plain"),
+            "expected plain-label non-ASCII error, got: {err}"
+        );
+    }
+
+    #[test]
+    fn unescaped_quote_inside_plain_label_is_detected() {
+        // A subscription name containing " breaks label="..." syntax
+        let f = write_tmp(r#"digraph G { subgraph cluster_0 { label="My "Broken" Sub"; } }"#);
+        let err = validate_dot_file(f.path().to_str().unwrap()).unwrap_err();
+        assert!(
+            err.contains("unescaped") || err.contains("quote") || err.contains("plain"),
+            "expected plain-label quote error, got: {err}"
+        );
+    }
+
+    #[test]
+    fn escaped_quote_in_plain_label_is_accepted() {
+        let f = write_tmp(r#"digraph G { a [label="foo \"bar\""]; }"#);
         assert!(validate_dot_file(f.path().to_str().unwrap()).is_ok());
     }
 }

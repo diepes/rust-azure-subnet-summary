@@ -232,10 +232,7 @@ pub fn process_subnet_row(
         gap: if s.subnet_name == "GatewaySubnet" {
             "GATEWAY".to_string()
         } else {
-            s.gap
-                .as_ref()
-                .unwrap_or(&format!("Sub{}", s.src_index))
-                .to_string()
+            format!("Sub{}", i)
         },
         subnet_cidr: subnet_cidr.to_string(),
         broadcast: subnet_cidr.broadcast().unwrap().addr.to_string(),

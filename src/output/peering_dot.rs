@@ -21,6 +21,20 @@ fn html_escape(s: &str) -> String {
         .replace('>', "&gt;")
 }
 
+/// Escape a string for use inside a DOT plain string label (`label="..."`).
+///
+/// DOT plain string labels only support two escape sequences:
+/// - `\\` for a literal backslash
+/// - `\"` for a literal double-quote
+///
+/// Any other character (including non-ASCII) is illegal and can segfault
+/// Graphviz parsers.  Callers must ensure the input is ASCII before passing
+/// it to a `label="..."` attribute; use an HTML label (`label=<...>`) when
+/// non-ASCII content is needed.
+fn dot_escape(s: &str) -> String {
+    s.replace('\\', "\\\\").replace('"', "\\\"")
+}
+
 // ─── public API ─────────────────────────────────────────────────────────────
 
 /// Write a Graphviz DOT peering diagram to `filename`.
@@ -106,7 +120,7 @@ pub fn write_peering_dot(topo: &PeeringTopology, filename: &str) -> Result<(), B
             // ext_map only contains entries with non-empty lng_names (fallback was removed).
             let mut sections: Vec<String> = Vec::new();
             for lng_name in lng_names {
-                let mut lines: Vec<String> = vec![format!("🌐 LNG:{lng_name}")];
+                let mut lines: Vec<String> = vec![format!("[LNG] {}", dot_escape(lng_name))];
                 if let Some(row) = lng_lookup.get(lng_name.as_str()) {
                     let pub_ip = if !row.gateway_ip.is_empty() {
                         row.gateway_ip.clone()
@@ -181,11 +195,11 @@ pub fn write_peering_dot(topo: &PeeringTopology, filename: &str) -> Result<(), B
             let label = if sub.is_empty() {
                 "MISSING".to_string()
             } else {
-                format!("MISSING - SUB:{sub}")
+                format!("MISSING - SUB:{}", dot_escape(sub))
             };
             ("#8b0000", "white", label)
         } else if any_missing {
-            let label = format!("Island {} [⚠ missing peers]", island_num + 1);
+            let label = format!("Island {} [(!!) missing peers]", island_num + 1);
             ("#ffe0e0", "black", label)
         } else {
             let colour = ISLAND_COLOURS[island_num % ISLAND_COLOURS.len()];
@@ -214,7 +228,11 @@ pub fn write_peering_dot(topo: &PeeringTopology, filename: &str) -> Result<(), B
         }
 
         for (sub_idx, (sub, sub_vnets)) in by_sub.iter().enumerate() {
-            let sub_label = if sub.is_empty() { "unknown" } else { sub };
+            let sub_label = if sub.is_empty() {
+                "unknown".to_string()
+            } else {
+                dot_escape(sub)
+            };
             writeln!(w, "        subgraph cluster_sub_{island_num}_{sub_idx} {{")?;
             writeln!(w, "            label=\"{sub_label}\"")?;
             writeln!(
@@ -273,7 +291,7 @@ pub fn write_peering_dot(topo: &PeeringTopology, filename: &str) -> Result<(), B
                         .subnets
                         .data
                         .iter()
-                        .filter(|s| s.vnet_name == *vnet && s.excluded_by.is_none())
+                        .filter(|s| s.vnet_name == *vnet)
                         .collect();
                     vnet_subnets.sort_by_key(|s| {
                         let vcidr_key = u32::from_be_bytes(s.vnet_cidr.addr.octets());
@@ -324,7 +342,11 @@ pub fn write_peering_dot(topo: &PeeringTopology, filename: &str) -> Result<(), B
             }
         }
         for (hub_sub_idx, (sub, hubs)) in hubs_by_sub.iter().enumerate() {
-            let sub_label = if sub.is_empty() { "unknown" } else { sub };
+            let sub_label = if sub.is_empty() {
+                "unknown".to_string()
+            } else {
+                dot_escape(sub)
+            };
             writeln!(
                 w,
                 "        subgraph cluster_hubsub_{island_num}_{hub_sub_idx} {{"
@@ -442,15 +464,15 @@ fn sanitize_id(s: &str) -> String {
 /// Write a single vWAN hub diamond node definition to `w`.
 fn write_hub_node(w: &mut impl Write, hub: &VWanHub) -> std::io::Result<()> {
     let hub_id = format!("vwan_{}", sanitize_id(&hub.hub_name));
-    let mut label_parts = vec![format!("vWAN Hub:{}", hub.hub_name)];
+    let mut label_parts = vec![format!("vWAN Hub:{}", dot_escape(&hub.hub_name))];
     if !hub.hub_address_prefix.is_empty() {
         label_parts.push(format!("CIDR:{}", hub.hub_address_prefix));
     }
     if !hub.virtual_wan_name.is_empty() {
-        label_parts.push(format!("vWAN:{}", hub.virtual_wan_name));
+        label_parts.push(format!("vWAN:{}", dot_escape(&hub.virtual_wan_name)));
     }
     if !hub.validated {
-        label_parts.push("⚠ unconfirmed hub".to_string());
+        label_parts.push("(!!) unconfirmed hub".to_string());
     }
     let label = label_parts.join("\\n");
     let (fill, border, penwidth, style) = if hub.validated {
@@ -701,8 +723,8 @@ mod tests {
             "Gateway VNet with LNG must have external ellipse node:\n{c}"
         );
         assert!(
-            c.contains("LNG:on-prem-lng"),
-            "Ext node must show LNG: prefix:\n{c}"
+            c.contains("[LNG] on-prem-lng"),
+            "Ext node must show [LNG] prefix:\n{c}"
         );
         assert!(c.contains("hub-vnet"), "hub-vnet must appear:\n{c}");
     }
@@ -868,6 +890,113 @@ mod tests {
         assert!(
             a_pos < z_pos,
             "subnet-a (10.0.0.0/16) must appear before subnet-z (172.17.8.0/21):\n{c}"
+        );
+    }
+
+    #[test]
+    fn dot_subscription_name_with_quote_is_escaped_in_cluster_label() {
+        use crate::models::Subnet;
+        let mut s = Subnet::default();
+        s.vnet_name = "my-vnet".into();
+        s.subnet_name = "default".into();
+        // Subscription name contains a `"` — must be escaped to `\"` in DOT
+        s.subscription_name = r#"My "Special" Sub"#.into();
+        let data = Data {
+            data: vec![s],
+            count: 1,
+            skip_token: None,
+            total_records: None,
+        };
+        let f = "/tmp/test-dot-sub-quote.dot";
+        write_peering_dot(&topo(&[], &data, &[], &[]), f).unwrap();
+        let c = std::fs::read_to_string(f).unwrap();
+        std::fs::remove_file(f).ok();
+        assert!(
+            c.contains(r#"My \"Special\" Sub"#),
+            "Subscription name quotes must be escaped in cluster label:\n{c}"
+        );
+    }
+
+    #[test]
+    fn dot_hub_name_with_quote_is_escaped() {
+        use crate::azure::VWanRow;
+        let row = VWanRow {
+            hub_name: r#"hub "prod" 1"#.into(),
+            hub_address_prefix: "10.0.0.0/23".into(),
+            virtual_wan_name: "vwan1".into(),
+            ..Default::default()
+        };
+        let f = "/tmp/test-dot-hub-quote.dot";
+        write_peering_dot(&topo(&[], &empty_data(), &[], &[row]), f).unwrap();
+        let c = std::fs::read_to_string(f).unwrap();
+        std::fs::remove_file(f).ok();
+        assert!(
+            c.contains(r#"hub \"prod\" 1"#),
+            "Hub name quotes must be escaped:\n{c}"
+        );
+    }
+
+    #[test]
+    fn dot_hub_node_contains_no_non_ascii() {
+        use crate::azure::PeeringEdge;
+        // A hub from an HV_ peering edge without a matching VWanRow row gets
+        // validated=false, which previously emitted the ⚠ non-ASCII character
+        // in its plain string label — crashing the graphviz parser.
+        let edges = vec![PeeringEdge {
+            vnet_name: "spoke-vnet".into(),
+            remote_vnet_id: arm_id("s1", "HV_unconfirmed-hub_abc123"),
+            peering_state: "Connected".into(),
+            subscription_name: "Prod Sub".into(),
+            ..Default::default()
+        }];
+        let f = "/tmp/test-dot-hub-no-non-ascii.dot";
+        write_peering_dot(&topo(&edges, &empty_data(), &[], &[]), f).unwrap();
+        let c = std::fs::read_to_string(f).unwrap();
+        std::fs::remove_file(f).ok();
+        // Verify no non-ASCII in plain string labels (the crash-inducing context)
+        assert!(
+            !c.contains("⚠"),
+            "DOT output must not contain ⚠ in plain string label:\n{c}"
+        );
+        assert!(
+            !c.contains("🌐"),
+            "DOT output must not contain 🌐 in plain string label:\n{c}"
+        );
+    }
+
+    #[test]
+    fn dot_lng_label_contains_no_non_ascii() {
+        use crate::azure::LocalGatewayRow;
+        use crate::models::Subnet;
+        let mut s = Subnet::default();
+        s.vnet_name = "hub-vnet".into();
+        s.subnet_name = "GatewaySubnet".into();
+        s.subscription_name = "Prod Sub".into();
+        let data = Data {
+            data: vec![s],
+            count: 1,
+            skip_token: None,
+            total_records: None,
+        };
+        let lng = LocalGatewayRow {
+            vnet_name: "hub-vnet".into(),
+            vng_name: "hub-vpngw".into(),
+            local_gw_name: "on-prem-lng".into(),
+            address_prefixes: vec!["10.0.0.0/8".into()],
+            gateway_ip: "1.2.3.4".into(),
+            ..Default::default()
+        };
+        let f = "/tmp/test-dot-lng-no-non-ascii.dot";
+        write_peering_dot(&topo(&[], &data, &[lng], &[]), f).unwrap();
+        let c = std::fs::read_to_string(f).unwrap();
+        std::fs::remove_file(f).ok();
+        assert!(
+            !c.contains("🌐"),
+            "DOT LNG label must not contain 🌐 emoji:\n{c}"
+        );
+        assert!(
+            !c.contains("⚠"),
+            "DOT LNG label must not contain ⚠ symbol:\n{c}"
         );
     }
 }
