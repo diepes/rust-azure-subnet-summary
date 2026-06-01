@@ -1,7 +1,9 @@
 //! CSV output formatting for subnet data.
 
 use crate::azure::{Data, VWanRow};
-use crate::processing::{ExcludedSubnet, GapFinder, SubnetPrintRow};
+use crate::models::{num_az_hosts, Subnet};
+use crate::processing::gap_finder::{extract_nsg_name, format_dns_servers};
+use crate::processing::{gaps, ExcludedSubnet, GapFinder, GapKind, SubnetPrintRow, VnetCidr};
 use chrono::Local;
 use std::cmp::Reverse;
 use std::error::Error;
@@ -10,6 +12,215 @@ use std::io::{BufWriter, Write};
 use std::net::Ipv4Addr;
 
 use super::terminal::format_field;
+
+/// Build the ordered flat list of [`SubnetPrintRow`]s for all subnets.
+///
+/// Produces gap rows, inserts excluded-subnet (`DUP_EXCL_VNET`) rows after
+/// their winner VNet, and inserts vWAN hub rows at the correct sorted position.
+/// The result is ready to be written to CSV by [`subnet_print`].
+pub fn build_rows(
+    subnets: &[Subnet],
+    excluded: &[ExcludedSubnet],
+    gap_cidr_mask: u8,
+    vwan: &[VWanRow],
+) -> Vec<SubnetPrintRow> {
+    // ── 1. Group subnets into VnetCidr objects ──────────────────────────────
+    let mut vnet_cidrs: Vec<VnetCidr> = Vec::new();
+    for subnet in subnets {
+        if let Some(last) = vnet_cidrs.last_mut() {
+            if last.cidr == subnet.vnet_cidr {
+                last.subnets.push(subnet.clone());
+                continue;
+            }
+        }
+        vnet_cidrs.push(VnetCidr {
+            cidr: subnet.vnet_cidr,
+            vnet_name: subnet.vnet_name.clone(),
+            subscription_id: subnet.subscription_id.clone(),
+            subscription_name: subnet.subscription_name.clone(),
+            location: subnet.location.clone(),
+            subnets: vec![subnet.clone()],
+        });
+    }
+
+    // ── 2. Map GapEvent → SubnetPrintRow ────────────────────────────────────
+    let gap_events = gaps(&vnet_cidrs, gap_cidr_mask);
+    let mut output_rows: Vec<SubnetPrintRow> = Vec::with_capacity(gap_events.len());
+    let mut subnet_index: usize = 0;
+
+    for event in &gap_events {
+        let row = match &event.kind {
+            GapKind::Subnet(subnet) => {
+                subnet_index += 1;
+                let sub_cidr = event.cidr;
+                let gateway = subnet.subnet_name == "GatewaySubnet";
+                SubnetPrintRow {
+                    j: subnet_index,
+                    gap: if gateway { "GATEWAY" } else { "" }.to_string(),
+                    subnet_cidr: sub_cidr.to_string(),
+                    broadcast: sub_cidr.broadcast().unwrap().addr.to_string(),
+                    az_hosts: num_az_hosts(sub_cidr.mask).unwrap_or(0) as usize,
+                    subnet_name: subnet.subnet_name.clone(),
+                    subscription_name: subnet.subscription_name.clone(),
+                    vnet_cidr: subnet.vnet_cidr.to_string(),
+                    vnet_name: subnet.vnet_name.clone(),
+                    location: subnet.location.clone(),
+                    nsg: extract_nsg_name(subnet.nsg.as_deref()),
+                    dns: format_dns_servers(subnet.dns_servers.as_deref()),
+                    subscription_id: subnet.subscription_id.clone(),
+                    ip_configurations_count: subnet.ip_configurations_count.unwrap_or(0),
+                }
+            }
+            GapKind::Vnet(vc) => SubnetPrintRow {
+                j: 0,
+                gap: "-vgap-".to_string(),
+                subnet_cidr: event.cidr.to_string(),
+                broadcast: event.cidr.broadcast().unwrap().addr.to_string(),
+                az_hosts: num_az_hosts(event.cidr.mask).unwrap_or(0) as usize,
+                subnet_name: "None".to_string(),
+                subscription_name: vc.subscription_name.clone(),
+                vnet_cidr: vc.cidr.to_string(),
+                vnet_name: vc.vnet_name.clone(),
+                location: "None".to_string(),
+                nsg: "Unused_nsg".to_string(),
+                dns: "Unused_dns".to_string(),
+                subscription_id: vc.subscription_id.clone(),
+                ip_configurations_count: 0,
+            },
+            GapKind::Gap => SubnetPrintRow {
+                j: 0,
+                gap: "-gap-".to_string(),
+                subnet_cidr: event.cidr.to_string(),
+                broadcast: event.cidr.broadcast().unwrap().addr.to_string(),
+                az_hosts: num_az_hosts(event.cidr.mask).unwrap_or(0) as usize,
+                subnet_name: "None".to_string(),
+                subscription_name: "None".to_string(),
+                vnet_cidr: "None".to_string(),
+                vnet_name: "None".to_string(),
+                location: "None".to_string(),
+                nsg: "Unused_nsg".to_string(),
+                dns: "Unused_dns".to_string(),
+                subscription_id: "None".to_string(),
+                ip_configurations_count: 0,
+            },
+        };
+        output_rows.push(row);
+    }
+
+    // ── 3. Insert DUP_EXCL_VNET rows after their winner VNet ────────────────
+    let mut winner_order: Vec<String> = Vec::new();
+    let mut dup_groups: std::collections::HashMap<String, Vec<SubnetPrintRow>> =
+        std::collections::HashMap::new();
+
+    for e in excluded {
+        let winner = e.winner_vnet_name.clone();
+        let s = &e.subnet;
+        let subnet_cidr_str = s
+            .subnet_cidr
+            .map(|c| c.to_string())
+            .unwrap_or_else(|| "None".to_string());
+        let broadcast_str = s
+            .subnet_cidr
+            .and_then(|c| c.broadcast().ok().map(|b| b.addr.to_string()))
+            .unwrap_or_else(|| "None".to_string());
+        let az_hosts = s
+            .subnet_cidr
+            .and_then(|c| num_az_hosts(c.mask).ok())
+            .unwrap_or(0) as usize;
+        let row = SubnetPrintRow {
+            j: 0,
+            gap: "DUP_EXCL_VNET".to_string(),
+            subnet_cidr: subnet_cidr_str,
+            broadcast: broadcast_str,
+            az_hosts,
+            subnet_name: format!("{} [DUP of VNET {}]", s.subnet_name, winner),
+            subscription_name: s.subscription_name.clone(),
+            vnet_cidr: s.vnet_cidr.to_string(),
+            vnet_name: s.vnet_name.clone(),
+            location: s.location.clone(),
+            nsg: extract_nsg_name(s.nsg.as_deref()),
+            dns: format_dns_servers(s.dns_servers.as_deref()),
+            subscription_id: s.subscription_id.clone(),
+            ip_configurations_count: s.ip_configurations_count.unwrap_or(0),
+        };
+        if !dup_groups.contains_key(&winner) {
+            winner_order.push(winner.clone());
+        }
+        dup_groups.entry(winner).or_default().push(row);
+    }
+
+    let mut insertions: Vec<(usize, Vec<SubnetPrintRow>)> = winner_order
+        .into_iter()
+        .map(|winner_vnet| {
+            let pos = output_rows
+                .iter()
+                .rposition(|r| r.vnet_name == winner_vnet)
+                .map(|i| i + 1)
+                .unwrap_or(output_rows.len());
+            let rows = dup_groups.remove(&winner_vnet).unwrap_or_default();
+            (pos, rows)
+        })
+        .collect();
+
+    insertions.sort_by_key(|b| Reverse(b.0));
+    for (pos, rows) in insertions {
+        let tail = output_rows.split_off(pos);
+        output_rows.extend(rows);
+        output_rows.extend(tail);
+    }
+
+    // ── 4. Insert vWAN hub rows at sorted IP position ───────────────────────
+    let mut hub_rows: Vec<(u32, SubnetPrintRow)> = Vec::new();
+    for hub in vwan {
+        if hub.hub_address_prefix.is_empty() {
+            continue;
+        }
+        let cidr = &hub.hub_address_prefix;
+        let (start_u32, _prefix_len, broadcast, az_hosts) = match parse_cidr(cidr) {
+            Some(v) => v,
+            None => {
+                log::warn!(
+                    "vWAN hub '{}' has unparseable CIDR '{cidr}' — skipped",
+                    hub.hub_name
+                );
+                continue;
+            }
+        };
+        let row = SubnetPrintRow {
+            j: 0,
+            gap: "VWAN_HUB".to_string(),
+            subnet_cidr: cidr.clone(),
+            broadcast,
+            az_hosts,
+            subnet_name: format!("vWAN Hub:{}", hub.hub_name),
+            subscription_name: hub.subscription_name.clone(),
+            vnet_cidr: cidr.clone(),
+            vnet_name: if hub.virtual_wan_name.is_empty() {
+                hub.hub_name.clone()
+            } else {
+                hub.virtual_wan_name.clone()
+            },
+            location: hub.location.clone(),
+            nsg: "None".to_string(),
+            dns: "None".to_string(),
+            subscription_id: hub.subscription_id.clone(),
+            ip_configurations_count: 0,
+        };
+        hub_rows.push((start_u32, row));
+    }
+    hub_rows.sort_by_key(|(ip, _)| *ip);
+
+    for (hub_ip, hub_row) in hub_rows.into_iter().rev() {
+        let pos = output_rows
+            .iter()
+            .rposition(|r| cidr_start_u32(&r.subnet_cidr).is_some_and(|ip| ip <= hub_ip))
+            .map(|i| i + 1)
+            .unwrap_or(0);
+        output_rows.insert(pos, hub_row);
+    }
+
+    output_rows
+}
 
 /// Write subnet data as CSV to a file.
 ///
@@ -489,5 +700,80 @@ mod tests {
             "duplicates.md must be created alongside CSV"
         );
         let _ = std::fs::remove_file(&md_path);
+    }
+
+    // ── build_rows unit tests ─────────────────────────────────────────────────
+
+    fn make_subnet_for_build(
+        vnet_name: &str,
+        subscription_name: &str,
+        vnet_cidr: &str,
+        subnet_cidr: &str,
+        subnet_name: &str,
+    ) -> Subnet {
+        let mut s: Subnet = Default::default();
+        s.vnet_name = vnet_name.to_string();
+        s.subscription_name = subscription_name.to_string();
+        s.subscription_id = "sub-id".to_string();
+        s.vnet_cidr = crate::models::Ipv4::new(vnet_cidr).unwrap();
+        s.subnet_cidr = Some(crate::models::Ipv4::new(subnet_cidr).unwrap());
+        s.subnet_name = subnet_name.to_string();
+        s
+    }
+
+    #[test]
+    fn build_rows_single_subnet_fills_vnet_exactly() {
+        let subnet = make_subnet_for_build("my-vnet", "Prod", "10.0.0.0/24", "10.0.0.0/24", "snet");
+        let rows = build_rows(&[subnet], &[], 28, &[]);
+        assert_eq!(
+            rows.len(),
+            1,
+            "expected 1 row, got {}: {rows:?}",
+            rows.len()
+        );
+        assert_eq!(rows[0].gap, "");
+        assert_eq!(rows[0].subnet_cidr, "10.0.0.0/24");
+        assert_eq!(rows[0].vnet_name, "my-vnet");
+    }
+
+    #[test]
+    fn build_rows_unused_space_in_vnet_becomes_vgap_rows() {
+        let subnet = make_subnet_for_build("my-vnet", "Prod", "10.0.0.0/16", "10.0.0.0/24", "snet");
+        let rows = build_rows(&[subnet], &[], 28, &[]);
+        assert!(rows.len() > 1, "expected vgap rows");
+        assert!(
+            rows.iter().any(|r| r.gap == "-vgap-"),
+            "expected -vgap- row"
+        );
+        let sr = rows.iter().find(|r| r.gap.is_empty()).expect("subnet row");
+        assert_eq!(sr.subnet_cidr, "10.0.0.0/24");
+    }
+
+    #[test]
+    fn build_rows_global_gap_between_vnets_is_gap_row() {
+        let s1 = make_subnet_for_build("vnet-a", "Prod", "10.0.0.0/24", "10.0.0.0/24", "snet");
+        let s2 = make_subnet_for_build("vnet-b", "Prod", "10.1.0.0/24", "10.1.0.0/24", "snet");
+        let rows = build_rows(&[s1, s2], &[], 28, &[]);
+        assert!(
+            rows.iter().any(|r| r.gap == "-gap-"),
+            "expected -gap- row between vnets"
+        );
+    }
+
+    #[test]
+    fn build_rows_excluded_subnet_becomes_dup_excl_vnet_row() {
+        let winner =
+            make_subnet_for_build("winner-vnet", "Prod", "10.0.0.0/16", "10.0.0.0/24", "snet");
+        let loser =
+            make_subnet_for_build("loser-vnet", "Dev", "10.0.0.0/16", "10.0.0.0/24", "snet");
+        let excluded = vec![ExcludedSubnet {
+            subnet: loser,
+            winner_vnet_name: "winner-vnet".to_string(),
+        }];
+        let rows = build_rows(&[winner], &excluded, 28, &[]);
+        assert!(
+            rows.iter().any(|r| r.gap == "DUP_EXCL_VNET"),
+            "expected DUP_EXCL_VNET row"
+        );
     }
 }

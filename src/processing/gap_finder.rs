@@ -61,7 +61,10 @@ pub fn gaps<'a>(vnet_cidrs: &'a [VnetCidr], gap_mask: u8) -> Vec<GapEvent<'a>> {
             while gip < vc.cidr.lo() {
                 let mask = find_biggest_subnet(gip, gap_mask, vc.cidr);
                 let block = Ipv4 { addr: gip, mask };
-                events.push(GapEvent { cidr: block, kind: GapKind::Gap });
+                events.push(GapEvent {
+                    cidr: block,
+                    kind: GapKind::Gap,
+                });
                 gip = next_subnet_ipv4(block, None).unwrap().lo();
             }
         }
@@ -73,11 +76,20 @@ pub fn gaps<'a>(vnet_cidrs: &'a [VnetCidr], gap_mask: u8) -> Vec<GapEvent<'a>> {
                 // Vgap before this subnet.
                 while inner_ip < sub_cidr.lo() {
                     let mask = find_biggest_subnet(inner_ip, gap_mask, sub_cidr);
-                    let block = Ipv4 { addr: inner_ip, mask };
-                    events.push(GapEvent { cidr: block, kind: GapKind::Vnet(vc) });
+                    let block = Ipv4 {
+                        addr: inner_ip,
+                        mask,
+                    };
+                    events.push(GapEvent {
+                        cidr: block,
+                        kind: GapKind::Vnet(vc),
+                    });
                     inner_ip = next_subnet_ipv4(block, None).unwrap().lo();
                 }
-                events.push(GapEvent { cidr: sub_cidr, kind: GapKind::Subnet(subnet) });
+                events.push(GapEvent {
+                    cidr: sub_cidr,
+                    kind: GapKind::Subnet(subnet),
+                });
                 inner_ip = next_subnet_ipv4(sub_cidr, None).unwrap().lo();
             }
         }
@@ -85,8 +97,14 @@ pub fn gaps<'a>(vnet_cidrs: &'a [VnetCidr], gap_mask: u8) -> Vec<GapEvent<'a>> {
         // Trailing vgap to end of VNet CIDR.
         while inner_ip <= vc.cidr.hi() {
             let mask = find_biggest_subnet_within(inner_ip, gap_mask, vc.cidr);
-            let block = Ipv4 { addr: inner_ip, mask };
-            events.push(GapEvent { cidr: block, kind: GapKind::Vnet(vc) });
+            let block = Ipv4 {
+                addr: inner_ip,
+                mask,
+            };
+            events.push(GapEvent {
+                cidr: block,
+                kind: GapKind::Vnet(vc),
+            });
             inner_ip = next_subnet_ipv4(block, None).unwrap().lo();
         }
 
@@ -371,7 +389,7 @@ fn create_row_from_subnet(
 }
 
 /// Extract NSG name from full resource ID.
-fn extract_nsg_name(nsg: Option<&str>) -> String {
+pub(crate) fn extract_nsg_name(nsg: Option<&str>) -> String {
     nsg.unwrap_or("None")
         .split('/')
         .next_back()
@@ -380,7 +398,7 @@ fn extract_nsg_name(nsg: Option<&str>) -> String {
 }
 
 /// Format DNS servers as a comma-separated string.
-fn format_dns_servers(dns: Option<&[String]>) -> String {
+pub(crate) fn format_dns_servers(dns: Option<&[String]>) -> String {
     dns.map(|servers| servers.join(","))
         .unwrap_or_else(|| "None".to_string())
 }
@@ -703,11 +721,20 @@ mod tests {
         let events = gaps(&vnet_cidrs, 24);
 
         // snet-a, 10.0.1.0/24 vgap, snet-b, trailing vgaps
-        assert!(matches!(events[0].kind, GapKind::Subnet(_)), "first event should be snet-a");
+        assert!(
+            matches!(events[0].kind, GapKind::Subnet(_)),
+            "first event should be snet-a"
+        );
         assert_eq!(events[0].cidr.to_string(), "10.0.0.0/24");
-        assert!(matches!(events[1].kind, GapKind::Vnet(_)), "second event should be vgap");
+        assert!(
+            matches!(events[1].kind, GapKind::Vnet(_)),
+            "second event should be vgap"
+        );
         assert_eq!(events[1].cidr.to_string(), "10.0.1.0/24");
-        assert!(matches!(events[2].kind, GapKind::Subnet(_)), "third event should be snet-b");
+        assert!(
+            matches!(events[2].kind, GapKind::Subnet(_)),
+            "third event should be snet-b"
+        );
     }
 
     #[test]
@@ -720,7 +747,9 @@ mod tests {
 
         // first event is the subnet, rest are vgaps
         assert!(matches!(events[0].kind, GapKind::Subnet(_)));
-        assert!(events[1..].iter().all(|e| matches!(e.kind, GapKind::Vnet(_))));
+        assert!(events[1..]
+            .iter()
+            .all(|e| matches!(e.kind, GapKind::Vnet(_))));
         // trailing vgaps must cover up to end of 10.0.0.0/16
         let last = events.last().unwrap();
         assert_eq!(last.cidr.hi(), Ipv4::new("10.0.0.0/16").unwrap().hi());
@@ -739,7 +768,10 @@ mod tests {
         // snet-a, Gap(10.0.1.0/24), snet-b
         assert_eq!(events.len(), 3);
         assert!(matches!(events[0].kind, GapKind::Subnet(_)));
-        assert!(matches!(events[1].kind, GapKind::Gap), "middle block should be a Gap");
+        assert!(
+            matches!(events[1].kind, GapKind::Gap),
+            "middle block should be a Gap"
+        );
         assert_eq!(events[1].cidr.to_string(), "10.0.1.0/24");
         assert!(matches!(events[2].kind, GapKind::Subnet(_)));
     }
@@ -755,13 +787,25 @@ mod tests {
         let vnet_cidrs = [vc1, vc2];
 
         let events_m16 = gaps(&vnet_cidrs, 16);
-        let events_m4  = gaps(&vnet_cidrs, 4);
+        let events_m4 = gaps(&vnet_cidrs, 4);
 
-        let gap_count_m16 = events_m16.iter().filter(|e| matches!(e.kind, GapKind::Gap)).count();
-        let gap_count_m4  = events_m4.iter().filter(|e| matches!(e.kind, GapKind::Gap)).count();
+        let gap_count_m16 = events_m16
+            .iter()
+            .filter(|e| matches!(e.kind, GapKind::Gap))
+            .count();
+        let gap_count_m4 = events_m4
+            .iter()
+            .filter(|e| matches!(e.kind, GapKind::Gap))
+            .count();
 
-        assert!(gap_count_m16 > gap_count_m4, "coarser gap_mask should produce fewer blocks");
-        assert!(events_m16.iter().filter(|e| matches!(e.kind, GapKind::Gap)).all(|e| e.cidr.mask >= 16));
+        assert!(
+            gap_count_m16 > gap_count_m4,
+            "coarser gap_mask should produce fewer blocks"
+        );
+        assert!(events_m16
+            .iter()
+            .filter(|e| matches!(e.kind, GapKind::Gap))
+            .all(|e| e.cidr.mask >= 16));
     }
 
     /// RED: GapFinder owns state; push() returns rows for each subnet.

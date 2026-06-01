@@ -7,7 +7,7 @@
 //! - [`overlap`] - Detection and filtering of overlapping VNet CIDRs
 
 mod dedup;
-mod gap_finder;
+pub(crate) mod gap_finder;
 mod overlap;
 mod vnet;
 
