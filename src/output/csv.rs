@@ -10,6 +10,7 @@ use std::error::Error;
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::net::Ipv4Addr;
+use std::path::Path;
 
 use super::terminal::format_field;
 
@@ -230,6 +231,9 @@ pub fn build_rows(
 /// * `gap_cidr_mask` - The default CIDR mask for gap subnets
 /// * `vwan`          - vWAN hub rows; their address prefixes are injected as
 ///   `VWAN_HUB` rows so reserved hub IP space is visible
+/// * `output_dir`    - Directory in which to write `net_<date>_subnets.csv`
+///   and `net_<date>_duplicates.md`. Pass `Path::new(".")` for the current
+///   directory.
 ///
 /// # Returns
 /// The path to the generated CSV file
@@ -238,6 +242,7 @@ pub fn subnet_print(
     excluded: &[ExcludedSubnet],
     gap_cidr_mask: u8,
     vwan: &[VWanRow],
+    output_dir: &Path,
 ) -> Result<String, Box<dyn Error>> {
     log::info!(
         "#Start subnet_print() add gap subnets with mask /{}",
@@ -247,7 +252,10 @@ pub fn subnet_print(
 
     // Generate filename with current date
     let date_str = Local::now().format("%Y-%m-%d").to_string();
-    let filename = format!("net_{}_subnets.csv", date_str);
+    let filename = output_dir
+        .join(format!("net_{date_str}_subnets.csv"))
+        .to_string_lossy()
+        .into_owned();
 
     // Open file for writing
     let file = File::create(&filename)?;
@@ -270,8 +278,11 @@ pub fn subnet_print(
 
     log::info!("Wrote {} rows to '{}'", output_rows.len(), filename);
 
-    // Also write the duplicates markdown report
-    let md_filename = format!("net_{}_duplicates.md", date_str);
+    // Also write the duplicates markdown report alongside the CSV
+    let md_filename = output_dir
+        .join(format!("net_{date_str}_duplicates.md"))
+        .to_string_lossy()
+        .into_owned();
     super::dup_report::write_duplicates_md(data, excluded, &md_filename)?;
 
     Ok(filename)
@@ -425,7 +436,8 @@ mod tests {
             winner_vnet_name: "winner-vnet".to_string(),
         }];
 
-        let path = subnet_print(&data, &excluded, 28, &[]).expect("subnet_print must not panic");
+        let path = subnet_print(&data, &excluded, 28, &[], std::path::Path::new("."))
+            .expect("subnet_print must not panic");
         let contents = std::fs::read_to_string(&path).expect("can read CSV");
         let _ = std::fs::remove_file(&path);
 
@@ -477,7 +489,8 @@ mod tests {
             winner_vnet_name: "winner-vnet".to_string(),
         }];
 
-        let path = subnet_print(&data, &excluded, 28, &[]).expect("must not panic");
+        let path = subnet_print(&data, &excluded, 28, &[], std::path::Path::new("."))
+            .expect("must not panic");
         let contents = std::fs::read_to_string(&path).expect("can read");
         let _ = std::fs::remove_file(&path);
 
@@ -513,7 +526,8 @@ mod tests {
             data: vec![s],
         };
 
-        let path = subnet_print(&data, &[], 28, &[]).expect("must not panic");
+        let path =
+            subnet_print(&data, &[], 28, &[], std::path::Path::new(".")).expect("must not panic");
         let contents = std::fs::read_to_string(&path).expect("can read CSV");
         let _ = std::fs::remove_file(&path);
 
@@ -556,7 +570,8 @@ mod tests {
             winner_vnet_name: "winner-vnet".to_string(),
         }];
 
-        let csv_path = subnet_print(&data, &excluded, 28, &[]).expect("must not panic");
+        let csv_path = subnet_print(&data, &excluded, 28, &[], std::path::Path::new("."))
+            .expect("must not panic");
         let md_path = csv_path.replace("_subnets.csv", "_duplicates.md");
         let _ = std::fs::remove_file(&csv_path);
         assert!(

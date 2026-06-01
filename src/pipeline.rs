@@ -8,8 +8,7 @@ use crate::{
     azure::AzureData,
     check_for_duplicate_subnets,
     output::{
-        build_topology, subnet_print, validate_dot_file, write_duplicates_md,
-        write_peering_diagram, write_peering_dot,
+        build_topology, subnet_print, validate_dot_file, write_peering_diagram, write_peering_dot,
     },
     processing::{
         de_duplicate_subnets, find_overlapping_vnets, get_vnets, log_overlapping_vnets,
@@ -21,6 +20,7 @@ use std::collections::HashSet;
 use std::error::Error;
 #[cfg(unix)]
 use std::os::unix::process::ExitStatusExt as _;
+use std::path::Path;
 
 /// CLI arguments for azure-subnet-summary.
 #[derive(Parser, Debug)]
@@ -68,8 +68,9 @@ fn parse_diagram_types(raw: &str) -> HashSet<String> {
 
 /// Execute the full output pipeline for the fetched Azure data.
 ///
-/// Writes output files (CSV, Markdown, DOT) to the current directory and
-/// calls `renderer` only when the `svg` diagram type is requested.
+/// Writes all output files into a `report-<date>` subdirectory (created if it
+/// does not exist) and calls `renderer` only when the `svg` diagram type is
+/// requested.
 pub fn run(data: AzureData, args: &Args, renderer: &dyn SvgRenderer) -> Result<(), Box<dyn Error>> {
     let diagram_types = parse_diagram_types(&args.diagram);
 
@@ -103,14 +104,21 @@ pub fn run(data: AzureData, args: &Args, renderer: &dyn SvgRenderer) -> Result<(
     let subnets = de_duplicate_subnets(subnets, None)?;
     check_for_duplicate_subnets(&subnets)?;
 
-    // Output subnet CSV (includes vWAN hub CIDRs as reserved IP space)
-    let csv_file = subnet_print(&subnets, &cr_out.excluded, args.gap_mask, &vwan_data.data)?;
-
-    // Output duplicate VNet report
+    // Create the dated report subdirectory
     let date_str = chrono::Local::now().format("%Y-%m-%d").to_string();
-    let dup_file = format!("net_{date_str}_duplicates.md");
-    write_duplicates_md(&subnets, &cr_out.excluded, &dup_file)?;
-    log::info!("Duplicates report written to '{dup_file}'");
+    let report_dir = format!("report-{date_str}");
+    std::fs::create_dir_all(&report_dir)?;
+    let report_path = Path::new(&report_dir);
+    log::info!("Writing output to '{report_dir}/'");
+
+    // Output subnet CSV + duplicates.md (both written by subnet_print)
+    let csv_file = subnet_print(
+        &subnets,
+        &cr_out.excluded,
+        args.gap_mask,
+        &vwan_data.data,
+        report_path,
+    )?;
 
     // Build peering topology once; pass to both diagram writers.
     let topo = build_topology(
@@ -121,14 +129,20 @@ pub fn run(data: AzureData, args: &Args, renderer: &dyn SvgRenderer) -> Result<(
     );
 
     if diagram_types.contains("md") {
-        let peering_file = format!("net_{date_str}_peering.md");
+        let peering_file = report_path
+            .join(format!("net_{date_str}_peering.md"))
+            .to_string_lossy()
+            .into_owned();
         write_peering_diagram(&topo, &peering_file)?;
         log::info!("Peering diagram written to '{peering_file}'");
     }
 
     // Generate DOT file (needed for both dot and svg outputs).
     let peering_dot_file = if diagram_types.contains("dot") || diagram_types.contains("svg") {
-        let f = format!("net_{date_str}_peering.dot");
+        let f = report_path
+            .join(format!("net_{date_str}_peering.dot"))
+            .to_string_lossy()
+            .into_owned();
         write_peering_dot(&topo, &f)?;
         log::info!("Peering DOT diagram written to '{f}'");
         Some(f)
@@ -145,7 +159,10 @@ pub fn run(data: AzureData, args: &Args, renderer: &dyn SvgRenderer) -> Result<(
     // SVG rendering last so errors appear at the bottom of terminal output.
     if let Some(ref dot_file) = peering_dot_file {
         if diagram_types.contains("svg") {
-            let peering_svg_file = format!("net_{date_str}_peering.svg");
+            let peering_svg_file = report_path
+                .join(format!("net_{date_str}_peering.svg"))
+                .to_string_lossy()
+                .into_owned();
             renderer.render(dot_file, &peering_svg_file);
         }
     }
