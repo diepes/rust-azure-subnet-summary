@@ -14,6 +14,8 @@ An Azure Virtual Network. Stores a name, the owning **Subscription**, one or mor
 ### VNet_CIDR
 A single IP address block declared on a VNet (e.g., `10.11.0.0/16`). This is the atomic unit for IP-space reservation, overlap detection, and gap-finding. A **Subnet** belongs to exactly one VNet_CIDR.
 
+Represented in code as a `VnetCidr` struct carrying the CIDR (`Ipv4`), `vnet_name`, `subscription_id`, and an owned sorted `Vec<Subnet>` of all subnets belonging to it. The flat subnet list is consumed once when building `Vec<VnetCidr>`; the membership invariant ("a Subnet belongs to exactly one VNet_CIDR") is structural — enforced by the type, not convention.
+
 ### VNet_CIDRs
 The ordered list of all **VNet_CIDR** entries on a VNet. A VNet may have one or more VNet_CIDRs; most have exactly one.
 

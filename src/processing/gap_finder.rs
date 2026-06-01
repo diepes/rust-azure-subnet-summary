@@ -5,6 +5,97 @@
 use crate::models::{next_subnet_ipv4, num_az_hosts, Ipv4, Subnet};
 use std::net::Ipv4Addr;
 
+// ─── VnetCidr + Gap Iterator ──────────────────────────────────────────────────
+
+/// A VNet CIDR address space with its metadata and owned subnets.
+///
+/// Subnets are kept sorted by subnet start IP (smallest first). This encodes the
+/// structural invariant that each subnet belongs to exactly one VNet CIDR.
+#[derive(Debug)]
+pub struct VnetCidr {
+    pub cidr: Ipv4,
+    pub vnet_name: String,
+    pub subscription_id: String,
+    pub subscription_name: String,
+    pub location: String,
+    /// Subnets belonging to this VNet CIDR, sorted by start IP.
+    pub subnets: Vec<Subnet>,
+}
+
+/// A single block in the gap-scan output.
+#[derive(Debug)]
+pub struct GapEvent<'a> {
+    /// The specific CIDR of this block.
+    pub cidr: Ipv4,
+    /// What this block represents.
+    pub kind: GapKind<'a>,
+}
+
+/// Classifies a [`GapEvent`].
+#[derive(Debug)]
+pub enum GapKind<'a> {
+    /// Unused address space between two VNet CIDRs.
+    Gap,
+    /// Unused address space inside a VNet CIDR (carries the VNet context).
+    Vnet(&'a VnetCidr),
+    /// An allocated subnet.
+    Subnet(&'a Subnet),
+}
+
+/// Iterate over all blocks inside `vnet_cidrs` as a flat sequence of [`GapEvent`]s.
+///
+/// Each subnet becomes a `Subnet` event; unused space inside a VNet CIDR becomes
+/// one or more `Vnet` events (split into aligned blocks up to `gap_mask`);
+/// unused space between adjacent VNet CIDRs becomes one or more `Gap` events.
+///
+/// `vnet_cidrs` must be sorted by `cidr` (ascending) and each `VnetCidr`'s
+/// `subnets` must be sorted by `subnet_cidr` (ascending).
+pub fn gaps<'a>(vnet_cidrs: &'a [VnetCidr], gap_mask: u8) -> Vec<GapEvent<'a>> {
+    let mut events = Vec::new();
+    let mut current_ip: Option<Ipv4Addr> = None;
+
+    for vc in vnet_cidrs {
+        // Global gap before this VNet CIDR.
+        if let Some(ip) = current_ip {
+            let mut gip = ip;
+            while gip < vc.cidr.lo() {
+                let mask = find_biggest_subnet(gip, gap_mask, vc.cidr);
+                let block = Ipv4 { addr: gip, mask };
+                events.push(GapEvent { cidr: block, kind: GapKind::Gap });
+                gip = next_subnet_ipv4(block, None).unwrap().lo();
+            }
+        }
+
+        // Subnets (and vgaps) inside this VNet CIDR.
+        let mut inner_ip = vc.cidr.lo();
+        for subnet in &vc.subnets {
+            if let Some(sub_cidr) = subnet.subnet_cidr {
+                // Vgap before this subnet.
+                while inner_ip < sub_cidr.lo() {
+                    let mask = find_biggest_subnet(inner_ip, gap_mask, sub_cidr);
+                    let block = Ipv4 { addr: inner_ip, mask };
+                    events.push(GapEvent { cidr: block, kind: GapKind::Vnet(vc) });
+                    inner_ip = next_subnet_ipv4(block, None).unwrap().lo();
+                }
+                events.push(GapEvent { cidr: sub_cidr, kind: GapKind::Subnet(subnet) });
+                inner_ip = next_subnet_ipv4(sub_cidr, None).unwrap().lo();
+            }
+        }
+
+        // Trailing vgap to end of VNet CIDR.
+        while inner_ip <= vc.cidr.hi() {
+            let mask = find_biggest_subnet_within(inner_ip, gap_mask, vc.cidr);
+            let block = Ipv4 { addr: inner_ip, mask };
+            events.push(GapEvent { cidr: block, kind: GapKind::Vnet(vc) });
+            inner_ip = next_subnet_ipv4(block, None).unwrap().lo();
+        }
+
+        current_ip = Some(next_subnet_ipv4(vc.cidr, None).unwrap().lo());
+    }
+
+    events
+}
+
 /// Context from the previous subnet's VNet, carried forward to identify gaps within VNets.
 #[derive(Debug, Clone, Default)]
 pub struct PrevVnetContext {
@@ -562,6 +653,115 @@ mod tests {
         assert_eq!(result.subnet_name, "jenkinsarm-snet");
         assert_eq!(next_ip.to_string(), "10.0.1.0");
         assert_eq!(print_rows.len(), 1, "Expected 1 row for subnet");
+    }
+
+    // ─── gaps() tests ──────────────────────────────────────────────────────────
+
+    fn make_vnet_cidr(cidr: &str, name: &str, subnets: Vec<Subnet>) -> VnetCidr {
+        VnetCidr {
+            cidr: Ipv4::new(cidr).unwrap(),
+            vnet_name: name.to_string(),
+            subscription_id: "sub-001".to_string(),
+            subscription_name: "Test Sub".to_string(),
+            location: "eastus".to_string(),
+            subnets,
+        }
+    }
+
+    #[test]
+    fn single_subnet_filling_vnet_cidr_produces_one_subnet_event() {
+        let subnet = make_subnet("10.0.0.0/24", "10.0.0.0/24", "vnet-a", "snet-a");
+        let vc = make_vnet_cidr("10.0.0.0/24", "vnet-a", vec![subnet]);
+        let vnet_cidrs = [vc];
+        let events = gaps(&vnet_cidrs, 28);
+        assert_eq!(events.len(), 1);
+        assert!(matches!(events[0].kind, GapKind::Subnet(_)));
+        assert_eq!(events[0].cidr.to_string(), "10.0.0.0/24");
+    }
+
+    #[test]
+    fn vgap_before_first_subnet_is_emitted_as_vnet_event() {
+        // 10.0.0.0/16 VNet, first subnet starts at 10.0.1.0/24 — gap before it
+        let subnet = make_subnet("10.0.1.0/24", "10.0.0.0/16", "vnet-a", "snet-a");
+        let vc = make_vnet_cidr("10.0.0.0/16", "vnet-a", vec![subnet]);
+        let vnet_cidrs = [vc];
+        let events = gaps(&vnet_cidrs, 24);
+
+        // first event must be a Vnet gap covering 10.0.0.0/24
+        assert!(matches!(events[0].kind, GapKind::Vnet(_)));
+        assert_eq!(events[0].cidr.to_string(), "10.0.0.0/24");
+        // second event is the real subnet
+        assert!(matches!(events[1].kind, GapKind::Subnet(_)));
+    }
+
+    #[test]
+    fn vgap_between_two_subnets_is_emitted_as_vnet_event() {
+        let s1 = make_subnet("10.0.0.0/24", "10.0.0.0/16", "vnet-a", "snet-a");
+        let s2 = make_subnet("10.0.2.0/24", "10.0.0.0/16", "vnet-a", "snet-b");
+        let vc = make_vnet_cidr("10.0.0.0/16", "vnet-a", vec![s1, s2]);
+        let vnet_cidrs = [vc];
+        let events = gaps(&vnet_cidrs, 24);
+
+        // snet-a, 10.0.1.0/24 vgap, snet-b, trailing vgaps
+        assert!(matches!(events[0].kind, GapKind::Subnet(_)), "first event should be snet-a");
+        assert_eq!(events[0].cidr.to_string(), "10.0.0.0/24");
+        assert!(matches!(events[1].kind, GapKind::Vnet(_)), "second event should be vgap");
+        assert_eq!(events[1].cidr.to_string(), "10.0.1.0/24");
+        assert!(matches!(events[2].kind, GapKind::Subnet(_)), "third event should be snet-b");
+    }
+
+    #[test]
+    fn trailing_vgap_fills_rest_of_vnet_cidr() {
+        // subnet fills only /24 of a /16 — trailing space should emit Vnet events
+        let subnet = make_subnet("10.0.0.0/24", "10.0.0.0/16", "vnet-a", "snet-a");
+        let vc = make_vnet_cidr("10.0.0.0/16", "vnet-a", vec![subnet]);
+        let vnet_cidrs = [vc];
+        let events = gaps(&vnet_cidrs, 24);
+
+        // first event is the subnet, rest are vgaps
+        assert!(matches!(events[0].kind, GapKind::Subnet(_)));
+        assert!(events[1..].iter().all(|e| matches!(e.kind, GapKind::Vnet(_))));
+        // trailing vgaps must cover up to end of 10.0.0.0/16
+        let last = events.last().unwrap();
+        assert_eq!(last.cidr.hi(), Ipv4::new("10.0.0.0/16").unwrap().hi());
+    }
+
+    #[test]
+    fn gap_between_two_vnet_cidrs_emits_gap_events() {
+        // Two /24 VNets separated by a /24 hole: 10.0.0.0/24, hole 10.0.1.0/24, 10.0.2.0/24
+        let s1 = make_subnet("10.0.0.0/24", "10.0.0.0/24", "vnet-a", "snet-a");
+        let s2 = make_subnet("10.0.2.0/24", "10.0.2.0/24", "vnet-b", "snet-b");
+        let vc1 = make_vnet_cidr("10.0.0.0/24", "vnet-a", vec![s1]);
+        let vc2 = make_vnet_cidr("10.0.2.0/24", "vnet-b", vec![s2]);
+        let vnet_cidrs = [vc1, vc2];
+        let events = gaps(&vnet_cidrs, 24);
+
+        // snet-a, Gap(10.0.1.0/24), snet-b
+        assert_eq!(events.len(), 3);
+        assert!(matches!(events[0].kind, GapKind::Subnet(_)));
+        assert!(matches!(events[1].kind, GapKind::Gap), "middle block should be a Gap");
+        assert_eq!(events[1].cidr.to_string(), "10.0.1.0/24");
+        assert!(matches!(events[2].kind, GapKind::Subnet(_)));
+    }
+
+    #[test]
+    fn large_gap_is_split_into_aligned_blocks_according_to_gap_mask() {
+        // Five-/16 global gap: 10.0.0.0/24 VNet then 10.5.0.0/24 VNet, gap_mask=16
+        // gap covers 10.0.1.0–10.4.255.255 → should produce multiple blocks, all Gap kind
+        let s1 = make_subnet("10.0.0.0/24", "10.0.0.0/24", "vnet-a", "snet-a");
+        let s2 = make_subnet("10.5.0.0/24", "10.5.0.0/24", "vnet-b", "snet-b");
+        let vc1 = make_vnet_cidr("10.0.0.0/24", "vnet-a", vec![s1]);
+        let vc2 = make_vnet_cidr("10.5.0.0/24", "vnet-b", vec![s2]);
+        let vnet_cidrs = [vc1, vc2];
+
+        let events_m16 = gaps(&vnet_cidrs, 16);
+        let events_m4  = gaps(&vnet_cidrs, 4);
+
+        let gap_count_m16 = events_m16.iter().filter(|e| matches!(e.kind, GapKind::Gap)).count();
+        let gap_count_m4  = events_m4.iter().filter(|e| matches!(e.kind, GapKind::Gap)).count();
+
+        assert!(gap_count_m16 > gap_count_m4, "coarser gap_mask should produce fewer blocks");
+        assert!(events_m16.iter().filter(|e| matches!(e.kind, GapKind::Gap)).all(|e| e.cidr.mask >= 16));
     }
 
     /// RED: GapFinder owns state; push() returns rows for each subnet.

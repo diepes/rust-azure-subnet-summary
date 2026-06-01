@@ -14,7 +14,8 @@ mod vnet;
 // Re-export public functions
 pub use dedup::de_duplicate_subnets;
 pub use gap_finder::{
-    fill_trailing_vgap, process_subnet_row, GapFinder, PrevVnetContext, SubnetPrintRow,
+    fill_trailing_vgap, gaps, process_subnet_row, GapEvent, GapFinder, GapKind, PrevVnetContext,
+    SubnetPrintRow, VnetCidr,
 };
 pub use overlap::{
     find_overlapping_vnets, log_overlapping_vnets, resolve_overlapping_vnets,

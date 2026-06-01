@@ -15,12 +15,12 @@ Cargo.lock
 subnet_cache*.json
 *_cache_*.json
 net_*
-subnet.err.txt
-/subnets-*
-
+net_*.csv
 
 # MSVC Windows builds of rustc generate these, which store debugging information
 *.pdb
 .vscode
-*.csv
 .DS_Store
+
+# Copilot agent skills (injected at runtime, not repo content)
+.agents/
