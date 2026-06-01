@@ -250,7 +250,11 @@ pub fn write_peering_dot(
 
                 if is_missing {
                     let sub_name = meta.map(|m| m.subscription_name.as_str()).unwrap_or("?");
-                    let sub_display = if sub_name.is_empty() { "unknown" } else { sub_name };
+                    let sub_display = if sub_name.is_empty() {
+                        "unknown"
+                    } else {
+                        sub_name
+                    };
                     let cidr_str = meta.map(|m| m.vnet_cidr.join(", ")).unwrap_or_default();
                     let vnet_escaped = html_escape(vnet);
                     let sub_escaped = html_escape(sub_display);
@@ -270,7 +274,9 @@ pub fn write_peering_dot(
                     let mut parts: Vec<String> = if cidr_str.is_empty() {
                         vec![format!("VNET: <B> {vnet_escaped} </B>")]
                     } else {
-                        vec![format!("VNET: <B> {vnet_escaped} </B>  VNet_CIDRs: {cidr_str}")]
+                        vec![format!(
+                            "VNET: <B> {vnet_escaped} </B>  VNet_CIDRs: {cidr_str}"
+                        )]
                     };
                     // Subnets sorted by vnet_cidr start IP first, then subnet_cidr IP.
                     let mut vnet_subnets: Vec<&crate::models::Subnet> = subnets

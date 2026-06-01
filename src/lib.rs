@@ -87,5 +87,3 @@ pub fn check_for_duplicate_subnets(data: &azure::Data) -> Result<(), Box<dyn std
     }
     Ok(())
 }
-
-

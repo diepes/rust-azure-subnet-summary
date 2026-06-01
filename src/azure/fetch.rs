@@ -5,14 +5,10 @@
 //! their cache status, and returns an [`AzureData`] bundle.
 
 use super::{
-    graph::Data,
     local_gateway::LocalGatewayData,
     local_gateway_cache::read_local_gateway_cache_with_status,
-    peering_cache::read_peering_cache_with_status,
-    peering_graph::PeeringData,
-    vwan_cache::read_vwan_cache_with_status,
-    vwan_graph::VWanData,
-    CacheResult,
+    peering_cache::read_peering_cache_with_status, peering_graph::PeeringData,
+    vwan_cache::read_vwan_cache_with_status, vwan_graph::VWanData, CacheResult,
 };
 use crate::azure::cache::read_subnet_cache_with_status;
 use std::error::Error;
@@ -55,13 +51,9 @@ pub struct AzureData {
 /// Returns the first error encountered if any source fails.
 pub fn fetch_azure_data(config: &FetchConfig) -> Result<AzureData, Box<dyn Error>> {
     // ── Subnets ──────────────────────────────────────────────────────────────
-    let subnet_result =
-        read_subnet_cache_with_status(config.subnet_cache.as_deref())?;
+    let subnet_result = read_subnet_cache_with_status(config.subnet_cache.as_deref())?;
     if subnet_result.from_cache {
-        log::info!(
-            "Subnet data read from cache '{}'",
-            subnet_result.cache_file
-        );
+        log::info!("Subnet data read from cache '{}'", subnet_result.cache_file);
     } else {
         log::info!(
             "Subnet data fetched from Azure (cache '{}')",
@@ -70,8 +62,7 @@ pub fn fetch_azure_data(config: &FetchConfig) -> Result<AzureData, Box<dyn Error
     }
 
     // ── Peering ───────────────────────────────────────────────────────────────
-    let peering_result =
-        read_peering_cache_with_status(config.peering_cache.as_deref())?;
+    let peering_result = read_peering_cache_with_status(config.peering_cache.as_deref())?;
     if peering_result.from_cache {
         log::info!(
             "Peering data read from cache '{}'",
@@ -85,8 +76,7 @@ pub fn fetch_azure_data(config: &FetchConfig) -> Result<AzureData, Box<dyn Error
     }
 
     // ── Local Gateways ────────────────────────────────────────────────────────
-    let lgw_result =
-        read_local_gateway_cache_with_status(config.local_gateway_cache.as_deref())?;
+    let lgw_result = read_local_gateway_cache_with_status(config.local_gateway_cache.as_deref())?;
     if lgw_result.from_cache {
         log::info!(
             "Local gateway data read from cache '{}'",
@@ -102,10 +92,7 @@ pub fn fetch_azure_data(config: &FetchConfig) -> Result<AzureData, Box<dyn Error
     // ── vWAN ──────────────────────────────────────────────────────────────────
     let vwan_result = read_vwan_cache_with_status(config.vwan_cache.as_deref())?;
     if vwan_result.from_cache {
-        log::info!(
-            "vWAN data read from cache '{}'",
-            vwan_result.cache_file
-        );
+        log::info!("vWAN data read from cache '{}'", vwan_result.cache_file);
     } else {
         log::info!(
             "vWAN data fetched from Azure (cache '{}')",
@@ -127,18 +114,12 @@ mod tests {
 
     fn test_config() -> FetchConfig {
         FetchConfig {
-            subnet_cache: Some(
-                "src/tests/test_data/subnet_test_cache_01.json".to_string(),
-            ),
-            peering_cache: Some(
-                "src/tests/test_data/peering_test_cache_01.json".to_string(),
-            ),
+            subnet_cache: Some("src/tests/test_data/subnet_test_cache_01.json".to_string()),
+            peering_cache: Some("src/tests/test_data/peering_test_cache_01.json".to_string()),
             local_gateway_cache: Some(
                 "src/tests/test_data/local_gateway_test_cache_01.json".to_string(),
             ),
-            vwan_cache: Some(
-                "src/tests/test_data/vwan_test_cache_01.json".to_string(),
-            ),
+            vwan_cache: Some("src/tests/test_data/vwan_test_cache_01.json".to_string()),
         }
     }
 
@@ -151,11 +132,7 @@ mod tests {
             "subnets should be non-empty"
         );
         // Peering edges from peering_test_cache_01.json (3 edges)
-        assert_eq!(
-            data.peering_edges.data.len(),
-            3,
-            "expected 3 peering edges"
-        );
+        assert_eq!(data.peering_edges.data.len(), 3, "expected 3 peering edges");
         // Local gateways from test fixture (1 entry)
         assert_eq!(
             data.local_gateways.data.len(),

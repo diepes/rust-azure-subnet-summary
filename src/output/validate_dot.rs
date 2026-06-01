@@ -4,8 +4,8 @@
 /// keyword) and gives a clear error instead of a cryptic renderer crash.
 /// Returns `Ok(())` when the file looks well-formed, `Err(msg)` otherwise.
 pub fn validate_dot_file(path: &str) -> Result<(), String> {
-    let content = std::fs::read_to_string(path)
-        .map_err(|e| format!("cannot read '{path}': {e}"))?;
+    let content =
+        std::fs::read_to_string(path).map_err(|e| format!("cannot read '{path}': {e}"))?;
 
     if content.trim().is_empty() {
         return Err(format!("'{path}' is empty"));
