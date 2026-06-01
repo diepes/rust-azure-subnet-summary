@@ -22,16 +22,8 @@ pub mod models;
 pub mod output;
 pub mod processing;
 
-// Legacy modules (for backwards compatibility during migration)
 mod cmd;
 mod config;
-mod de_duplicate_subnets;
-mod graph_read_subnet_data;
-mod ipv4;
-pub mod struct_vnet;
-pub mod subnet_add_row;
-pub mod subnet_print;
-mod subnet_struct;
 
 use std::collections::HashSet;
 
@@ -96,17 +88,4 @@ pub fn check_for_duplicate_subnets(data: &azure::Data) -> Result<(), Box<dyn std
     Ok(())
 }
 
-// Legacy re-exports for backwards compatibility
-pub use de_duplicate_subnets::de_duplicate_subnets2;
-pub use struct_vnet::get_vnets as get_vnets_legacy;
 
-/// Legacy version of get_sorted_subnets that returns the old Data type.
-/// Use `get_sorted_subnets` for new code.
-#[doc(hidden)]
-pub fn get_sorted_subnets_legacy(
-    cache_file: Option<&str>,
-) -> Result<graph_read_subnet_data::Data, Box<dyn std::error::Error>> {
-    let mut data = graph_read_subnet_data::read_subnet_cache(cache_file)?;
-    data.data.sort_by_key(|s| s.subnet_cidr);
-    Ok(data)
-}
