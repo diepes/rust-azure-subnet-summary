@@ -5,7 +5,7 @@ Recorded here so work can resume after fixing the current issue.
 
 ---
 
-## Candidate 1 — Lift `PeeringTopology` to `pub(crate)`, build once
+## Candidate 1 — Lift `PeeringTopology` to `pub(crate)`, build once ✅ DONE
 
 **Files:** `src/output/peering_topology.rs`, `src/output/peering_dot.rs`, `src/output/peering_diagram.rs`, `src/main.rs`
 
@@ -25,7 +25,7 @@ Recorded here so work can resume after fixing the current issue.
 
 ---
 
-## Candidate 3 — `GapFinder` as a push-based accumulator
+## Candidate 3 — `GapFinder` as a push-based accumulator ✅ DONE
 
 **Files:** `src/processing/gap_finder.rs`, `src/output/csv.rs`
 
@@ -35,7 +35,7 @@ Recorded here so work can resume after fixing the current issue.
 
 ---
 
-## Candidate 4 — Delete the legacy module graveyard
+## Candidate 4 — Delete the legacy module graveyard ✅ DONE
 
 **Files:** `src/ipv4.rs`, `src/subnet_struct.rs`, `src/graph_read_subnet_data.rs`, `src/de_duplicate_subnets.rs`, `src/subnet_add_row.rs`, `src/subnet_print.rs`
 
@@ -45,7 +45,7 @@ Recorded here so work can resume after fixing the current issue.
 
 ---
 
-## Candidate 5 — Single `fetch_azure_data` function replacing three cache calls
+## Candidate 5 — Single `fetch_azure_data` function replacing three cache calls ✅ DONE
 
 **Files:** `src/azure/cache.rs`, `src/azure/peering_cache.rs`, `src/azure/local_gateway_cache.rs`, `src/main.rs`
 

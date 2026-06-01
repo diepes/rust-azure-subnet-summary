@@ -77,7 +77,7 @@ A VNet that contains a subnet named exactly `GatewaySubnet`. That subnet hosts a
 _Avoid_: hub VNet (hub is a topology role, not a fixed property), gateway hub
 
 ### Missing VNet
-A VNet referenced in a **Peering Edge** (as a remote target or source) that has no corresponding subnet records in the query results. Caused by VNets in subscriptions outside the query scope, deleted VNets with stale peering config, or cross-tenant VNets. Rendered with a dark-red node and cluster in the **Peering Diagram**, labelled `⚠ MISSING - SUB:<subscription>`.
+A VNet referenced in a **Peering Edge** (as a remote target or source) that has no corresponding subnet records in the query results. Caused by VNets in subscriptions outside the query scope, deleted VNets with stale peering config, or cross-tenant VNets. Rendered with a dark-red node and cluster in the **Peering Diagram**, labelled `(!!) MISSING - SUB:<subscription>`.
 _Avoid_: phantom VNet, ghost VNet, unknown VNet
 
 
@@ -91,13 +91,13 @@ A diagram showing all VNets as labelled nodes grouped by **Subscription Island**
 
 **On-Premises (LNG) nodes** — placed at the top level, outside all Island clusters. One node per distinct set of Local Network Gateways. Label format:
 ```
-🌐 LNG:<name>
+[LNG] <name>
 PubIP:<ip>           (omitted if unknown)
 BGP ASN:<asn> Peer:<ip>   (omitted if BGP disabled)
 <cidr>
 ...
 ```
-When a gateway VNet has no LNG data, the fallback label is `🌐 GatewaySubnet: <vnet-name>`.
+When a gateway VNet has no LNG data, no external node is emitted (gateway VNets without LNG connections are skipped).
 
 Gateway VNets have a dotted edge to their LNG node. Standalone VNets (no peerings) appear as single-node subgraphs.
 
@@ -111,5 +111,5 @@ Edge rendering rules:
 
 - **Gap finder invariant**: All subnets passed to the gap finder for a given VNet_CIDR must be in non-decreasing IP order with no CIDR overlaps. Violated if subnets from overlapping VNet_CIDRs are mixed.
 - **Gap block boundary invariant**: A gap block must not cross a VNet_CIDR Boundary. Every gap row has exactly one label: `-vgap-` (inside a VNet_CIDR) or `-gap-` (outside all VNet_CIDRs).
-- **Excluded subnets stay in `Data`**: They are marked with `Subnet.excluded_by = Some(winner_vnet_name)` and skipped by the gap finder, but still emitted in the CSV.
+- **Excluded subnets stay in output**: They are carried in the `excluded: Vec<ExcludedSubnet>` list from `ConflictResolutionOutput`, skipped by the gap finder, but emitted in the CSV as `DUP_EXCL_VNET` rows (with winner VNet name appended to subnet name).
 - **No hardcoded exclusion list**: The old `filter_excluded_vnet_cidrs` / `default_vnet_cidrs_to_exclude` mechanism is removed. All conflicts are handled by generic overlap detection.
