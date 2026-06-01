@@ -267,12 +267,11 @@ pub fn write_peering_dot(
                 } else {
                     let cidr_str = meta.map(|m| m.vnet_cidr.join(", ")).unwrap_or_default();
                     let vnet_escaped = html_escape(vnet);
-                    let header = if cidr_str.is_empty() {
-                        format!("VNET: <B>{vnet_escaped}</B>")
+                    let mut parts: Vec<String> = if cidr_str.is_empty() {
+                        vec![format!("VNET: <B> {vnet_escaped} </B>")]
                     } else {
-                        format!("VNET: <B>{vnet_escaped}</B> VNet_CIDRs: {cidr_str}")
+                        vec![format!("VNET: <B> {vnet_escaped} </B>  VNet_CIDRs: {cidr_str}")]
                     };
-                    let mut parts: Vec<String> = vec![header];
                     // Subnets sorted by vnet_cidr start IP first, then subnet_cidr IP.
                     let mut vnet_subnets: Vec<&crate::models::Subnet> = subnets
                         .data
@@ -660,8 +659,8 @@ mod tests {
         let c = std::fs::read_to_string(f).unwrap();
         std::fs::remove_file(f).ok();
         assert!(
-            c.contains("<B>my-vnet</B>"),
-            "Node label must include bold VNet name:\n{c}"
+            c.contains("<B> my-vnet </B>"),
+            "Node label must include bold VNet name with padding:\n{c}"
         );
     }
 
@@ -819,8 +818,8 @@ mod tests {
         std::fs::remove_file(f).ok();
 
         assert!(
-            c.contains("<B>pd-ibe-westus-arm</B>"),
-            "VNet name must be bold in label:\n{c}"
+            c.contains("<B> pd-ibe-westus-arm </B>"),
+            "VNet name must be bold with padding in label:\n{c}"
         );
         assert!(
             c.contains("VNet_CIDRs:"),
